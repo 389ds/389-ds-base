@@ -88,6 +88,7 @@ DN_USERROOT_LDBM = "cn=userRoot,cn=ldbm database,cn=plugins,cn=config"
 DN_SCHEMA = "cn=schema"
 DN_MONITOR = "cn=monitor"
 DN_MONITOR_SNMP = "cn=snmp,cn=monitor"
+DN_MONITOR_MEMBEROF = "cn=MemberOf Plugin,cn=monitor"
 DN_MONITOR_LDBM = "cn=monitor,cn=ldbm database,cn=plugins,cn=config"
 DN_MONITOR_DATABASE = "cn=database,cn=monitor,cn=ldbm database,cn=plugins,cn=config"
 DN_PWDSTORAGE_SCHEMES = "cn=Password Storage Schemes,cn=plugins,cn=config"
@@ -161,6 +162,7 @@ DN_FIXUP_LINKED_ATTIBUTES = "cn=fixup linked attributes,%s" % DN_TASKS
 DN_AUTOMEMBER_REBUILD_TASK = "cn=automember rebuild membership,%s" % DN_TASKS
 DN_AUTOMEMBER_ABORT_REBUILD_TASK = "cn=automember abort rebuild,%s" % DN_TASKS
 DN_COMPACTDB_TASK = "cn=compact db,%s" % DN_TASKS
+DN_SHADOW_FIXUP_TASKS = "cn=fixup shadow attributes,%s" % DN_TASKS
 
 # Script Constants
 LDIF2DB = 'ldif2db'
@@ -187,6 +189,8 @@ RETROCL_SUFFIX = "cn=changelog"
 #
 ##################################
 CONTROL_DEREF = '1.3.6.1.4.1.4203.666.5.16'
+CONTROL_USE_ONE_BACKEND = '2.16.840.1.113730.3.4.14'
+CONTROL_USE_ONE_BACKEND_EXT = '2.16.840.1.113730.3.4.20'
 
 ##################################
 #
@@ -383,3 +387,7 @@ BDB_IMPL_STATUS = Enum('BDB_IMPL_STATUS', [
                        'BUNDLED',   # lib389 bundled rpm is installed
                        'READ_ONLY', # Read-only version is available
                        'NONE' ])    # bdb is not usasable
+
+# DB implementation
+DB_IMPL_BDB = "bdb"
+DB_IMPL_MDB = "mdb"

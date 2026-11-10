@@ -14,7 +14,7 @@ from lib389._constants import *
 from lib389.replica import Replicas, ReplicationManager
 from lib389.agreement import Agreements
 from lib389.dseldif import *
-from lib389.topologies import topology_m2c2 as topo_m2c2
+from test389.topologies import topology_m2c2 as topo_m2c2
 
 
 pytestmark = pytest.mark.tier1

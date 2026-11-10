@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -7,7 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.backend import Backend, Backends, DatabaseConfig, BackendSuffixView
+from lib389.backend import Backend, Backends, DatabaseConfig, BackendSuffixView, is_subsuffix_of
 from lib389.configurations.sample import (
     create_base_domain,
     create_base_org,
@@ -18,7 +18,7 @@ from lib389.configurations.sample import (
 from lib389.chaining import (ChainingLinks)
 from lib389.monitor import MonitorLDBM
 from lib389.replica import Replicas
-from lib389.utils import ensure_str, is_a_dn, is_dn_parent
+from lib389.utils import ensure_str, is_a_dn, is_dn_parent, parse_size, align_to_page_size
 from lib389.tasks import DBCompactTask
 from lib389._constants import INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES
@@ -74,6 +74,12 @@ arg_to_attr = {
         'search_scope': 'vlvscope',
         'search_filter': 'vlvfilter',
         'sort': 'vlvsort',
+        # Dynamic lists
+        'enable_dynamic_lists': 'nsslapd-dynamic-lists-enabled',
+        'disable_dynamic_lists': 'nsslapd-dynamic-lists-disabled',
+        'dynamic_oc': 'nsslapd-dynamic-lists-oc',
+        'dynamic_list_attr': 'nsslapd-dynamic-lists-attr',
+        'dynamic_url_attr': 'nsslapd-dynamic-lists-url-attr',
     }
 
 SINGULAR = Backend
@@ -263,7 +269,10 @@ def backend_import(inst, basedn, log, args):
     task = mc.import_ldif(ldifs=args.ldifs, chunk_size=args.chunks_size, encrypted=args.encrypted,
                           gen_uniq_id=args.gen_uniq_id, only_core=args.only_core, include_suffixes=args.include_suffixes,
                           exclude_suffixes=args.exclude_suffixes)
-    task.wait(timeout=args.timeout)
+    if args.watch:
+        task.watch()
+    else:
+        task.wait(timeout=args.timeout)
     result = task.get_exit_code()
     warning = task.get_task_warn()
 
@@ -298,7 +307,10 @@ def backend_export(inst, basedn, log, args):
                           encrypted=args.encrypted, min_base64=args.min_base64, no_dump_uniq_id=args.no_dump_uniq_id,
                           replication=args.replication, not_folded=args.not_folded, no_seq_num=args.no_seq_num,
                           include_suffixes=args.include_suffixes, exclude_suffixes=args.exclude_suffixes)
-    task.wait(timeout=args.timeout)
+    if args.watch:
+        task.watch()
+    else:
+        task.wait(timeout=args.timeout)
     result = task.get_exit_code()
 
     if task.is_complete() and result == 0:
@@ -331,6 +343,7 @@ def is_db_replicated(inst, suffix):
 def backend_get_subsuffixes(inst, basedn, log, args):
     subsuffixes = []
     be_insts = MANY(inst).list()
+    all_suffixes = {be.get_attr_val_utf8_l('nsslapd-suffix') for be in be_insts}
     for be in be_insts:
         be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
         if be_suffix == args.be_name.lower():
@@ -340,7 +353,7 @@ def backend_get_subsuffixes(inst, basedn, log, args):
                 db_type = "suffix"
                 sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
                 sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
-                if sub == be_suffix:
+                if is_subsuffix_of(sub, be_suffix, all_suffixes):
                     # We have a subsuffix (maybe a db link?)
                     if is_db_link(inst, sub_be):
                         db_type = "link"
@@ -392,38 +405,34 @@ def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
     }
 
 
-def backend_build_tree(inst, be_insts, nodes):
-    """Recursively build the tree
-    """
-    if len(nodes) == 0:
-        # Done
+def backend_build_tree(inst, be_insts, nodes, all_suffixes):
+    """Recursively build the tree."""
+    if not nodes:
         return
 
     for node in nodes:
-        node_suffix = node['id']
+        node_suffix = node['id'].lower()
         # Get sub suffixes and chaining of node
         for be in be_insts:
             be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
-            if be_suffix == node_suffix.lower():
+            if be_suffix == node_suffix:
                 # We have our parent, now find the children
                 mts = be._mts.list()
-
                 for mt in mts:
                     sub_parent = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
                     sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
                     sub_suffix = mt.get_attr_val_utf8_l('cn')
-                    if sub_parent == be_suffix:
+                    if is_subsuffix_of(sub_parent, be_suffix, all_suffixes):
                         # We have a subsuffix (maybe a db link?)
                         link = is_db_link(inst, sub_be)
                         replicated = is_db_replicated(inst, sub_suffix)
                         node['children'].append(build_node(sub_suffix,
-                                                        sub_be,
-                                                        subsuf=True,
-                                                        link=link,
-                                                        replicated=replicated))
-
+                                                           sub_be,
+                                                           subsuf=True,
+                                                           link=link,
+                                                           replicated=replicated))
                 # Recurse over the new subsuffixes
-                backend_build_tree(inst, be_insts, node['children'])
+                backend_build_tree(inst, be_insts, node['children'], all_suffixes)
                 break
 
 
@@ -464,7 +473,8 @@ def backend_get_tree(inst, basedn, log, args):
     else:
         # Build the tree
         be_insts = Backends(inst).list()
-        backend_build_tree(inst, be_insts, nodes)
+        all_suffixes = {be.get_attr_val_utf8_l('nsslapd-suffix') for be in be_insts}
+        backend_build_tree(inst, be_insts, nodes, all_suffixes)
 
         # Done
         if args.json:
@@ -504,6 +514,8 @@ def backend_set(inst, basedn, log, args):
         bev.set('nsslapd-cachesize', args.cache_size)
     if args.cache_memsize:
         bev.set('nsslapd-cachememsize', args.cache_memsize)
+    if args.cache_preserved_entries:
+        bev.set('nsslapd-cache-preserved-entries', args.cache_preserved_entries)
     if args.dncache_memsize:
         bev.set('nsslapd-dncachememsize', args.dncache_memsize)
     if args.require_index:
@@ -535,12 +547,39 @@ def db_config_set(inst, basedn, log, args):
     did_something = False
     replace_list = []
 
+    if getattr(args,'enable_dynamic_lists', None) and getattr(args, 'disable_dynamic_lists', None):
+        raise ValueError("You can not enable and disable dynamic lists at the same time")
+
     for attr, value in list(attrs.items()):
         if value == "":
             # We don't support deleting attributes or setting empty values in db
             continue
-        else:
-            replace_list.append([attr, value])
+
+        if attr == "nsslapd-dynamic-lists-enabled":
+            if value:
+                value = "on"
+            else:
+                continue
+        elif attr == "nsslapd-dynamic-lists-disabled":
+            attr = "nsslapd-dynamic-lists-enabled"
+            if value:
+                value = "off"
+            else:
+                continue
+
+        if attr == "nsslapd-mdb-max-size":
+            try:
+                mdb_max_size = parse_size(value)
+                # MDB max size requires pagesize alignment
+                mdb_max_size_aligned = align_to_page_size(mdb_max_size)
+                if mdb_max_size_aligned != mdb_max_size:
+                    log.info(f"Aligning MDB max size from {mdb_max_size} to nearest pagesize {mdb_max_size_aligned}")
+                value = str(mdb_max_size_aligned)
+            except ValueError:
+                raise ValueError(f"Invalid value for --mdb-max-size: {value}")
+
+        replace_list.append([attr, value])
+
     if len(replace_list) > 0:
         db_cfg.set(replace_list)
     elif not did_something:
@@ -642,7 +681,7 @@ def backend_del_index(inst, basedn, log, args):
 
 def backend_reindex(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
-    be.reindex(attrs=args.attr, wait=args.wait)
+    be.reindex(attrs=args.attr, wait=args.wait, watch=args.watch)
     log.info("Successfully reindexed database")
 
 
@@ -886,6 +925,7 @@ def create_parser(subparsers):
     set_backend_parser.add_argument('--disable', action='store_true', help='Disables the backend database')
     set_backend_parser.add_argument('--cache-size', help='Sets the maximum number of entries to keep in the entry cache')
     set_backend_parser.add_argument('--cache-memsize', help='Sets the maximum size in bytes that the entry cache can grow to')
+    set_backend_parser.add_argument('--cache-preserved-entries', help='Sets the maximum number of entries that are not evicted from the cache when trying to make space. This is typically used to keep very large groups in the cache')
     set_backend_parser.add_argument('--dncache-memsize', help='Sets the maximum size in bytes that the DN cache can grow to')
     set_backend_parser.add_argument('--state', help='Changes the backend state to: "backend", "disabled", "referral", or "referral on update"')
     set_backend_parser.add_argument('be_name', help='The backend name or suffix')
@@ -939,6 +979,7 @@ def create_parser(subparsers):
     reindex_parser.set_defaults(func=backend_reindex)
     reindex_parser.add_argument('--attr', action='append', help='Sets the name of the attribute to re-index. Omit this argument to re-index all attributes')
     reindex_parser.add_argument('--wait', action='store_true', help='Waits for the index task to complete and reports the status')
+    reindex_parser.add_argument('--watch', action='store_true', help='Watch the status of the reindexing task')
     reindex_parser.add_argument('be_name', help='The backend name or suffix')
 
     #############################################
@@ -1065,9 +1106,9 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--locks-monitoring-pause', help='Sets the DB lock monitoring value in milliseconds for the amount of time '
                                                                        'that the monitoring thread spends waiting between checks.')
     set_db_config_parser.add_argument('--import-cache-autosize', help='Enables or disables to automatically set the size of the import '
-                                                                       'cache to be used during the import process of LDIF files')
+                                                                      'cache to be used during the import process of LDIF files')
     set_db_config_parser.add_argument('--cache-autosize', help='Sets the percentage of free memory that is used in total for the database '
-                                                               'and entry cache. "0" disables this feature.')
+                                                               'and entry cache.')
     set_db_config_parser.add_argument('--cache-autosize-split', help='Sets the percentage of RAM that is used for the database cache. The '
                                                                      'remaining percentage is used for the entry cache')
     set_db_config_parser.add_argument('--import-cachesize', help='Sets the size in bytes of the database cache used in the import process.')
@@ -1085,10 +1126,15 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--deadlock-policy', help='Adjusts the backend database deadlock policy (Advanced setting)')
     set_db_config_parser.add_argument('--db-home-directory', help='Sets the directory for the database mmapped files (Advanced setting)')
     set_db_config_parser.add_argument('--db-lib', help='Sets which db lib is used. Valid values are: bdb or mdb')
-    set_db_config_parser.add_argument('--mdb-max-size', help='Sets the lmdb database maximum size (in bytes).')
+    set_db_config_parser.add_argument('--mdb-max-size', help='Sets the lmdb database maximum size (accepts bytes, or with unit suffix: k, m, g, t)')
     set_db_config_parser.add_argument('--mdb-max-readers', help='Sets the lmdb database maximum number of readers (Advanced setting)')
     set_db_config_parser.add_argument('--mdb-max-dbs', help='Sets the lmdb database maximum number of sub databases (Advanced setting)')
-
+    # Dynamic lists
+    set_db_config_parser.add_argument('--enable-dynamic-lists', action='store_true', help='Enables dynamic lists')
+    set_db_config_parser.add_argument('--disable-dynamic-lists', action='store_true', help='Disables dynamic lists')
+    set_db_config_parser.add_argument('--dynamic-oc', help='Sets the objectclass for dynamic lists')
+    set_db_config_parser.add_argument('--dynamic-url-attr', help='Sets the url attribute for dynamic lists')
+    set_db_config_parser.add_argument('--dynamic-list-attr', help='Sets the list attribute for dynamic lists')
 
     #######################################################
     # Database & Suffix Monitor
@@ -1127,6 +1173,8 @@ def create_parser(subparsers):
                                help="Specifies the suffixes to be excluded")
     import_parser.add_argument('--timeout', type=int, default=0,
                                help="Set a timeout to wait for the export task.  Default is 0 (no timeout)")
+    import_parser.add_argument('-w', '--watch', action='store_true',
+                               help="Watch the status of the import")
 
     #######################################################
     # Export LDIF
@@ -1158,6 +1206,8 @@ def create_parser(subparsers):
                                help="Specifies the suffixes to be excluded")
     export_parser.add_argument('--timeout', default=0, type=int,
                                help="Set a timeout to wait for the export task.  Default is 0 (no timeout)")
+    export_parser.add_argument('-w', '--watch', action='store_true',
+                               help="Watch the status of the export")
 
     #######################################################
     # Create a new backend database

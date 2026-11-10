@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * Copyright (C) 2009, 2010 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -36,6 +36,9 @@
 #include <sys/socket.h>
 #include "slap.h"
 #include "pratom.h"
+#ifdef ENABLE_HIBP
+#include "hibp.h"
+#endif
 #if defined(irix) || defined(aix)
 #include <time.h>
 #endif
@@ -65,34 +68,6 @@ mod_op_image(int op)
     return "???";
 }
 #endif
-
-/* an AttrCheckFunc function should return an LDAP result code (LDAP_SUCCESS if all goes well). */
-typedef int (*AttrCheckFunc)(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
-
-static struct attr_value_check
-{
-    const char *attr_name; /* the name of the attribute */
-    AttrCheckFunc checkfunc;
-    long minval;
-    long maxval;
-} AttrValueCheckList[] = {
-    {CONFIG_PW_SYNTAX_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_CHANGE_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_LOCKOUT_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_MUSTCHANGE_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_EXP_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_UNLOCK_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_HISTORY_ATTRIBUTE, attr_check_onoff, 0, 0},
-    {CONFIG_PW_MINAGE_ATTRIBUTE, check_pw_duration_value, -1, -1},
-    {CONFIG_PW_WARNING_ATTRIBUTE, check_pw_duration_value, 0, -1},
-    {CONFIG_PW_MINLENGTH_ATTRIBUTE, attr_check_minmax, 2, 512},
-    {CONFIG_PW_MAXFAILURE_ATTRIBUTE, attr_check_minmax, 1, 32767},
-    {CONFIG_PW_INHISTORY_ATTRIBUTE, attr_check_minmax, 1, 24},
-    {CONFIG_PW_LOCKDURATION_ATTRIBUTE, check_pw_duration_value, -1, -1},
-    {CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE, check_pw_resetfailurecount_value, -1, -1},
-    {CONFIG_PW_GRACELIMIT_ATTRIBUTE, attr_check_minmax, 0, -1},
-    {CONFIG_PW_STORAGESCHEME_ATTRIBUTE, check_pw_storagescheme_value, -1, -1},
-    {CONFIG_PW_MAXAGE_ATTRIBUTE, check_pw_duration_value, -1, -1}};
 
 /* This function is called to process operation that come over external connections */
 void
@@ -124,7 +99,7 @@ do_modify(Slapi_PBlock *pb)
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR,
                          NULL, "operation is NULL parameter", 0, NULL);
         slapi_log_err(SLAPI_LOG_ERR, "do_modify",
-            "NULL param:  pb_conn (0x%p) operation (0x%p)\n", pb_conn, operation);
+            "NULL param: pb_conn (0x%p) operation (0x%p)\n", pb_conn, operation);
         return;
     }
 
@@ -291,7 +266,7 @@ do_modify(Slapi_PBlock *pb)
             slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
             slapi_log_err(SLAPI_LOG_ERR, "do_modify",
                           "Rejecting replicated password policy operation(conn=%"PRIu64" op=%d) for "
-                          "entry %s.  To allow these changes to be accepted, set passwordIsGlobalPolicy to 'on' in "
+                          "entry %s. To allow these changes to be accepted, set passwordIsGlobalPolicy to 'on' in "
                           "cn=config.\n",
                           connid, opid, rawdn);
         }
@@ -378,6 +353,7 @@ do_modify(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &normalized_mods);
     ldap_mods_free(normalized_mods, 1 /* Free the Array and the Elements */);
+    slapi_pblock_set(pb, SLAPI_MODIFY_MODS, NULL);
 
 free_and_return:;
     slapi_ch_free_string(&old_pw);
@@ -489,6 +465,57 @@ slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod 
     slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, plugin_identity);
 }
 
+/* Performs a single LDAP modify operation with error overrides.
+ *
+ * If specific errors occur, such as attempting to add an existing attribute or
+ * delete a non-existent one, the function overrides the error and returns success:
+ *   - LDAP_MOD_ADD -> LDAP_TYPE_OR_VALUE_EXISTS (ignored)
+ *   - LDAP_MOD_DELETE -> LDAP_NO_SUCH_ATTRIBUTE (ignored)
+ *
+ * Any other errors encountered during the operation will be returned as-is.
+ */
+int
+slapi_single_modify_internal_override(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mod, Slapi_ComponentId *plugin_id, int op_flags)
+{
+    int rc = 0;
+    int result = 0;
+    int result_reset = 0;
+    int mod_op = 0;
+
+    if (!pb || !sdn || !mod || !mod[0]) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_single_modify_internal_override",
+                    "Invalid argument: %s%s%s%s is NULL\n",
+                    !pb ? "pb " : "",
+                    !sdn ? "sdn " : "",
+                    !mod ? "mod " : "",
+                    !mod || !mod[0] ? "mod[0] " : "");
+
+        return LDAP_PARAM_ERROR;
+    }
+
+    slapi_modify_internal_set_pb_ext(pb, sdn, mod, NULL, NULL, plugin_id, op_flags);
+    slapi_modify_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+
+    if (result != LDAP_SUCCESS) {
+        mod_op = mod[0]->mod_op & LDAP_MOD_OP;
+        if ((mod_op == LDAP_MOD_ADD && result == LDAP_TYPE_OR_VALUE_EXISTS) ||
+            (mod_op == LDAP_MOD_DELETE && result == LDAP_NO_SUCH_ATTRIBUTE)) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_single_modify_internal_override",
+                            "Overriding return code - plugin:%s dn:%s mod_op:%d result:%d\n",
+                            plugin_id ? plugin_id->sci_component_name : "unknown",
+                            sdn ? sdn->udn : "unknown", mod_op, result);
+
+                slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &result_reset);
+                rc = LDAP_SUCCESS;
+            } else {
+                rc = result;
+            }
+    }
+
+    return rc;
+}
+
 /* Helper functions */
 
 static int
@@ -547,6 +574,7 @@ modify_internal_pb(Slapi_PBlock *pb)
             if (pw_change == -1) {
                 /* The internal result code will already have been set by op_shared_allow_pw_change() */
                 ldap_mods_free(normalized_mods, 1);
+                slapi_ch_free_string(&old_pw);
                 return 0;
             }
         }
@@ -570,6 +598,7 @@ modify_internal_pb(Slapi_PBlock *pb)
     /* perform modify operation */
     slapi_td_internal_op_start();
     op_shared_modify(pb, pw_change, old_pw);
+    slapi_ch_free_string(&old_pw);
     slapi_td_internal_op_finish();
 
     /* free the normalized_mods don't forget to add this*/
@@ -608,7 +637,6 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
     int err;
     LDAPMod *lc_mod = NULL;
     struct slapdplugin *p = NULL;
-    int numattr;
     char *proxydn = NULL;
     int proxy_err = LDAP_SUCCESS;
     char *errtext = NULL;
@@ -658,9 +686,9 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
             proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
 
+        slapd_log_pblock_init(&logpb, log_format, pb);
         if (!internal_op) {
             if (log_format != LOG_FORMAT_DEFAULT) {
-                slapd_log_pblock_init(&logpb, log_format, pb);
                 logpb.target_dn = slapi_sdn_get_dn(sdn);
                 logpb.authzid = proxydn;
                 slapd_log_access_mod(&logpb);
@@ -680,7 +708,6 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
             time_t start_time;
             get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
             if (log_format != LOG_FORMAT_DEFAULT) {
-                logpb.log_format = log_format;
                 logpb.conn_time = start_time;
                 logpb.conn_id = connid;
                 logpb.op_id = op_id;
@@ -688,6 +715,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
                 logpb.op_nested_count = op_nested_count;
                 logpb.target_dn = slapi_sdn_get_dn(sdn);
                 logpb.authzid = proxydn;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_mod(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_ARGS,
@@ -741,42 +769,13 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
 
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
 
-    /* The following section checks the valid values of fine-grained
-     * password policy attributes.
-     * 1. First, it checks if the entry has "passwordpolicy" objectclass.
-     * 2. If yes, then if the mods contain any passwdpolicy specific attributes.
-     * 3. If yes, then it invokes corrosponding checking function.
-     */
+    /* Validate password policy attrs */
     if (!repl_op && !internal_op && normdn && slapi_search_get_entry(&entry_pb, sdn, NULL, &e, NULL) == LDAP_SUCCESS) {
-        Slapi_Value target;
-        slapi_value_init(&target);
-        slapi_value_set_string(&target, "passwordpolicy");
-        if ((slapi_entry_attr_has_syntax_value(e, "objectclass", &target)) == 1) {
-            numattr = sizeof(AttrValueCheckList) / sizeof(AttrValueCheckList[0]);
-            while (tmpmods && *tmpmods) {
-                if ((*tmpmods)->mod_bvalues != NULL &&
-                    !SLAPI_IS_MOD_DELETE((*tmpmods)->mod_op)) {
-                    for (size_t i = 0; i < numattr; i++) {
-                        if (slapi_attr_type_cmp((*tmpmods)->mod_type,
-                                                AttrValueCheckList[i].attr_name, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
-                            /* The below function call is good for
-                             * single-valued attrs only
-                             */
-                            if ((err = AttrValueCheckList[i].checkfunc(AttrValueCheckList[i].attr_name,
-                                                                       (*tmpmods)->mod_bvalues[0]->bv_val, AttrValueCheckList[i].minval,
-                                                                       AttrValueCheckList[i].maxval, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
-                                /* return error */
-                                send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
-                                goto free_and_return;
-                            }
-                        }
-                    }
-                }
-                tmpmods++;
-            } /* end of (while */
-        }     /* end of if (found */
-        value_done(&target);
-    } /* end of if (!repl_op */
+        if ((err = check_pw_policy_attrs(e, tmpmods, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
+            send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
+            goto free_and_return;
+        }
+    }
 
     /* can get lastmod only after backend is selected */
     slapi_pblock_get(pb, SLAPI_BE_LASTMOD, &lastmod);
@@ -1037,6 +1036,60 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
          * but it will detect that the password is already hashed.
          */
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+#ifdef ENABLE_HIBP
+        /* Check rootpw against breach database before hashing. Only check
+         * if the requestor is root, unauth users will be rejected by DSE ACL. */
+        int isroot = 0;
+        slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
+        slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+        if (isroot && slapdFrontendConfig->pw_policy.pw_check_breach) {
+            passwdPolicy rootpw_policy = {0};
+            rootpw_policy.pw_check_breach = LDAP_ON;
+            rootpw_policy.pw_breach_db_url = config_get_pw_breach_url();
+            rootpw_policy.pw_breach_db_timeout = slapdFrontendConfig->pw_policy.pw_breach_db_timeout;
+            for (size_t i = 0; mods && mods[i]; i++) {
+                if (strcasecmp(mods[i]->mod_type, CONFIG_ROOTPW_ATTRIBUTE) == 0 && mods[i]->mod_bvalues) {
+                    /* Cap cleartext password values to prevent worker pool exhaustion */
+                    size_t cleartext_count = 0;
+                    for (size_t j = 0; mods[i]->mod_bvalues[j]; j++) {
+                        char *val = mods[i]->mod_bvalues[j]->bv_val;
+                        if (val && !slapi_is_encoded(val)) {
+                            cleartext_count++;
+                        }
+                    }
+                    if (cleartext_count > HIBP_MAX_PASSWORDS_PER_OP) {
+                        slapi_log_err(SLAPI_LOG_ERR, "op_shared_modify",
+                            "Too many cleartext rootpw values (%zu) - max %d allowed\n",
+                            cleartext_count, HIBP_MAX_PASSWORDS_PER_OP);
+                        slapi_ch_free_string(&rootpw_policy.pw_breach_db_url);
+                        send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                            "Too many password values in single operation", 0, NULL);
+                        goto free_and_return;
+                    }
+
+                    for (size_t j = 0; mods[i]->mod_bvalues[j]; j++) {
+                        char *val = mods[i]->mod_bvalues[j]->bv_val;
+                        if (val && !slapi_is_encoded(val)) {
+                            int breach_count = hibp_check_password(val, &rootpw_policy);
+                            if (breach_count > 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_modify",
+                                    "Rejecting rootDN password - found in breach database (%d occurrences)\n",
+                                    breach_count);
+                                slapi_ch_free_string(&rootpw_policy.pw_breach_db_url);
+                                send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                    "Password found in breach database - choose a different password", 0, NULL);
+                                goto free_and_return;
+                            } else if (breach_count < 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_modify",
+                                    "Failed to check rootDN password against breach database - allowing (fail-open)\n");
+                            }
+                        }
+                    }
+                }
+            }
+            slapi_ch_free_string(&rootpw_policy.pw_breach_db_url);
+        }
+#endif
         if (hash_rootpw(mods) != 0) {
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                              "Failed to hash root user's password", 0, NULL);
@@ -1170,6 +1223,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     int32_t needpw = 0;
     int32_t log_format = config_get_accesslog_log_format();
     slapd_log_pblock logpb = {0};
+    bool free_bogus_entry = false;
 
     slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
     if (repl_op) {
@@ -1238,6 +1292,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
             e = slapi_entry_alloc();
             slapi_entry_init(e, NULL, NULL);
             slapi_sdn_set_dn_byref(slapi_entry_get_sdn(e), dn);
+            free_bogus_entry = true;
         }
 
         /* Set the backend in the pblock.  The slapi_access_allowed function
@@ -1273,6 +1328,63 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
         /* done with slapi entry e */
         slapi_search_get_entry_done(&entry_pb);
 
+#ifdef ENABLE_HIBP
+        /* Check password against breach database after ACI validation (admin bypass) */
+        if (!SLAPI_IS_MOD_DELETE(mod->mod_op) && pwpolicy->pw_check_breach && mod->mod_bvalues) {
+            if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
+                slapi_log_err(SLAPI_LOG_DEBUG, "op_shared_allow_pw_change",
+                    "Skipping breach check for %s - admin bypass\n", dn);
+            } else {
+                Slapi_Value **breach_vals = NULL;
+                valuearray_init_bervalarray(mod->mod_bvalues, &breach_vals);
+                if (breach_vals) {
+                    /* Cap cleartext password values to prevent worker pool exhaustion. */
+                    size_t cleartext_count = 0;
+                    for (size_t i = 0; breach_vals[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(breach_vals[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            cleartext_count++;
+                        }
+                    }
+                    if (cleartext_count > HIBP_MAX_PASSWORDS_PER_OP) {
+                        slapi_log_err(SLAPI_LOG_ERR, "op_shared_allow_pw_change",
+                            "Too many cleartext password values (%zu) for %s - max %d allowed\n",
+                            cleartext_count, dn, HIBP_MAX_PASSWORDS_PER_OP);
+                        send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                            "Too many password values in single operation", 0, NULL);
+                        valuearray_free(&breach_vals);
+                        rc = -1;
+                        goto done;
+                    }
+
+                    for (size_t i = 0; breach_vals[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(breach_vals[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            int breach_count = hibp_check_password(pwd, pwpolicy);
+                            if (breach_count > 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                                    "Password for %s found in breach database (%d occurrences)\n",
+                                    dn, breach_count);
+                                if (pwresponse_req == 1) {
+                                    slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+                                }
+                                send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                    "Password found in breach database - choose a different password", 0, NULL);
+                                valuearray_free(&breach_vals);
+                                rc = -1;
+                                goto done;
+                            } else if (breach_count < 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_allow_pw_change",
+                                    "Failed to check password against breach database for %s\n", dn);
+                            }
+                        }
+                    }
+                    valuearray_free(&breach_vals);
+                }
+            }
+        }
+#endif
+
         /*
          * If this mod is being performed by a password administrator/rootDN,
          * just return success.
@@ -1293,7 +1405,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                 slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED);
             }
             slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
-                          "user is not allowed to change password.  Entry (%s) Policy (%s)\n",
+                          "User is not allowed to change password: Entry (%s) Policy (%s)\n",
                           slapi_sdn_get_dn(&sdn),
                           pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
@@ -1319,6 +1431,15 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
             rc = -1;
             goto done;
         }
+    } else if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
+        /* This is an internal operation, but we still need to check if this
+           is a password admin */
+        if (!SLAPI_IS_MOD_DELETE(mod->mod_op) && pwpolicy->pw_history) {
+            /* Updating pw history, get the old password */
+            get_old_pw(pb, &sdn, old_pw);
+        }
+        rc = 1;
+        goto done;
     }
 
     /* check if password is within password minimum age;
@@ -1349,6 +1470,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                     logpb.op_nested_count = 0;
                     logpb.authzid = proxydn;
                     logpb.msg = "within password minimum age";
+                    logpb.level = LDAP_DEBUG_ARGS;
                     slapd_log_access_mod(&logpb);
                 } else {
                     slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",
@@ -1399,6 +1521,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                     logpb.op_nested_count = 0;
                     logpb.authzid = proxydn;
                     logpb.msg = "invalid password syntax";
+                    logpb.level = LDAP_DEBUG_ARGS;
                     slapd_log_access_mod(&logpb);
                 } else {
                     slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",
@@ -1424,6 +1547,9 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     valuearray_free(&values);
 
 done:
+    if (free_bogus_entry) {
+        slapi_entry_free(e);
+    }
     slapi_sdn_done(&sdn);
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);

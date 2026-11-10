@@ -25,11 +25,9 @@ import {
 	ValidatedOptions
 } from '@patternfly/react-core';
 import {
-	Select,
-	SelectOption,
-	SelectVariant,
 	Wizard
 } from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../../../dsBasicComponents.jsx";
 import LdapNavigator from '../../lib/ldapNavigator.jsx';
 import {
     createLdapEntry,
@@ -111,7 +109,9 @@ class AddGroup extends React.Component {
                                 myLdifArray,
                                 (result) => {
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? _("Group successfully created!") : _("Failed to create group, error: ") + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ?
+                                            _("Group successfully created!") :
+                                            _("Failed to create group: ") + result.output,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                     }, () => {
@@ -134,9 +134,9 @@ class AddGroup extends React.Component {
         };
 
         this.handleBack = ({ id }) => {
-            if (id === 5) {
-                this.updateValuesTableRows(true);
-            }
+            this.setState({
+                stepIdReached: id
+            });
         };
 
         this.handleSearchClick = () => {
@@ -334,18 +334,15 @@ class AddGroup extends React.Component {
 
                 </div>
                 <div className="ds-indent">
-                    <Select
-                        variant={SelectVariant.single}
+                    <TypeaheadSelect
                         className="ds-margin-top-lg"
-                        aria-label="Select group type"
+                        ariaLabel="Select group type"
                         onToggle={(event, isOpen) => this.handleToggleType(event, isOpen)}
                         onSelect={this.handleSelectType}
-                        selections={this.state.groupType}
+                        selected={this.state.groupType}
                         isOpen={this.state.isOpenType}
-                    >
-                        <SelectOption key="group" value="Basic Group" />
-                        <SelectOption key="posix" value="Posix Group" />
-                    </Select>
+                        options={["Basic Group", "Posix Group"]}
+                    />
                     <TextContent className="ds-margin-top-xlg">
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
                             <b>{_("Basic Group")}</b>{_("- This type of group can use membership attributes: member, or uniqueMember common set of objectclasses and attributes.")}
@@ -530,6 +527,7 @@ class AddGroup extends React.Component {
                                         skipLeafEntries
                                         handleNodeOnClick={this.onBaseDnSelection}
                                         showTreeLoadingState={this.showTreeLoadingState}
+                                        addNotification={this.props.addNotification}
                                     />
                                 </CardBody>
                             </Card>
@@ -540,7 +538,7 @@ class AddGroup extends React.Component {
         );
 
         const ldifListItems = ldifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -636,14 +634,19 @@ class AddGroup extends React.Component {
                 component: groupReviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 6,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding
             }
         ];
 
         const title = (
             <>
-                {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {_("Parent DN: ")}&nbsp;&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {stepIdReached >= 2 &&
+                    <>
+                        <br />Group type:&nbsp;&nbsp;<strong>{this.state.groupType}</strong>
+                    </>
+                }
             </>
         );
 

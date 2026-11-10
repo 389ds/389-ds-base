@@ -12,7 +12,7 @@ import pytest
 import os
 import time
 from lib389._constants import DEFAULT_SUFFIX, PASSWORD
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.pwpolicy import PwPolicyManager
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
@@ -116,7 +116,7 @@ def test_debug_logging(topo):
         local_user.replace('userpassword', passwd_val)
     time.sleep(1)
 
-    err_msg = "PWDPOLICY_DEBUG - invalid password syntax - password must be at least 6 characters long: Entry " + \
+    err_msg = "PWDPOLICY_DEBUG - Invalid password syntax - password must be at least 6 characters long: Entry " + \
               "\\(uid=local_user,ou=people,dc=example,dc=com\\) Policy \\(cn="
     assert inst.searchErrorsLog(err_msg)
 
@@ -126,7 +126,7 @@ def test_debug_logging(topo):
         global_user.replace('userpassword', passwd_val)
     time.sleep(1)
 
-    err_msg = "PWDPOLICY_DEBUG - invalid password syntax - password must be at least 8 characters long: Entry " + \
+    err_msg = "PWDPOLICY_DEBUG - Invalid password syntax - password must be at least 8 characters long: Entry " + \
               "\\(uid=global_user,ou=global,dc=example,dc=com\\) Policy \\(Global\\)"
     assert inst.searchErrorsLog(err_msg)
 

@@ -383,6 +383,7 @@ seq_internal_callback_pb(Slapi_PBlock *pb, void *callback_data, plugin_result_ca
     set_common_params(pb);
 
     slapi_td_internal_op_start();
+    slapi_operation_set_time_started(op);
     if (be->be_seq != NULL) {
         rc = (*be->be_seq)(pb);
     } else {

@@ -1,6 +1,6 @@
 import React from "react";
 import cockpit from "cockpit";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     AgmtTable,
@@ -35,7 +35,7 @@ export class ReplAgmtMonitor extends React.Component {
             "repl-agmt", "poke", "--suffix=" + this.props.suffix, agmt_name];
         log_cmd("pokeAgmt", "Awaken the agreement", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
@@ -43,10 +43,10 @@ export class ReplAgmtMonitor extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to poke replication agreement $0 - $1"), agmt_name, errMsg.desc)
+                        cockpit.format(_("Failed to poke replication agreement $0 - $1"), agmt_name, errMsg)
                     );
                 });
     }

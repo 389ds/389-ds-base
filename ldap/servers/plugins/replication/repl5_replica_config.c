@@ -200,10 +200,17 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
     replica_add_by_dn(replica_root);
 
     mtnode_ext = _replica_config_get_mtnode_ext(e);
-    PR_ASSERT(mtnode_ext);
-
+    if (mtnode_ext == NULL) {
+        if (errortext != NULL) {
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "replica root '%s' does not exist", replica_root);
+        }
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - replica root '%s' does not exist",
+            replica_root);
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
+        goto done;
+    }
     if (mtnode_ext->replica) {
-        if ( errortext != NULL ) {
+        if (errortext != NULL) {
             PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, MSG_ALREADYCONFIGURED, replica_root);
         }
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - "MSG_ALREADYCONFIGURED, replica_root);
@@ -227,15 +234,16 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
 
     /* add replica object to the hash */
     *returncode = replica_add_by_name(replica_get_name(r), r); /* Increments object refcnt */
-    /* delete the dn from the dn hash - done with configuration */
-    replica_delete_by_dn(replica_root);
 
 done:
+
+    /* delete the dn from the dn hash - done with configuration */
+    replica_delete_by_dn(replica_root);
 
     PR_Unlock(s_configLock);
 
     if (*returncode != LDAP_SUCCESS) {
-        if (mtnode_ext->replica)
+        if (mtnode_ext && mtnode_ext->replica)
             object_release(mtnode_ext->replica);
         return SLAPI_DSE_CALLBACK_ERROR;
     } else
@@ -968,6 +976,7 @@ replica_config_change_type_and_id(Replica *r, const char *new_type, const char *
                 ruv_delete_replica(ruv, oldrid);
                 cl5CleanRUV(oldrid, r);
                 replica_set_csn_assigned(r);
+                object_release(gen_obj);
             }
             object_release(ruv_obj);
         }
@@ -1297,6 +1306,78 @@ _replica_config_get_mtnode_ext(const Slapi_Entry *e)
     return ext;
 }
 
+/* Helper callback to collect replica roots into a charray */
+static int
+replica_collect_root_callback(Replica *r, void *arg)
+{
+    char ***roots = (char ***)arg;
+    const char *root = slapi_sdn_get_dn(replica_get_root(r));
+
+    if (root) {
+        charray_add(roots, slapi_ch_strdup(root));
+    }
+    return 0;
+}
+
+/*
+ * Enumerate replicas without holding locks during callbacks.
+ * This function is slower than replica_enumerate_replicas buf safer
+ * as it prevents deadlocks when callbacks need to acquire other locks.
+ *
+ * Algorithm:
+ * 1. Collect replica roots with hash lock held (brief)
+ * 2. For each root, get mapping tree node
+ * 3. Hold s_configLock briefly to safely access mtnode_ext->replica
+ * 4. Acquire object reference to keep replica alive
+ * 5. Call callback without any locks held
+ * 6. Release object reference
+ */
+void
+replica_config_enumerate_replicas(FNEnumReplica fn, void *arg)
+{
+    char **roots = NULL;
+
+    /* Step 1: Collect replica roots using the hash lock */
+    replica_enumerate_replicas(replica_collect_root_callback, &roots);
+
+    /* Step 2: Iterate without holding the hash lock */
+    if (roots) {
+        for (size_t i = 0; roots[i] != NULL; i++) {
+            Slapi_DN sdn;
+            mapping_tree_node *mtnode;
+            multisupplier_mtnode_extension *mtnode_ext;
+            Object *replica_obj = NULL;
+            Replica *r;
+
+            slapi_sdn_init_dn_byval(&sdn, roots[i]);
+
+            /* CRITICAL: Hold s_configLock when accessing mapping tree and mtnode_ext */
+            PR_Lock(s_configLock);
+            mtnode = slapi_get_mapping_tree_node_by_dn(&sdn);
+            if (mtnode) {
+                mtnode_ext = (multisupplier_mtnode_extension *)repl_con_get_ext(REPL_CON_EXT_MTNODE, mtnode);
+                if (mtnode_ext && mtnode_ext->replica) {
+                    replica_obj = mtnode_ext->replica;
+                    object_acquire(replica_obj);  /* Acquire while lock held */
+                }
+            }
+            PR_Unlock(s_configLock);
+
+            slapi_sdn_done(&sdn);
+
+            if (replica_obj) {
+                r = (Replica *)object_get_data(replica_obj);
+                if (r) {
+                    fn(r, arg);  /* Call without any locks held */
+                }
+                object_release(replica_obj);
+                replica_obj = NULL;
+            }
+        }
+        charray_free(roots);
+    }
+}
+
 
 /* This thread runs the tests of csn generator.
  * It will log a set of csn generated while simulating local and remote time skews
@@ -1305,6 +1386,7 @@ _replica_config_get_mtnode_ext(const Slapi_Entry *e)
 void
 replica_csngen_test_thread(void *arg)
 {
+    slapi_set_thread_name("csn-test");
     csngen_test_data *data = (csngen_test_data *)arg;
     int rc = 0;
     if (data->task) {

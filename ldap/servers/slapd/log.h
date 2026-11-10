@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2022-2024 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -67,6 +67,13 @@
 #define LOGFILE_NEW      0
 #define LOGFILE_REOPENED 1
 
+/*
+ * Context for log__delete_*_logfile(): rotation preamble enforces maxnumlogs
+ * before adding a new archived file; retention passes apply expiration and
+ * disk policies only.
+ */
+#define LOG_DELETE_AT_ROTATION true
+#define LOG_DELETE_RETENTION   false
 
 #define LOG_UNIT_TYPE_UNKNOWN "unknown"
 #define LOG_UNIT_TYPE_MONTHS  "month"
@@ -87,7 +94,7 @@ struct logfileinfo
 {
     PRInt64 l_size;             /* size is in bytes */
     time_t l_ctime;             /* log creation time*/
-    PRBool l_compressed;        /* log was compressed */
+    bool l_compressed;          /* log was compressed */
     struct logfileinfo *l_next; /* next log */
 };
 typedef struct logfileinfo LogFileInfo;
@@ -99,6 +106,8 @@ struct logbufinfo
     size_t maxsize;    /* size of buffer */
     PRLock *lock;      /* lock for access logging */
     uint64_t refcount; /* Reference count for buffer copies */
+    struct logbufinfo *next; /* access log writer queue or free list */
+    int sync_now;            /* access log writer: sync to disk after the write */
 };
 typedef struct logbufinfo LogBufferInfo;
 
@@ -128,7 +137,8 @@ struct logging_opts
     time_t log_access_ctime;             /* log creation time */
     LogFileInfo *log_access_logchain;    /* all the logs info */
     char *log_accessinfo_file;           /* access log rotation info file */
-    LogBufferInfo *log_access_buffer;    /* buffer for access log */
+    LogBufferInfo *log_access_buffer;    /* active buffer for access log */
+    PRLock *log_access_lock;             /* access log file and rotation lock */
     int log_access_compress;             /* Compress rotated logs */
     int log_access_stat_level;           /* statistics level in access log file */
 
@@ -246,30 +256,48 @@ struct logging_opts
 #define LOGGING_NEED_TITLE 0x2 /* need to write title */
 #define LOGGING_COMPRESS_ENABLED (int)0x1 /* log compression is enabled */
 
-#define LOG_ACCESS_LOCK_READ()    PR_Lock(loginfo.log_access_buffer->lock)
-#define LOG_ACCESS_UNLOCK_READ()  PR_Unlock(loginfo.log_access_buffer->lock)
-#define LOG_ACCESS_LOCK_WRITE()   PR_Lock(loginfo.log_access_buffer->lock)
-#define LOG_ACCESS_UNLOCK_WRITE() PR_Unlock(loginfo.log_access_buffer->lock)
+void logs_maintenance_shutdown(void);
+void log_maint_submit_pending(int logtype);
+
+#define LOG_ACCESS_LOCK_READ()    PR_Lock(loginfo.log_access_lock)
+#define LOG_ACCESS_UNLOCK_READ()  PR_Unlock(loginfo.log_access_lock)
+#define LOG_ACCESS_LOCK_WRITE()   PR_Lock(loginfo.log_access_lock)
+#define LOG_ACCESS_UNLOCK_WRITE() do { \
+        PR_Unlock(loginfo.log_access_lock); \
+        log_maint_submit_pending(SLAPD_ACCESS_LOG); \
+    } while (0)
 
 #define LOG_SECURITY_LOCK_READ()    PR_Lock(loginfo.log_security_buffer->lock)
 #define LOG_SECURITY_UNLOCK_READ()  PR_Unlock(loginfo.log_security_buffer->lock)
 #define LOG_SECURITY_LOCK_WRITE()   PR_Lock(loginfo.log_security_buffer->lock)
-#define LOG_SECURITY_UNLOCK_WRITE() PR_Unlock(loginfo.log_security_buffer->lock)
+#define LOG_SECURITY_UNLOCK_WRITE() do { \
+        PR_Unlock(loginfo.log_security_buffer->lock); \
+        log_maint_submit_pending(SLAPD_SECURITY_LOG); \
+    } while (0)
 
 #define LOG_ERROR_LOCK_READ()    slapi_rwlock_rdlock(loginfo.log_error_rwlock)
 #define LOG_ERROR_UNLOCK_READ()  slapi_rwlock_unlock(loginfo.log_error_rwlock)
 #define LOG_ERROR_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_error_rwlock)
-#define LOG_ERROR_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_error_rwlock)
+#define LOG_ERROR_UNLOCK_WRITE() do { \
+        slapi_rwlock_unlock(loginfo.log_error_rwlock); \
+        log_maint_submit_pending(SLAPD_ERROR_LOG); \
+    } while (0)
 
 #define LOG_AUDIT_LOCK_READ()    PR_Lock(loginfo.log_audit_buffer->lock)
 #define LOG_AUDIT_UNLOCK_READ()  PR_Unlock(loginfo.log_audit_buffer->lock)
 #define LOG_AUDIT_LOCK_WRITE()   PR_Lock(loginfo.log_audit_buffer->lock)
-#define LOG_AUDIT_UNLOCK_WRITE() PR_Unlock(loginfo.log_audit_buffer->lock)
+#define LOG_AUDIT_UNLOCK_WRITE() do { \
+        PR_Unlock(loginfo.log_audit_buffer->lock); \
+        log_maint_submit_pending(SLAPD_AUDIT_LOG); \
+    } while (0)
 
 #define LOG_AUDITFAIL_LOCK_READ()    PR_Lock(loginfo.log_auditfail_buffer->lock)
 #define LOG_AUDITFAIL_UNLOCK_READ()  PR_Unlock(loginfo.log_auditfail_buffer->lock)
 #define LOG_AUDITFAIL_LOCK_WRITE()   PR_Lock(loginfo.log_auditfail_buffer->lock)
-#define LOG_AUDITFAIL_UNLOCK_WRITE() PR_Unlock(loginfo.log_auditfail_buffer->lock)
+#define LOG_AUDITFAIL_UNLOCK_WRITE() do { \
+        PR_Unlock(loginfo.log_auditfail_buffer->lock); \
+        log_maint_submit_pending(SLAPD_AUDITFAIL_LOG); \
+    } while (0)
 
 /* For using with slapi_log_access */
 #define TBUFSIZE 75                         /* size for time buffers */

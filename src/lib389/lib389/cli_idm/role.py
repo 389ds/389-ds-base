@@ -16,19 +16,22 @@ from lib389.idm.role import (
     FilteredRoles,
     NestedRoles,
     MUST_ATTRIBUTES,
+    MUST_ATTRIBUTES_FILTERED,
     MUST_ATTRIBUTES_NESTED,
     RDN,
-)
+    )
+from lib389.cli_idm import (
+    _generic_create,
+    _generic_delete,
+    _generic_list,
+    _generic_get,
+    _generic_get_dn,
+    )
 from lib389.cli_base import (
     populate_attr_arguments,
     _get_arg,
     _get_attributes,
-    _generic_get,
-    _generic_get_dn,
-    _generic_list,
-    _generic_delete,
     _generic_modify_dn,
-    _generic_create,
     _get_dn_arg,
     _warn,
     CustomHelpFormatter
@@ -59,7 +62,7 @@ def create_managed(inst, basedn, log, args):
 
 
 def create_filtered(inst, basedn, log, args):
-    kwargs = _get_attributes(args, MUST_ATTRIBUTES)
+    kwargs = _get_attributes(args, MUST_ATTRIBUTES_FILTERED)
     _generic_create(inst, basedn, log.getChild('_generic_create'), FilteredRoles, kwargs, args)
 
 
@@ -106,17 +109,25 @@ def entry_status(inst, basedn, log, args):
 
 def subtree_status(inst, basedn, log, args):
     basedn = _get_dn_arg(args.basedn, msg="Enter basedn to check")
-    filter = ""
-    scope = ldap.SCOPE_SUBTREE
-
-    role_list = Roles(inst, basedn).filter(filter, scope)
+    role_list = Roles(inst, basedn).list()
     if not role_list:
         raise ValueError(f"No entries were found under {basedn} or the user doesn't have an access")
 
+    if args.json:
+        json_result = {"type": "status", "entries": []}
+
     for entry in role_list:
         status = entry.status()
-        log.info(f'Entry DN: {entry.dn}')
-        log.info(f'Entry State: {status["state"].describe(status["role_dn"])}\n')
+        if args.json:
+            json_result['entries'].append({
+                "dn": entry.dn,
+                "state": status["state"].describe(status["role_dn"])
+            })
+        else:
+            log.info(f'Entry DN: {entry.dn}')
+            log.info(f'Entry State: {status["state"].describe(status["role_dn"])}\n')
+    if args.json:
+        log.info(json.dumps(json_result))
 
 
 def lock(inst, basedn, log, args):
@@ -140,6 +151,8 @@ def create_parser(subparsers):
 
     list_parser = subcommands.add_parser('list', help='list roles that could login to the directory', formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=list)
+    list_parser.add_argument('--full-dn', action='store_true',
+                             help="Return the full DN of the entry instead of the RDN value")
 
     get_parser = subcommands.add_parser('get', help='get', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=get)
@@ -155,7 +168,7 @@ def create_parser(subparsers):
 
     create_filtered_parser = subcommands.add_parser('create-filtered', help='create', formatter_class=CustomHelpFormatter)
     create_filtered_parser.set_defaults(func=create_filtered)
-    populate_attr_arguments(create_filtered_parser, MUST_ATTRIBUTES)
+    populate_attr_arguments(create_filtered_parser, MUST_ATTRIBUTES_FILTERED)
 
     create_nested_parser = subcommands.add_parser('create-nested', help='create', formatter_class=CustomHelpFormatter)
     create_nested_parser.set_defaults(func=create_nested)

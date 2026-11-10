@@ -1033,9 +1033,11 @@ slapi_filter_get_subfilt(
 }
 
 /*
- * Before calling this function, you must free all the parts
+ * The function does not know how to free all the parts
  * which will be overwritten (i.e. slapi_free_the_filter_bits),
- * this function dosn't know how to do that
+ * so the caller must take care of that.
+ * But it must do so AFTER calling slapi_filter_replace_ex to
+ * avoid getting invalid filter if slapi_filter_replace_ex fails.
  */
 int
 slapi_filter_replace_ex(Slapi_Filter *f, char *s)
@@ -1094,8 +1096,15 @@ slapi_filter_free_bits(Slapi_Filter *f)
 int
 slapi_filter_replace_strfilter(Slapi_Filter *f, char *strfilter)
 {
-    slapi_filter_free_bits(f);
-    return (slapi_filter_replace_ex(f, strfilter));
+    /* slapi_filter_replace_ex may fail and we cannot
+     * free filter bits before calling it.
+     */
+    Slapi_Filter save_f = *f;
+    int ret = slapi_filter_replace_ex(f, strfilter);
+    if (ret == 0) {
+        slapi_filter_free_bits(&save_f);
+    }
+    return ret;
 }
 
 static void
@@ -1118,7 +1127,7 @@ filter_normalize_ava(struct slapi_filter *f, PRBool norm_values)
         /* NOTE: assumes ava->ava_value.bv_val is NULL terminated - get_ava/ber_scanf 'o'
            will NULL terminate the string by default */
         slapi_attr_value_normalize_ext(NULL, NULL, ava->ava_type,
-                                       ava->ava_value.bv_val, 1, &newval, f->f_choice);
+                                       ava->ava_value.bv_val, TRIM_LEADING_BLANK | TRIM_TRAILING_BLANK, &newval, f->f_choice);
         if (newval && (newval != ava->ava_value.bv_val)) {
             slapi_ch_free_string(&ava->ava_value.bv_val);
             ava->ava_value.bv_val = newval;
@@ -1148,7 +1157,7 @@ filter_normalize_subfilt(struct slapi_filter *f, PRBool norm_values)
         int ii;
 
         slapi_attr_init(&attr, sf->sf_type);
-        slapi_attr_value_normalize_ext(NULL, &attr, NULL, sf->sf_initial, 1, &newval, f->f_choice);
+        slapi_attr_value_normalize_ext(NULL, &attr, NULL, sf->sf_initial, TRIM_LEADING_BLANK | SHRINK_TRAILING_BLANK, &newval, f->f_choice);
         if (newval && (newval != sf->sf_initial)) {
             slapi_ch_free_string(&sf->sf_initial);
             sf->sf_initial = newval;
@@ -1156,7 +1165,7 @@ filter_normalize_subfilt(struct slapi_filter *f, PRBool norm_values)
         for (ii = 0; sf->sf_any && sf->sf_any[ii]; ++ii) {
             newval = NULL;
             /* do not trim spaces of sf_any values - see string_filter_sub() */
-            slapi_attr_value_normalize_ext(NULL, &attr, NULL, sf->sf_any[ii], 0, &newval, f->f_choice);
+            slapi_attr_value_normalize_ext(NULL, &attr, NULL, sf->sf_any[ii], SHRINK_LEADING_BLANK | SHRINK_TRAILING_BLANK, &newval, f->f_choice);
             if (newval && (newval != sf->sf_any[ii])) {
                 slapi_ch_free_string(&sf->sf_any[ii]);
                 sf->sf_any[ii] = newval;
@@ -1164,7 +1173,7 @@ filter_normalize_subfilt(struct slapi_filter *f, PRBool norm_values)
         }
         newval = NULL;
         /* do not trim spaces of sf_final values - see string_filter_sub() */
-        slapi_attr_value_normalize_ext(NULL, &attr, NULL, sf->sf_final, 0, &newval, f->f_choice);
+        slapi_attr_value_normalize_ext(NULL, &attr, NULL, sf->sf_final, SHRINK_LEADING_BLANK, &newval, f->f_choice);
         if (newval && (newval != sf->sf_final)) {
             slapi_ch_free_string(&sf->sf_final);
             sf->sf_final = newval;
@@ -1669,7 +1678,7 @@ filter_merge_subfilter(Slapi_Filter **list, Slapi_Filter **f_prev, Slapi_Filter 
     slapi_filter_free(*f_cur, 0);
 }
 
-/* slapi_filter_optimise
+/* slapi_filter_optimise_inner
  * ---------------
  * takes a filter and optimises it for fast evaluation
  *
@@ -1683,17 +1692,24 @@ filter_merge_subfilter(Slapi_Filter **list, Slapi_Filter **f_prev, Slapi_Filter 
  *
  * In the future this could be backend dependent.
  */
-void
-slapi_filter_optimise(Slapi_Filter *f)
+static void
+slapi_filter_optimise_inner(Slapi_Filter *f, uint16_t limit)
 {
     /*
      * Today tombstone searches RELY on filter ordering
      * and a filter test threshold quirk. We need to avoid
      * touching these cases!!!
      */
-    if (f == NULL || (f->f_flags & SLAPI_FILTER_TOMBSTONE) != 0) {
+
+    if (f == NULL || (f->f_flags & SLAPI_FILTER_TOMBSTONE) != 0 || limit == 0) {
         return;
     }
+
+    /*
+     * Prevent too much recursion - we don't mind if this fans out, we only
+     * need to prevent stack depth being reached on huge queries.
+     */
+    limit = limit - 1;
 
     switch (f->f_choice) {
     case LDAP_FILTER_AND:
@@ -1743,7 +1759,7 @@ slapi_filter_optimise(Slapi_Filter *f)
             }
         }
         /* finally optimize children */
-        slapi_filter_optimise(f->f_list);
+        slapi_filter_optimise_inner(f->f_list, limit);
 
         break;
 
@@ -1788,14 +1804,27 @@ slapi_filter_optimise(Slapi_Filter *f)
             }
         }
         /* finally optimize children */
-        slapi_filter_optimise(f->f_list);
+        slapi_filter_optimise_inner(f->f_list, limit);
 
         break;
 
     default:
-        slapi_filter_optimise(f->f_next);
+        slapi_filter_optimise_inner(f->f_next, limit);
         break;
     }
+}
+
+/*
+ * How deep we are willing to go to optimise your query - lets be real
+ * if your query has 256 elements or more in it, you are already beyond
+ * our ability to improve your query performance.
+ */
+#define FILTER_OPTIMISE_DEPTH_LIMIT 256
+
+void
+slapi_filter_optimise(Slapi_Filter *f)
+{
+    slapi_filter_optimise_inner(f, FILTER_OPTIMISE_DEPTH_LIMIT);
 }
 
 

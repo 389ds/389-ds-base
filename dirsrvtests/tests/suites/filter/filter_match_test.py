@@ -15,7 +15,7 @@ import os
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cos import CosTemplates
 from lib389.schema import Schema
 
@@ -769,6 +769,7 @@ def test_extensible_search(topology_st, _searches, attr, value):
     :expectedresults:
         1. Pass
     """
+    topology_st.standalone.config.set("nsslapd-verify-filter-schema", "warn-invalid")
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     assert len(cos.filter(attr)) == value
 

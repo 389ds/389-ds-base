@@ -59,7 +59,7 @@ get_valid_parent_for_conflict(Slapi_Entry *entry)
     Slapi_DN *valid_DN = NULL;
 
     if (replconflict) {
-        validdn = strstr(replconflict, " (ADD) ");
+        validdn = (char *)strstr(replconflict, " (ADD) ");
         if (validdn) {
             validdn += 7;
             valid_DN = slapi_sdn_new_dn_byval(validdn);
@@ -209,7 +209,7 @@ conflict_to_tombstone(char *sessionid, Slapi_Entry *entry, CSN *opcsn)
     const char *replconflict = slapi_entry_attr_get_ref(entry, ATTR_NSDS5_REPLCONFLICT);
 
     if (replconflict) {
-        conflictdn = strstr(replconflict, " (ADD) ");
+        conflictdn = (char *)strstr(replconflict, " (ADD) ");
         if (conflictdn == NULL) {
             /* error, wrong type of conflict */
             op_result = 1;
@@ -256,7 +256,11 @@ tombstone_to_conflict(
     Slapi_Mods smods;
     char csnstr[CSN_STRSIZE + 1];
 
-    char *uniqueid = slapi_entry_attr_get_charptr(tombstoneentry, "nsuiqueid");
+    /*
+     * tombstoneentry get freed by urp_fixup_add_entry so we cannot use
+     * slapi_entry_get_uniqueid (heap-use-after-free error)
+     */
+    char *uniqueid = slapi_entry_attr_get_charptr(tombstoneentry, SLAPI_ATTR_UNIQUEID);
     const char *entrydn = slapi_entry_attr_get_ref(tombstoneentry, "nscpentrydn");
     char *parentdn = slapi_dn_parent(slapi_sdn_get_ndn(conflictdn));
     const CSN *dncsn = entry_get_dncsn(tombstoneentry);

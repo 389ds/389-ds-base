@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -17,7 +17,7 @@
 
 import sys
 import os
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 import stat
 import pwd
 import grp
@@ -41,6 +41,7 @@ import uuid
 import json
 from shutil import copy2
 from contextlib import suppress
+from multiprocessing import Process
 
 # Deprecation
 import warnings
@@ -60,13 +61,15 @@ from lib389.utils import (
     normalizeDN,
     escapeDNValue,
     ensure_bytes,
+    ensure_int,
     ensure_str,
     ensure_list_str,
     format_cmd_list,
     get_default_db_lib,
     selinux_present,
     selinux_label_port,
-    get_user_is_root)
+    get_user_is_root,
+    get_instance_list)
 from lib389.paths import Paths
 from lib389.nss_ssl import NssSsl
 from lib389.tasks import BackupTask, RestoreTask, Task
@@ -213,61 +216,6 @@ def pid_from_file(pidfile):
         pass
     return pid
 
-def _ds_shutil_copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2,
-             ignore_dangling_symlinks=False):
-    """Recursively copy a directory tree.
-    This is taken from /usr/lib64/python3.5/shutil.py, but removes the
-    copystat function at the end. Why? Because in a container without
-    privileges, we don't have access to set xattr. But copystat attempts to
-    set the xattr when we are root, which causes the copy to fail. Remove it!
-    """
-    names = os.listdir(src)
-    if ignore is not None:
-        ignored_names = ignore(src, names)
-    else:
-        ignored_names = set()
-
-    os.makedirs(dst)
-    errors = []
-    for name in names:
-        if name in ignored_names:
-            continue
-        srcname = os.path.join(src, name)
-        dstname = os.path.join(dst, name)
-        try:
-            if os.path.islink(srcname):
-                linkto = os.readlink(srcname)
-                if symlinks:
-                    # We can't just leave it to `copy_function` because legacy
-                    # code with a custom `copy_function` may rely on copytree
-                    # doing the right thing.
-                    os.symlink(linkto, dstname)
-                    shutil.copystat(
-                        srcname, dstname, follow_symlinks=not symlinks
-                    )
-                else:
-                    # ignore dangling symlink if the flag is on
-                    if not os.path.exists(linkto) and ignore_dangling_symlinks:
-                        continue
-                    # otherwise let the copy occurs. copy2 will raise an error
-                    if os.path.isdir(srcname):
-                        _ds_shutil_copytree(srcname, dstname, symlinks, ignore,
-                                 copy_function)
-                    else:
-                        copy_function(srcname, dstname)
-            elif os.path.isdir(srcname):
-                _ds_shutil_copytree(srcname, dstname, symlinks, ignore, copy_function)
-            else:
-                # Will raise a SpecialFileError for unsupported file types
-                copy_function(srcname, dstname)
-        # catch the Error from the recursive copytree so that we can
-        # continue with other files
-        except Error as err:
-            errors.extend(err.args[0])
-        except OSError as why:
-            errors.append((srcname, dstname, str(why)))
-    return dst
-
 
 class DirSrv(SimpleLDAPObject, object):
 
@@ -303,6 +251,57 @@ class DirSrv(SimpleLDAPObject, object):
         self.dbdir = self.ds_paths.db_dir
         self.changelogdir = os.path.join(os.path.dirname(self.dbdir), DEFAULT_CHANGELOG_DB)
 
+    def _extract_serverid_from_string(self, text):
+        """Extract serverid from a string containing 'slapd-<serverid>' pattern.
+        Returns the serverid or None if not found or validation fails.
+        Only attempts derivation if serverid is currently None.
+        """
+        if getattr(self, 'serverid', None) is not None:
+            return None
+        if not text:
+            return None
+
+        # Use regex to extract serverid from "slapd-<serverid>" or "slapd-<serverid>.socket"
+        match = re.search(r'slapd-([A-Za-z0-9._-]+?)(?:\.socket)?(?:$|/)', text)
+        if not match:
+            return None
+        candidate = match.group(1)
+
+        self.serverid = candidate
+        try:
+            insts = get_instance_list()
+        except Exception:
+            self.serverid = None
+            return None
+        if f'slapd-{candidate}' in insts or candidate in insts:
+            return candidate
+        # restore original and report failure
+        self.serverid = None
+        return None
+
+    def _derive_serverid_from_ldapi(self):
+        """Attempt to derive serverid from an LDAPI socket path or URI and
+        verify it exists on the system. Returns the serverid or None.
+        """
+        socket_path = None
+        if hasattr(self, 'ldapi_socket') and self.ldapi_socket:
+            socket_path = unquote(self.ldapi_socket)
+        elif hasattr(self, 'ldapuri') and isinstance(self.ldapuri, str) and self.ldapuri.startswith('ldapi://'):
+            socket_path = unquote(self.ldapuri[len('ldapi://'):])
+
+        return self._extract_serverid_from_string(socket_path)
+
+    def _derive_serverid_from_instancedir(self):
+        """Extract serverid from nsslapd-instancedir path like '/usr/lib64/dirsrv/slapd-<serverid>'"""
+        try:
+            from lib389.config import Config
+            config = Config(self)
+            instancedir = config.get_attr_val_utf8_l("nsslapd-instancedir")
+        except Exception:
+            return None
+
+        return self._extract_serverid_from_string(instancedir)
+
     def rebind(self):
         """Reconnect to the DS
 
@@ -322,8 +321,8 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.config import RSA
         from lib389.config import Encryption
         from lib389.dirsrv_log import (
-            DirsrvAccessLog, DirsrvErrorLog, DirsrvAuditLog,
-            DirsrvAuditJSONLog, DirsrvSecurityLog
+            DirsrvAccessLog, DirsrvAccessJSONLog, DirsrvErrorLog,
+            DirsrvAuditLog, DirsrvAuditJSONLog, DirsrvSecurityLog
         )
         from lib389.ldclt import Ldclt
         from lib389.mappingTree import MappingTrees
@@ -368,6 +367,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.rsa = RSA(self)
         self.encryption = Encryption(self)
         self.ds_access_log = DirsrvAccessLog(self)
+        self.ds_access_json_log = DirsrvAccessJSONLog(self)
         self.ds_error_log = DirsrvErrorLog(self)
         self.ds_audit_log = DirsrvAuditLog(self)
         self.ds_audit_json_log = DirsrvAuditJSONLog(self)
@@ -537,6 +537,8 @@ class DirSrv(SimpleLDAPObject, object):
                    SER_DEPLOYED_DIR: directory where 389-ds is deployed
                    SER_BACKUP_INST_DIR: directory where instances will be
                                         backed up
+                   SER_DB_LIB: database implementation: bdb/mdb
+                   SER_MDB_MAX_SIZE: lmdb map initial maximum size
 
            @return None
 
@@ -567,6 +569,10 @@ class DirSrv(SimpleLDAPObject, object):
             self.port = args.get(SER_PORT, DEFAULT_PORT)
         self.sslport = args.get(SER_SECURE_PORT)
 
+        self.dblib = args.get(SER_DB_LIB, get_default_db_lib())
+        if self.dblib == 'mdb':
+            self.initial_mdb_max_size = args.get(SER_MDB_MAX_SIZE, DEFAULT_LMDB_SIZE)
+
         self.inst_scripts = args.get(SER_INST_SCRIPTS_ENABLED, None)
 
         self.isLocal = False
@@ -575,6 +581,15 @@ class DirSrv(SimpleLDAPObject, object):
             self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
             self.isLocal = True
             self.log.debug("Allocate %s with %s", self.__class__, self.ldapi_socket)
+        elif self.ldapuri is not None and isinstance(self.ldapuri, str) and self.ldapuri.startswith('ldapi://'):
+            # Try to learn serverid from ldapi uri
+            try:
+                self.ldapi_enabled = 'on'
+                self.ldapi_socket = unquote(self.ldapuri[len('ldapi://'):])
+                self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
+                self.isLocal = True
+            except Exception:
+                pass
         # Settings from args of server attributes
         self.strict_hostname = args.get(SER_STRICT_HOSTNAME_CHECKING, False)
         if self.strict_hostname is True:
@@ -595,9 +610,16 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.log.debug("Allocate %s with %s:%s", self.__class__, self.host, (self.sslport or self.port))
 
-        if SER_SERVERID_PROP in args:
-            self.ds_paths = Paths(serverid=args[SER_SERVERID_PROP], instance=self, local=self.isLocal)
+        # Try to determine serverid if not provided
+        if SER_SERVERID_PROP in args and args.get(SER_SERVERID_PROP) is not None:
             self.serverid = args.get(SER_SERVERID_PROP, None)
+        elif getattr(self, 'serverid', None) is None and self.isLocal:
+            sid = self._derive_serverid_from_ldapi()
+            if sid:
+                self.serverid = sid
+
+        if getattr(self, 'serverid', None):
+            self.ds_paths = Paths(serverid=self.serverid, instance=self, local=self.isLocal)
         else:
             self.ds_paths = Paths(instance=self, local=self.isLocal)
 
@@ -812,6 +834,11 @@ class DirSrv(SimpleLDAPObject, object):
         # We disable TLS during setup, we use a function in tests to enable instead.
         slapd_options.set('self_sign_cert', False)
         slapd_options.set('defaults', version)
+        try:
+            if self.dblib == 'mdb':
+                slapd_options.set('mdb_max_size', self.initial_mdb_max_size)
+        except AttributeError:
+            pass
 
         slapd_options.verify()
         slapd = slapd_options.collect()
@@ -1031,6 +1058,17 @@ class DirSrv(SimpleLDAPObject, object):
             self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
         # Now that we're online, some of our methods may try to query the version online.
+
+        # After transitioning online, attempt to derive serverid if still unknown.
+        # If we find it, refresh ds_paths and rerun __initPart2
+        if getattr(self, 'serverid', None) is None and self.isLocal:
+            sid = self._derive_serverid_from_instancedir()
+            if sid:
+                self.serverid = sid
+                # Reinitialize paths with the new serverid
+                self.ds_paths = Paths(serverid=self.serverid, instance=self, local=self.isLocal)
+                if not connOnly:
+                    self.__initPart2()
         self.__add_brookers__()
 
     def close(self):
@@ -1355,7 +1393,7 @@ class DirSrv(SimpleLDAPObject, object):
         # First check it if already exists a backup file
         backup_dir, backup_pattern = self._infoBackupFS()
         if not os.path.exists(backup_dir):
-                os.makedirs(backup_dir)
+            os.makedirs(backup_dir)
         # make the backup directory accessible for anybody so that any user can
         # run the tests even if it existed a backup created by somebody else
         os.chmod(backup_dir, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
@@ -1766,7 +1804,7 @@ class DirSrv(SimpleLDAPObject, object):
            one entry.
             @param  - entry dn
             @param  - search scope, in ldap.SCOPE_BASE (default),
-                      ldap.SCOPE_SUB, ldap.SCOPE_ONE
+                      ldap.SCOPE_SUB, ldap.SCOPE_ONELEVEL
             @param filterstr - filterstr, default '(objectClass=*)' from
                                SimpleLDAPObject
             @param attrlist - list of attributes to retrieve. eg ['cn', 'uid']
@@ -2704,12 +2742,48 @@ class DirSrv(SimpleLDAPObject, object):
             online = False
         DirSrvTools.runUpgrade(self.ds_paths.prefix, online)
 
+    # Become dirsrv and check that import_file is still readable
+    @staticmethod
+    def _chown_and_test(pw, import_file):
+        if os.getuid() == 0:
+            os.setgroups([])
+            os.setgid(pw.pw_gid)
+            os.setuid(pw.pw_uid)
+        if not os.access(import_file, os.R_OK):
+            sys.exit(1)
+        sys.exit(0)
+
     #
     # The following are the functions to perform offline scripts(when the
     # server is stopped)
     #
+    def check_ldif_file_is_readable(self, import_file):
+
+        dse_ldif = DSEldif(self)
+        user = dse_ldif.get("cn=config", "nsslapd-localuser", single=True)
+        if user is None:
+            self.log.error(f'ldif2db: Unable to find nsslapd-localuser attribute in {dse_ldif.path}')
+            return False
+        try:
+            pw = pwd.getpwnam(user)
+        except KeyError:
+            self.log.error(f"ldif2db: Failed to find {user} in /etc/passwd file.")
+            return False
+        # Fork a child process, switch it to the user and check that file
+        # is still readable
+        p = Process(target=DirSrv._chown_and_test, args=(pw, import_file,))
+        p.start()
+        p.join()
+        if p.exitcode == 0:
+            return True
+        if p.exitcode == 1:
+            self.log.error(f'ldif2db: User {user} cannot read {import_file} file.')
+            return False
+        self.log.error(f'ldif2db: Unexpected error {p.exitcode} while checking {import_file}.')
+        return False
+
     def ldif2db(self, bename, suffixes, excludeSuffixes, encrypt,
-                import_file, import_cl=False):
+                import_file, import_cl=False, watch=False):
         """
         @param bename - The backend name of the database to import
         @param suffixes - List/tuple of suffixes to import
@@ -2731,6 +2805,9 @@ class DirSrv(SimpleLDAPObject, object):
 
         if not os.path.isfile(import_file):
             self.log.error("ldif2db: Can't find file: %s", import_file)
+            return False
+
+        if not self.check_ldif_file_is_readable(import_file):
             return False
 
         cmd = [
@@ -2755,6 +2832,8 @@ class DirSrv(SimpleLDAPObject, object):
             cmd.append('-E')
         if import_cl:
             cmd.append('-R')
+        if watch:
+            cmd.append('-V')
 
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
@@ -2768,10 +2847,15 @@ class DirSrv(SimpleLDAPObject, object):
                                format_cmd_list(cmd), e.returncode, e.output)
                 return False
 
+        if watch:
+            for line in result.split("\n"):
+                if line.strip():
+                    self.log.info(line)
+
         return True
 
     def db2ldif(self, bename, suffixes, excludeSuffixes, encrypt, repl_data,
-                outputfile, export_cl=False):
+                outputfile, export_cl=False, watch=False):
         """
         @param bename - The backend name of the database to export
         @param suffixes - List/tuple of suffixes to export
@@ -2827,6 +2911,10 @@ class DirSrv(SimpleLDAPObject, object):
             else:
                 ldifname = os.path.join(self.ds_paths.ldif_dir, "%s-%s.ldif" % (self.serverid, tnow))
             cmd.append(ldifname)
+
+        if watch:
+            cmd.append('-V')
+
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
@@ -2834,14 +2922,19 @@ class DirSrv(SimpleLDAPObject, object):
                            format_cmd_list(cmd), e.returncode, e.output)
             return False
 
-        self.log.debug("db2ldif output: BEGIN")
-        for line in result.split("\n"):
-            self.log.debug(line)
-        self.log.debug("db2ldif output: END")
+        if watch:
+            for line in result.split("\n"):
+                if line.strip():
+                    self.log.info(line)
+        else:
+            self.log.debug("db2ldif output: BEGIN")
+            for line in result.split("\n"):
+                self.log.debug(line)
+            self.log.debug("db2ldif output: END")
 
         return True
 
-    def bak2db(self, archive_dir):
+    def bak2db(self, archive_dir, watch=False):
         """
         @param archive_dir - The directory containing the backup
         @param bename - The backend name to restore
@@ -2865,20 +2958,27 @@ class DirSrv(SimpleLDAPObject, object):
                    'archive2db',
                    '-a', archive_dir,
                    '-D', self.get_config_dir()]
+            if watch:
+                cmd.append('-V')
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: %s failed with the return code %s and the error %s",
                            format_cmd_list(cmd), e.returncode, e.output)
             return False
 
-        self.log.debug("bak2db output: BEGIN")
-        for line in result.split("\n"):
-            self.log.debug(line)
-        self.log.debug("bak2db output: END")
+        if watch:
+            for line in result.split("\n"):
+                if line.strip():
+                    self.log.info(line)
+        else:
+            self.log.debug("bak2db output: BEGIN")
+            for line in result.split("\n"):
+                self.log.debug(line)
+            self.log.debug("bak2db output: END")
 
         return True
 
-    def db2bak(self, archive_dir):
+    def db2bak(self, archive_dir, watch=False):
         """
         @param archive_dir - The directory to write the backup to
         @return - True if the backup succeeded
@@ -2903,20 +3003,27 @@ class DirSrv(SimpleLDAPObject, object):
                    'db2archive',
                    '-a', archive_dir,
                    '-D', self.get_config_dir()]
+            if watch:
+                cmd.append('-V')
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: %s failed with the return code %s and the error %s",
                            format_cmd_list(cmd), e.returncode, e.output)
             return False
 
-        self.log.debug("db2bak output: BEGIN")
-        for line in result.split("\n"):
-            self.log.debug(line)
-        self.log.debug("db2bak output: END")
+        if watch:
+            for line in result.split("\n"):
+                if line.strip():
+                    self.log.info(line)
+        else:
+            self.log.debug("db2bak output: BEGIN")
+            for line in result.split("\n"):
+                self.log.debug(line)
+            self.log.debug("db2bak output: END")
 
         return True
 
-    def db2index(self, bename=None, suffixes=None, attrs=None, vlvTag=None):
+    def db2index(self, bename, suffixes=None, attrs=None, vlvTag=None):
         """
         @param bename - The backend name to reindex
         @param suffixes - List/tuple of suffixes to reindex, currently unused
@@ -2929,34 +3036,18 @@ class DirSrv(SimpleLDAPObject, object):
         if self.status():
             self.log.error("db2index: Can not operate while directory server is running")
             return False
-        cmd = [prog, ]
-        # No backend specified, do an upgrade on all backends
-        # Backend and no attrs specified, reindex with all backend indexes
-        # Backend and attr/s specified, reindex backend with attr/s
-        if bename:
-            cmd.append('db2index')
-            cmd.append('-n')
-            cmd.append(bename)
-            if attrs:
-                 for attr in attrs:
-                        cmd.append('-t')
-                        cmd.append(attr)
-            else:
-                dse_ldif = DSEldif(self)
-                indexes = dse_ldif.get_indexes(bename)
-                if indexes:
-                    for idx in indexes:
-                        cmd.append('-t')
-                        cmd.append(idx)
+        cmd = [prog, 'db2index', '-n', bename, '-D', self.get_config_dir()]
+        if attrs:
+            for attr in attrs:
+                cmd.append('-t')
+                cmd.append(attr)
         else:
-            cmd.append('upgradedb')
-            cmd.append('-a')
-            now = datetime.now().isoformat()
-            cmd.append(os.path.join(self.get_bak_dir(), 'reindex_%s' % now))
-            cmd.append('-f')
-
-        cmd.append('-D')
-        cmd.append(self.get_config_dir())
+            dse_ldif = DSEldif(self)
+            indexes = dse_ldif.get_indexes(bename)
+            if indexes:
+                for idx in indexes:
+                    cmd.append('-t')
+                    cmd.append(idx)
 
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
@@ -3083,7 +3174,7 @@ class DirSrv(SimpleLDAPObject, object):
                 return True
             return False
 
-    def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False, args=None, stopping=True) -> bytes:
+    def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False, args=None, stopping=True, check_result=True) -> bytes:
         """Wrapper around dbscan tool that analyzes and extracts information
         from an import Directory Server database file
 
@@ -3135,7 +3226,8 @@ class DirSrv(SimpleLDAPObject, object):
         self.log.info('Running script: %s', cmd)
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            result.check_returncode();
+            if check_result:
+                result.check_returncode()
         except subprocess.CalledProcessError:
             self.log.error('Failed to run dbscan: "%s"' % result)
             raise ValueError('Failed to run dbscan')
@@ -3412,7 +3504,7 @@ class DirSrv(SimpleLDAPObject, object):
                 # Error
                 consumer.close()
                 return None
-            rid = ensure_str(replica_entries[0].getValue(REPL_ID))
+            rid = ensure_int(replica_entries[0].getValue(REPL_ID))
         except:
             # Error
             consumer.close()
@@ -3429,7 +3521,7 @@ class DirSrv(SimpleLDAPObject, object):
                 return error_msg
             elements = ensure_list_str(entry[0].getValues('nsds50ruv'))
             for ruv in elements:
-                if ('replica %s ' % rid) in ruv:
+                if ('replica %d ' % rid) in ruv:
                     ruv_parts = ruv.split()
                     if len(ruv_parts) == 5:
                         return ruv_parts[4]
@@ -3574,3 +3666,14 @@ class DirSrv(SimpleLDAPObject, object):
         if self._containerised or container_result.returncode == 0:
             return True
         return False
+
+    def get_pid(self):
+        """
+        Get the pid of the running server
+        """
+        return pid_from_file(self.pid_file())
+
+    def lint_clear_dse_cache(self):
+        """Clear the cached dse.ldif for the instance."""
+        self._lib389_dse_lint_cache = None
+        self._lib389_dse_lint_failed = False

@@ -3,7 +3,7 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { ReplAgmtTable } from "./replTables.jsx";
 import { ReplAgmtModal } from "./replModals.jsx";
-import { log_cmd, valid_dn, valid_port, listsEqual } from "../tools.jsx";
+import { getApiErrorMessage, log_cmd, valid_dn, valid_port, listsEqual } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     Button,
@@ -698,23 +698,11 @@ export class ReplAgmts extends React.Component {
 
         // We handle strings and arrays here, need to find a better way to differentiate.
         if (attr.endsWith('Attrs')) {
-            if (this.state[attr].includes(value)) {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== e.target.value),
-                        errObj,
-                        [e.target.toggle]: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: [...prevState[attr], value],
-                        errObj,
-                        [e.target.toggle]: false
-                    }),
-                );
-            }
+            this.setState({
+                [attr]: Array.isArray(value) ? value : [],
+                errObj,
+                [e.target.toggle]: false
+            });
         } else {
             this.setState({
                 [attr]: value,
@@ -725,64 +713,33 @@ export class ReplAgmts extends React.Component {
     }
 
     onTAStripAttrChangeEdit (selection) {
-        // TypeAhead handling
-        const { agmtStripAttrs } = this.state;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
-        if (agmtStripAttrs.includes(selection)) {
-            const new_values = this.state.agmtStripAttrs.filter(item => item !== selection);
-            this.setState({
-                agmtStripAttrs: new_values,
-                isStripAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        } else {
-            const new_values = [...this.state.agmtStripAttrs, selection];
-            this.setState({
-                agmtStripAttrs: new_values,
-                isStripAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        }
+        const newStripAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtStripAttrs: newStripAttrs,
+            isStripAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
     }
 
     onTAFracAttrChangeEdit (selection) {
-        // TypeAhead handling
-        const { agmtFracAttrs } = this.state;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
-        if (agmtFracAttrs.includes(selection)) {
-            const new_values = this.state.agmtFracAttrs.filter(item => item !== selection);
-            this.setState({
-                agmtFracAttrs: new_values,
-                isExcludeAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        } else {
-            const new_values = [...this.state.agmtFracAttrs, selection];
-            this.setState({
-                agmtFracAttrs: new_values,
-                isExcludeAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        }
+        const newFracAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtFracAttrs: newFracAttrs,
+            isExcludeAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
     }
 
     onTAFracInitAttrChangeEdit (selection) {
-        // TypeAhead handling
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
-        const { agmtFracInitAttrs } = this.state;
-        if (agmtFracInitAttrs.includes(selection)) {
-            const new_values = this.state.agmtFracInitAttrs.filter(item => item !== selection);
-            this.setState({
-                agmtFracInitAttrs: new_values,
-                isExcludeInitAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        } else {
-            const new_values = [...this.state.agmtFracInitAttrs, selection];
-            this.setState({
-                agmtFracInitAttrs: new_values,
-                isExcludeInitAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        }
+        const newFracInitAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtFracInitAttrs: newFracInitAttrs,
+            isExcludeInitAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
     }
 
     onTAStripAttrChange (values) {
-        // TypeAhead handling
         const e = {
             target: {
                 name: 'agmt-modal',
@@ -796,7 +753,6 @@ export class ReplAgmts extends React.Component {
     }
 
     onTAFracAttrChange (values) {
-        // TypeAhead handling
         const e = {
             target: {
                 name: 'agmt-modal',
@@ -810,7 +766,6 @@ export class ReplAgmts extends React.Component {
     }
 
     onTAFracInitAttrChange (values) {
-        // TypeAhead handling
         const e = {
             target: {
                 name: 'agmt-modal',
@@ -927,7 +882,7 @@ export class ReplAgmts extends React.Component {
 
         log_cmd('showEditAgmt', 'Edit replication agreement', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let agmtName = "";
@@ -1106,10 +1061,10 @@ export class ReplAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to get agreement information for: \"$0\" - $1"), agmtName, errMsg.desc)
+                        cockpit.format(_("Failed to get agreement information for: \"$0\" - $1"), agmtName, errMsg)
                     );
                 });
     }
@@ -1210,7 +1165,8 @@ export class ReplAgmts extends React.Component {
         log_cmd('saveAgmt', 'edit agmt', cmd);
 
         let buffer = "";
-        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+        let error = null;
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
         proc
                 .done(data => {
                     this.props.reload(this.props.suffix);
@@ -1225,20 +1181,29 @@ export class ReplAgmts extends React.Component {
                         _("Successfully updated replication agreement")
                     );
                 })
-                .fail(_ => {
+                .fail(() => {
+                    const errMsg = getApiErrorMessage(error);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update replication agreement - $0"), buffer)
+                        cockpit.format(_("Failed to update replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         savingAgmt: false
                     });
                 })
                 .stream(data => {
+                    try {
+                        // If data is JSON then it's an error
+                        JSON.parse(data);
+                        error = data; // we'll parse this later in fail()
+                        return;
+                    } catch (e) {
+                        // Ok not an JSON error proceed as normal
+                    }
                     buffer += data;
                     const lines = buffer.split("\n");
                     const last_line = lines[lines.length - 1].toLowerCase();
-                    if (last_line.includes("bootstrap")) {
+                    if (bootstrap_passwd !== "") {
                         proc.input(bootstrap_passwd + "\n", true);
                     } else {
                         proc.input(passwd + "\n", true);
@@ -1251,7 +1216,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'poke', agmtName, '--suffix=' + this.props.suffix];
         log_cmd('pokeAgmt', 'send updates now', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1260,10 +1225,10 @@ export class ReplAgmts extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         'error',
-                        cockpit.format(_("Failed to poke replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to poke replication agreement - $0"), errMsg)
                     );
                 });
     }
@@ -1276,7 +1241,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'init', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('initAgmt', 'Initialize agreement', init_cmd);
         cockpit
-                .spawn(init_cmd, { superuser: true, err: "message" })
+                .spawn(init_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const agmtIntervalCount = this.state.agmtInitCounter + 1;
                     const intervals = this.state.agmtInitIntervals;
@@ -1291,10 +1256,10 @@ export class ReplAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         'error',
-                        cockpit.format(_("Failed to initialize replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to initialize replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         showConfirmInitAgmt: false
@@ -1341,7 +1306,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'enable', this.state.agmtName, '--suffix=' + this.props.suffix];
         log_cmd('enableAgmt', 'enable agmt', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1349,10 +1314,10 @@ export class ReplAgmts extends React.Component {
                         _("Successfully enabled replication agreement"));
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to enabled replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to enabled replication agreement - $0"), errMsg)
                     );
                 });
     }
@@ -1366,7 +1331,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'disable', this.state.agmtName, '--suffix=' + this.props.suffix];
         log_cmd('disableAgmt', 'Disable agmt', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1374,10 +1339,10 @@ export class ReplAgmts extends React.Component {
                         _("Successfully disabled replication agreement"));
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to disable replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to disable replication agreement - $0"), errMsg)
                     );
                 });
     }
@@ -1390,7 +1355,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'delete', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('deleteAgmt', 'Delete agmt', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -1401,10 +1366,10 @@ export class ReplAgmts extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to delete replication agreement - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to delete replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         showConfirmDeleteAgmt: false,
@@ -1470,8 +1435,8 @@ export class ReplAgmts extends React.Component {
             if (this.state.agmtBootstrapBindDN !== "") {
                 cmd.push('--bootstrap-bind-dn=' + this.state.agmtBootstrapBindDN);
             }
-            if (this.state.agmtBootstrapBindDNPW !== "") {
-                bootstrap_passwd = this.state.agmtBootstrapBindDNPW;
+            if (this.state.agmtBootstrapBindPW !== "") {
+                bootstrap_passwd = this.state.agmtBootstrapBindPW;
             }
             if (this.state.agmtBootstrapBindMethod !== "") {
                 cmd.push('--bootstrap-bind-method=' + this.state.agmtBootstrapBindMethod);
@@ -1498,7 +1463,8 @@ export class ReplAgmts extends React.Component {
         log_cmd('createAgmt', 'Create agmt', cmd);
 
         let buffer = "";
-        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+        let error = null;
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
         proc
                 .done(data => {
                     this.props.reload(this.props.suffix);
@@ -1516,20 +1482,29 @@ export class ReplAgmts extends React.Component {
                         this.initAgmt(this.state.agmtName);
                     }
                 })
-                .fail(_ => {
+                .fail(() => {
+                    const errMsg = getApiErrorMessage(error);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to create replication agreement - $0"), buffer)
+                        cockpit.format(_("Failed to create replication agreement - $0"), errMsg)
                     );
                     this.setState({
                         savingAgmt: false
                     });
                 })
                 .stream(data => {
+                    try {
+                        // If data is JSON then it's an error
+                        JSON.parse(data);
+                        error = data; // we'll parse this later in fail()
+                        return;
+                    } catch (e) {
+                        // Ok not an JSON error proceed as normal
+                    }
                     buffer += data;
                     const lines = buffer.split("\n");
                     const last_line = lines[lines.length - 1].toLowerCase();
-                    if (last_line.includes("bootstrap")) {
+                    if (bootstrap_passwd !== "") {
                         proc.input(bootstrap_passwd + "\n", true);
                     } else {
                         proc.input(passwd + "\n", true);
@@ -1543,7 +1518,7 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'init-status', '--suffix=' + this.props.suffix, agmtName];
         log_cmd('watchAgmtInit', 'Get initialization status for agmt', status_cmd);
         cockpit
-                .spawn(status_cmd, { superuser: true, err: "message" })
+                .spawn(status_cmd, { superuser: "require", err: "message" })
                 .done(data => {
                     const init_status = JSON.parse(data);
                     if (init_status.startsWith('Agreement successfully initialized') ||
@@ -1569,7 +1544,8 @@ export class ReplAgmts extends React.Component {
     onSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        for (const row of this.state.rows) {
+
+        for (const row of this.props.rows) {
             if (val !== "" &&
                 row[0].indexOf(val) === -1 &&
                 row[1].indexOf(val) === -1 &&
@@ -1631,13 +1607,13 @@ export class ReplAgmts extends React.Component {
                     handleChange={this.onCreateChange}
                     handleTimeChange={this.onTimeChange}
                     handleStripChange={this.onTAStripAttrChange}
-                    handleFracChange={this.onTAFracInitAttrChange}
+                    handleFracChange={this.onTAFracAttrChange}
                     handleFracInitChange={this.onTAFracInitAttrChange}
                     onExcludeAttrsToggle={this.handleExcludeAttrsCreateToggle}
                     onExcludeAttrsClear={this.handleExcludeAttrsCreateClear}
                     onExcludeAttrsInitToggle={this.handleExcludeAttrsInitCreateToggle}
                     onExcludeAttrsInitClear={this.handleExcludeAttrsInitCreateClear}
-                    handleStripAttrsToggle={this.onStripAttrsCreateToggle}
+                    onStripAttrsToggle={this.onStripAttrsCreateToggle}
                     onStripAttrsClear={this.handleStripAttrsCreateClear}
                     isExcludeAttrsOpen={this.state.isExcludeAttrsCreateOpen}
                     isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsCreateOpen}
@@ -1691,7 +1667,7 @@ export class ReplAgmts extends React.Component {
                     onExcludeAttrsClear={this.handleExcludeAttrsEditClear}
                     onExcludeAttrsInitToggle={this.handleExcludeAttrsInitEditToggle}
                     onExcludeAttrsInitClear={this.handleExcludeAttrsInitEditClear}
-                    handleStripAttrsToggle={this.onStripAttrsEditToggle}
+                    onStripAttrsToggle={this.onStripAttrsEditToggle}
                     onStripAttrsClear={this.handleStripAttrsEditClear}
                     isExcludeAttrsOpen={this.state.isExcludeAttrsEditOpen}
                     isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsEditOpen}

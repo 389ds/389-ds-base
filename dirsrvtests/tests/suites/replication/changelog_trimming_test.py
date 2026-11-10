@@ -13,8 +13,8 @@ import ldap
 import time
 from lib389._constants import *
 from lib389.properties import *
-from lib389.topologies import topology_m1 as topo
-from lib389.topologies import topology_m1c1
+from test389.topologies import topology_m1 as topo
+from test389.topologies import topology_m1c1
 from lib389.tasks import *
 from lib389.replica import Changelog5
 from lib389.idm.domain import Domain
@@ -77,11 +77,11 @@ def setup_max_age(topo, request):
     supplier.config.loglevel((ErrorLog.REPLICA,), 'error')
 
     if ds_supports_new_changelog():
-        set_value(supplier, MAXAGE, '5')
+        set_value(supplier, MAXAGE, '5s')
         set_value(supplier, TRIMINTERVAL, '300')
     else:
         cl = Changelog5(supplier)
-        cl.set_max_age('5')
+        cl.set_max_age('5s')
         cl.set_trim_interval('300')
 
 def test_max_age(topo, setup_max_age):
@@ -110,7 +110,7 @@ def test_max_age(topo, setup_max_age):
     do_mods(supplier, 10)
 
     time.sleep(1)  # Trimming should not have occurred
-    if supplier.searchErrorsLog("Trimmed") is True:
+    if supplier.searchErrorsLog("trimmed") is True:
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
@@ -120,12 +120,12 @@ def test_max_age(topo, setup_max_age):
         cl.set_trim_interval('5')
 
     time.sleep(3)  # Trimming should not have occurred
-    if supplier.searchErrorsLog("Trimmed") is True:
+    if supplier.searchErrorsLog("trimmed") is True:
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
     time.sleep(3)  # Trimming should have occurred
-    if supplier.searchErrorsLog("Trimmed") is False:
+    if supplier.searchErrorsLog("trimmed") is False:
         log.fatal('Trimming event did not occur')
         assert False
 
@@ -159,7 +159,7 @@ def test_max_entries(topo, setup_max_entries):
     do_mods(supplier, 10)
 
     time.sleep(1)  # Trimming should have occurred
-    if supplier.searchErrorsLog("Trimmed") is True:
+    if supplier.searchErrorsLog("trimmed") is True:
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
@@ -169,7 +169,7 @@ def test_max_entries(topo, setup_max_entries):
         cl.set_trim_interval('5')
 
     time.sleep(6)  # Trimming should have occurred
-    if supplier.searchErrorsLog("Trimmed") is False:
+    if supplier.searchErrorsLog("trimmed") is False:
         log.fatal('Trimming event did not occur')
         assert False
 
@@ -253,11 +253,11 @@ def test_cl_trim_ignore_empty_ruv_element(topology_m1c1):
     # - Step 8 - set Triming interval to 2sec to have frequent trimming
     # and max-age to 8sec to not wait too long
     if ds_supports_new_changelog():
-        set_value(s1, MAXAGE, '8')
+        set_value(s1, MAXAGE, '8s')
         set_value(s1, TRIMINTERVAL, '2')
     else:
         cl = Changelog5(s1)
-        cl.set_max_age('8')
+        cl.set_max_age('8s')
         cl.set_trim_interval('2')
 
     # - Step 9 - Wait for the trimming to occur

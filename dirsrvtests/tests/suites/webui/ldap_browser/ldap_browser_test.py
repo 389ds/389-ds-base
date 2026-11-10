@@ -13,8 +13,12 @@ import pytest
 from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
+from lib389.idm.user import UserAccounts
+from lib389.idm.group import Groups
+from lib389.idm.nscontainer import nsContainers
 from .. import setup_page, check_frame_assignment, setup_login, create_entry, delete_entry, load_ldap_browser_tab
+from playwright.sync_api import expect
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
 pytest.importorskip('playwright')
@@ -299,6 +303,204 @@ def test_create_and_delete_custom_entry(topology_st, page, browser_name):
     time.sleep(1)
     delete_entry(frame)
     assert frame.get_by_role("button").filter(has_text=f"uid={test_data['uid']}").count() == 0
+
+
+def test_group_member_management(topology_st, page, browser_name):
+    """ Test group member management with checkboxes
+    
+    :id: f8a9b1c2-d3e4-5f67-8901-a2b3c4d5e6f7
+    :setup: Standalone instance
+    :steps:
+         1. Create 3 test users (demo_user1, demo_user2, demo_user3).
+         2. Create a group with all 3 users as members.
+         3. Navigate to LDAP Browser and open the group.
+         4. Click Actions menu and select "Edit ...".
+         5. In Current Members tab, select checkbox for first member.
+         6. Click "Remove Selected Members" button.
+         7. Verify member count decreased to 2.
+         8. Select checkboxes for remaining 2 members.
+         9. Click "Remove Selected Members" button.
+         10. Verify member count decreased to 0 and shows "No Members".
+    :expectedresults:
+         1. Users created successfully
+         2. Group created with 3 members
+         3. Group is visible
+         4. Group editor opens
+         5. Checkbox can be clicked (not overlapped by text)
+         6. Single member removed successfully
+         7. Member count shows (2)
+         8. Multiple checkboxes can be selected
+         9. Multiple members removed successfully
+         10. No members remain in group
+    """
+    
+    setup_login(page)
+    time.sleep(1)
+    frame = check_frame_assignment(page, browser_name)
+    
+    users = UserAccounts(topology_st.standalone, 'dc=example,dc=com')
+    groups = Groups(topology_st.standalone, 'dc=example,dc=com')
+    user_names = ['demo_user1', 'demo_user2', 'demo_user3']
+    group_name = 'demo_group'
+    
+    log.info('Setup test users and group')
+    for username in user_names:
+        users.ensure_state(properties={
+            'uid': username,
+            'cn': username,
+            'sn': username,
+            'uidNumber': '1000',
+            'gidNumber': '1000',
+            'homeDirectory': f'/home/{username}',
+            'userPassword': 'password'
+        })
+    
+    group = groups.ensure_state(properties={
+        'cn': group_name,
+        'member': [
+            'uid=demo_user1,ou=People,dc=example,dc=com',
+            'uid=demo_user2,ou=People,dc=example,dc=com',
+            'uid=demo_user3,ou=People,dc=example,dc=com'
+        ]
+    })
+    log.info(f'Group created/verified: {group.dn}')
+
+    load_ldap_browser_tab(frame)
+    
+    log.info('Navigate to ou=Groups')
+    frame.get_by_role('button').filter(has_text='ou=groups').click()
+    frame.get_by_role('columnheader', name='Attribute').wait_for()
+    time.sleep(1)
+    
+    log.info(f'Click on group: {group_name}')
+    group_button = frame.get_by_role('button').filter(has_text=f'cn={group_name}')
+    assert group_button.is_visible(), f"Group {group_name} not found in UI"
+    group_button.click()
+    time.sleep(1)
+    
+    log.info('Open Actions menu and click Edit')
+    actions_button = frame.get_by_role("tabpanel", name="Tree View").get_by_role("button", name="Actions")
+    actions_button.wait_for()
+    actions_button.click()
+    time.sleep(0.5)
+    edit_menu = frame.get_by_role("menuitem", name="Edit ...")
+    edit_menu.wait_for()
+    edit_menu.click()
+    time.sleep(2)
+    
+    log.info('Verify group editor shows 3 members')
+    assert frame.get_by_text('Current Members (3)').is_visible()
+    frame.get_by_text('Current Members', exact=False).click()
+    time.sleep(1)
+
+    log.info('Test single member deletion via checkbox')
+    first_row_checkbox = frame.get_by_role("checkbox", name="Select row 0")
+    assert first_row_checkbox.is_visible()
+    first_row_checkbox.click()
+    time.sleep(0.5)
+    assert first_row_checkbox.is_checked()
+    frame.get_by_role('button', name='Remove Selected Members').click()
+    
+    log.info('Wait for and handle confirmation modal')
+    frame.get_by_text('Are you sure you want to remove these members?').wait_for(timeout=5000)
+    frame.check('#modalChecked')
+    frame.click('//button[normalize-space(.)="Delete Members"]')
+    time.sleep(2)
+    
+    log.info('Verify UI and backend show 2 members')
+    frame.get_by_text('Current Members (2)').wait_for(timeout=5000)
+    group = groups.get(group_name)
+    assert len(group.get_attr_vals_utf8('member')) == 2
+
+    log.info('Test multiple member deletion via checkboxes')
+    row0_checkbox = frame.get_by_role("checkbox", name="Select row 0")
+    row1_checkbox = frame.get_by_role("checkbox", name="Select row 1")
+    assert row0_checkbox.is_visible()
+    assert row1_checkbox.is_visible()
+    row0_checkbox.click()
+    time.sleep(0.3)
+    row1_checkbox.click()
+    time.sleep(0.3)
+    assert row0_checkbox.is_checked()
+    assert row1_checkbox.is_checked()
+    frame.get_by_role('button', name='Remove Selected Members').click()
+    
+    log.info('Wait for and handle confirmation modal')
+    frame.get_by_text('Are you sure you want to remove these members?').wait_for(timeout=5000)
+    frame.check('#modalChecked')
+    frame.click('//button[normalize-space(.)="Delete Members"]')
+    time.sleep(2)
+    
+    log.info('Verify all members removed')
+    assert frame.get_by_text('No Members').is_visible()
+    
+    frame.get_by_role('button', name='Close', exact=False).click()
+    time.sleep(1)
+
+
+def test_entry_with_shell_metacharacters_in_dn(topology_st, page, browser_name):
+    """Browsing an entry whose DN contains shell metacharacters must not
+    trigger command injection (CVE-2026-19843)
+
+    :id: 0a1eaec1-f988-464e-a215-7be3f4f03ffc
+    :setup: Standalone instance
+    :steps:
+         1. Create an entry whose cn embeds a shell command that would
+            create a canary file (cn=test$(touch /tmp/cve_canary)).
+         2. Remove the canary file if it exists from a previous run.
+         3. Navigate to LDAP Browser Tree View.
+         4. Click on the entry in the tree so the UI fetches its
+            attributes via ldapsearch.
+         5. Wait for the attribute table to render.
+         6. Assert the canary file was NOT created on the host.
+         7. Assert the entry attributes are displayed correctly.
+    :expectedresults:
+         1. Entry is created successfully
+         2. Success
+         3. Success
+         4. Success
+         5. Attribute column header is visible
+         6. Canary file does not exist - no command injection
+         7. The literal cn value appears in the attribute table
+    """
+
+    inst = topology_st.standalone
+    CANARY = '/tmp/cve_2026_19843_canary'
+    MALICIOUS_CN = f'test$(touch {CANARY})'
+
+    log.info('Create an entry whose cn embeds a shell command.')
+    containers = nsContainers(inst, 'dc=example,dc=com')
+    container = containers.ensure_state(properties={'cn': MALICIOUS_CN})
+
+    log.info('Remove canary file if left over from a previous run.')
+    if os.path.exists(CANARY):
+        os.unlink(CANARY)
+
+    setup_login(page)
+    time.sleep(1)
+    frame = check_frame_assignment(page, browser_name)
+
+    load_ldap_browser_tab(frame)
+
+    log.info('Click on the entry with shell metacharacters in its DN.')
+    entry_button = frame.get_by_role('button').filter(has_text=MALICIOUS_CN)
+    entry_button.wait_for()
+    entry_button.click()
+
+    log.info('Verify entry attributes are displayed.')
+    frame.get_by_role('columnheader', name='Attribute').wait_for()
+    expect(frame.get_by_role('columnheader', name='Attribute')).to_be_visible()
+    time.sleep(2)  # give any injected command time to execute
+
+    log.info('Assert the canary file was NOT created (no command injection).')
+    assert not os.path.exists(CANARY), \
+        f'Command injection detected: {CANARY} was created on the host'
+
+    # Verify the cn value is shown correctly in the attribute table
+    assert frame.get_by_text(MALICIOUS_CN).count() > 0
+
+    log.info('Clean up the test entry.')
+    container.delete()
 
 
 if __name__ == '__main__':

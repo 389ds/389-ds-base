@@ -1,4 +1,4 @@
-PWD ?= $(shell pwd)
+PWD := $(shell pwd)
 RPMBUILD ?= $(PWD)/rpmbuild
 RPM_VERSION ?= $(shell $(PWD)/rpm/rpmverrel.sh version)
 RPM_RELEASE := $(shell $(PWD)/rpm/rpmverrel.sh release)
@@ -11,7 +11,7 @@ TARBALL = $(NAME_VERSION).tar.bz2
 NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
 NODE_MODULES_PATH = src/cockpit/389-console/
 CARGO_PATH = src/
-GIT_TAG = ${TAG}
+GIT_TAG = $(if $(TAG),$(TAG),$(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL))
 
 BUNDLE_JEMALLOC = 1
 RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_JEMALLOC)),--with bundle_jemalloc,--without bundle_jemalloc)
@@ -25,6 +25,11 @@ RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_LIBDB)),--with bundle_libdb,--with
 #  then uploaded in https://fedorapeople.org
 LIBDB_URL ?= $(shell rpmspec $(RPMBUILD_OPTIONS) -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')
 LIBDB_TARBALL ?= $(shell basename "$(LIBDB_URL)")
+
+# Check if BUNDLE_BDBREADERS is enabled.
+BUNDLE_BDBREADERS = $(shell ./rpm/is-robdb-used $(BUNDLE_LIBDB))
+RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_BDBREADERS)),--with libbdb_ro,--without libbdb_ro)
+
 
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
@@ -55,7 +60,6 @@ update-cargo-dependencies:
 	cargo update --manifest-path=./src/Cargo.toml
 
 download-cargo-dependencies:
-	cargo update --manifest-path=./src/Cargo.toml
 	cargo vendor --manifest-path=./src/Cargo.toml
 	cargo fetch --manifest-path=./src/Cargo.toml
 	tar -czf vendor.tar.gz vendor
@@ -100,16 +104,17 @@ local-archive: build-cockpit
 
 tarballs: local-archive
 	-mkdir -p dist/sources
+	cd src/lib389 && python3 validate_version.py
 	cd dist; tar cfj sources/$(TARBALL) $(NAME_VERSION)
 ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; rm -rf dist
 endif
 	rm -rf dist/$(NAME_VERSION)
 	cd dist/sources ; \
-	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
+	if [ $(BUNDLE_JEMALLOC) -eq 1 ] && [ ! -f $(JEMALLOC_TARBALL) ]; then \
 		curl -LO $(JEMALLOC_URL) ; \
 	fi ; \
-	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
+	if [ ! -f $(LIBDB_TARBALL) ]; then \
 		curl -LO $(LIBDB_URL) ; \
 	fi
 
@@ -141,14 +146,13 @@ rpmbuildprep:
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
 		cp dist/sources/$(JEMALLOC_TARBALL) $(RPMBUILD)/SOURCES/ ; \
 	fi
-	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
-		cp dist/sources/$(LIBDB_TARBALL) $(RPMBUILD)/SOURCES/ ; \
-	fi
+	cp dist/sources/$(LIBDB_TARBALL) $(RPMBUILD)/SOURCES/
 
 srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep
 	python3 rpm/bundle-rust-npm.py $(CARGO_PATH) $(NODE_MODULES_PATH) $(RPMBUILD)/SPECS/$(PACKAGE).spec -f
 	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec $(RPMBUILD_OPTIONS)
 	cp $(RPMBUILD)/SRPMS/*.src.rpm dist/srpms/
+	@echo RPMBUILD=$(RPMBUILD)
 	rm -rf $(RPMBUILD)
 
 srpm: srpms
@@ -164,8 +168,22 @@ rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
 	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec $(RPMBUILD_OPTIONS)
 	cp $(RPMBUILD)/RPMS/*/*.rpm dist/rpms/
 	cp $(RPMBUILD)/SRPMS/*.src.rpm dist/srpms/
+	@echo RPMBUILD=$(RPMBUILD)
 	rm -rf $(RPMBUILD)
 
 rpm: rpms
 
 patch_rpms: | patch rpms
+
+debug:
+	@echo BUNDLE_JEMALLOC=$(BUNDLE_JEMALLOC)
+	@echo BUNDLE_LIBDB=$(BUNDLE_LIBDB)
+	@echo BUNDLE_BDBREADERS=$(BUNDLE_BDBREADERS)
+	@echo CLANG_ON=$(CLANG_ON)
+	@echo ASAN_ON=$(ASAN_ON)
+	@echo MSAN_ON=$(MSAN_ON)
+	@echo TSAN_ON=$(TSAN_ON)
+	@echo UBSAN_ON=$(UBSAN_ON)
+	@echo COCKPIT_ON=$(COCKPIT_ON)
+	@echo JEMALLOC_URL=$(JEMALLOC_URL)
+	@echo LIBDB_URL=$(LIBDB_URL)

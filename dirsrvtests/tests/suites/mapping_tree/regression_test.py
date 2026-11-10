@@ -16,7 +16,7 @@ from lib389.backend import Backends, Backend
 from lib389._constants import HOST_STANDALONE, PORT_STANDALONE, DN_DM, PW_DM
 from lib389.dbgen import dbgen_users
 from lib389.mappingTree import MappingTrees
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.referral import Referrals, Referral
 
 
@@ -111,6 +111,7 @@ def test_sub_suffixes(topo, orphan_param):
     """ check the entries found on suffix/sub-suffix
 
     :id: 5b4421c2-d851-11ec-a760-482ae39447e5
+    :parametrized: yes
     :feature: mapping-tree
     :setup: Standalone instance with 3 additional backends:
             dc=parent, dc=child1,dc=parent, dc=childr21,dc=parent

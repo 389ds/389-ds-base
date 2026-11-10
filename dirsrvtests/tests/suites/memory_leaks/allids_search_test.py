@@ -11,7 +11,7 @@ from lib389.dbgen import dbgen_groups
 from lib389.tasks import ImportTask
 from lib389.utils import *
 from lib389.paths import Paths
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._constants import *
 
 pytestmark = pytest.mark.tier2

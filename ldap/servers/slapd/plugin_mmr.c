@@ -1,10 +1,10 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2005-2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
@@ -19,11 +19,11 @@
 #include "slap.h"
 
 int
-plugin_call_mmr_plugin_preop ( Slapi_PBlock *pb, Slapi_Entry *e, int flags)
+plugin_call_mmr_plugin_preop(Slapi_PBlock *pb, Slapi_Entry *e, int flags)
 {
-	struct slapdplugin	*p;
-	int			rc = LDAP_INSUFFICIENT_ACCESS;
-	Operation	*operation;
+	struct slapdplugin *p;
+	int rc = LDAP_INSUFFICIENT_ACCESS;
+	Operation *operation;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
@@ -45,11 +45,11 @@ plugin_call_mmr_plugin_preop ( Slapi_PBlock *pb, Slapi_Entry *e, int flags)
 }
 
 int
-plugin_call_mmr_plugin_postop ( Slapi_PBlock *pb, Slapi_Entry *e, int flags)
+plugin_call_mmr_plugin_postop(Slapi_PBlock *pb, Slapi_Entry *e, int flags)
 {
-	struct slapdplugin	*p;
-	int			rc = LDAP_INSUFFICIENT_ACCESS;
-	Operation	*operation;
+	struct slapdplugin *p;
+	int rc = LDAP_INSUFFICIENT_ACCESS;
+	Operation *operation;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 

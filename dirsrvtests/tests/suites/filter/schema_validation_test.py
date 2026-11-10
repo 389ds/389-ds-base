@@ -10,7 +10,7 @@
 import pytest
 import ldap
 import time
-from lib389.topologies import topology_st as topology_st_pre
+from test389.topologies import topology_st as topology_st_pre
 from lib389.dirsrv_log import DirsrvAccessLog
 from lib389._mapped_object import DSLdapObjects
 from lib389._constants import DEFAULT_SUFFIX

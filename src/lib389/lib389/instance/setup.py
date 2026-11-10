@@ -18,7 +18,7 @@ import socket
 import subprocess
 import getpass
 import configparser
-from lib389 import _ds_shutil_copytree, DirSrv
+from lib389 import DirSrv
 from lib389._constants import *
 from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
@@ -38,6 +38,7 @@ from lib389.instance.remove import remove_ds_instance
 from lib389.index import Indexes
 from lib389.replica import Replicas, BootstrapReplicationManager, Changelog
 from lib389.utils import (
+    align_to_page_size,
     assert_c,
     is_a_dn,
     ensure_str,
@@ -352,9 +353,9 @@ class SetupDs(object):
                     continue
 
                 # Check that valid characters are used
-                safe = re.compile(r'^[#%:\w@_-]+$').search
+                safe = re.compile(r'^(?!-)[#%:\w@_-]+$').search
                 if not bool(safe(val)):
-                    print("Server identifier has invalid characters, please choose a different value")
+                    print("Server identifier has invalid characters or starts with a dash, please choose a different value")
                     continue
 
                 # Check if server id is taken
@@ -900,7 +901,13 @@ class SetupDs(object):
         #  This is a little fragile, make it better.
         # It won't matter when we move schema to usr anyway ...
 
-        _ds_shutil_copytree(os.path.join(slapd['sysconf_dir'], 'dirsrv/schema'), slapd['schema_dir'])
+        shutil.copytree(
+            os.path.join(slapd["sysconf_dir"], "dirsrv/schema"),
+            slapd["schema_dir"],
+            copy_function=shutil.copy,
+            # Schema directory might be bind mounted, ingore it
+            dirs_exist_ok=True,
+        )
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
         os.chmod(slapd['schema_dir'], 0o770)
 
@@ -930,13 +937,15 @@ class SetupDs(object):
             # can trip up the logger.
             self.log.debug(f"CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}".encode("utf-8"))
 
-            # Setup tmpfiles_d
-            tmpfile_d = ds_paths.tmpfiles_d + "/dirsrv-" + slapd['instance_name'] + ".conf"
-            with open(tmpfile_d, "w") as TMPFILE_D:
-                TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['run_dir'], slapd['user'], slapd['group']))
-                TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['lock_dir'].replace("slapd-" + slapd['instance_name'], ""),
-                                                           slapd['user'], slapd['group']))
-                TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['lock_dir'], slapd['user'], slapd['group']))
+            if ds_paths.runtime_tmpfiles_d:
+                os.makedirs(ds_paths.runtime_tmpfiles_d, exist_ok=True)
+                tmpfile_d = f"{ds_paths.runtime_tmpfiles_d}/dirsrv-{slapd['instance_name']}.conf"
+                with open(tmpfile_d, "w") as TMPFILE_D:
+                    if not ds_paths.tmpfiles_d:
+                        TMPFILE_D.write(f"d {slapd['run_dir']} 0770 {slapd['user']} {slapd['group']}\n")
+                        lock_parent = slapd['lock_dir'].replace(f"slapd-{slapd['instance_name']}", "")
+                        TMPFILE_D.write(f"d {lock_parent} 0770 {slapd['user']} {slapd['group']}\n")
+                    TMPFILE_D.write(f"d {slapd['lock_dir']} 0770 {slapd['user']} {slapd['group']}\n")
 
         # Else we need to detect other init scripts?
         # WB: No, we just install and assume that docker will start us ...
@@ -1063,7 +1072,11 @@ class SetupDs(object):
         # Before we create any backends, set lmdb max size
         if slapd['db_lib'] == 'mdb':
             mdb_max_size = parse_size(slapd['mdb_max_size'])
-            DatabaseConfig(ds_instance).set([('nsslapd-mdb-max-size', str(mdb_max_size)),])
+            # MDB max size requires pagesize alignment
+            mdb_max_size_aligned = align_to_page_size(mdb_max_size)
+            if mdb_max_size_aligned != mdb_max_size:
+                self.log.debug(f"Aligning MDB max size from {mdb_max_size} to nearest pagesize {mdb_max_size_aligned}")
+            DatabaseConfig(ds_instance).set([('nsslapd-mdb-max-size', str(mdb_max_size_aligned)),])
 
         # Before we create any backends, create any extra default indexes that may be
         # dynamically provisioned, rather than from template-dse.ldif. Looking at you

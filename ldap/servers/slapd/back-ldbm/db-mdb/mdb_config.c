@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2019 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -146,7 +146,9 @@ dbmdb_compute_limits(struct ldbminfo *li)
 int mdb_init(struct ldbminfo *li, config_info *config_array)
 {
     dbmdb_ctx_t *conf = (dbmdb_ctx_t *)slapi_ch_calloc(1, sizeof(dbmdb_ctx_t));
-    dbmdb_componentid = generate_componentid(NULL, "db-mdb");
+    if (dbmdb_componentid == NULL) {
+        dbmdb_componentid = generate_componentid(NULL, "db-mdb");
+    }
 
     li->li_dblayer_config = conf;
     strncpy(conf->home, li->li_directory, MAXPATHLEN-1);
@@ -214,6 +216,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_dbi_txn_commit_fn = &dbmdb_dbi_txn_commit;
     priv->dblayer_dbi_txn_abort_fn = &dbmdb_dbi_txn_abort;
     priv->dblayer_get_entries_count_fn = &dbmdb_get_entries_count;
+    priv->dblayer_get_inst_entries_count_fn = &dbmdb_get_inst_entries_count;
     priv->dblayer_cursor_get_count_fn = &dbmdb_public_cursor_get_count;
     priv->dblayer_private_open_fn = &dbmdb_public_private_open;
     priv->dblayer_private_close_fn = &dbmdb_public_private_close;
@@ -475,6 +478,50 @@ dbmdb_ctx_t_db_durable_transactions_set(void *arg, void *value, char *errorbuf _
     return retval;
 }
 
+static void *
+dbmdb_ctx_t_db_import_stats_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(MDB_CONFIG(li)->dsecfg.import_stats));
+}
+
+static int
+dbmdb_ctx_t_db_import_stats_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int)((uintptr_t)value);
+
+    if (apply) {
+        MDB_CONFIG(li)->dsecfg.import_stats = val;
+    }
+
+    return retval;
+}
+
+static void *
+dbmdb_ctx_t_db_online_import_nosync_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(MDB_CONFIG(li)->dsecfg.online_import_nosync));
+}
+
+static int
+dbmdb_ctx_t_db_online_import_nosync_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int)((uintptr_t)value);
+
+    if (apply) {
+        MDB_CONFIG(li)->dsecfg.online_import_nosync = val;
+    }
+
+    return retval;
+}
+
 static int
 dbmdb_ctx_t_set_bypass_filter_test(void *arg,
                                    void *value,
@@ -544,7 +591,38 @@ dbmdb_ctx_t_serial_lock_set(void *arg,
     return LDAP_SUCCESS;
 }
 
+static void *
+mdb_config_cache_autosize_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
+    return (void *)((uintptr_t)(li->li_cache_autosize));
+}
+
+static int
+mdb_config_cache_autosize_set(void *arg,
+                              void *value,
+                              char *errorbuf,
+                              int phase __attribute__((unused)),
+                              int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    int val = (int)((uintptr_t)value);
+    if (val < 0 || val > 100) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                              CONFIG_CACHE_AUTOSIZE, val);
+        slapi_log_err(SLAPI_LOG_ERR, "mdb_config_cache_autosize_set",
+                      "Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                      CONFIG_CACHE_AUTOSIZE, val);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+    if (apply) {
+        li->li_cache_autosize = val;
+    }
+    return LDAP_SUCCESS;
+}
 
 
 /*------------------------------------------------------------------------
@@ -556,8 +634,11 @@ static config_info dbmdb_ctx_t_param[] = {
     {CONFIG_MDB_MAX_DBS, CONFIG_TYPE_INT, "512", &dbmdb_ctx_t_db_max_dbs_get, &dbmdb_ctx_t_db_max_dbs_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &dbmdb_ctx_t_maxpassbeforemerge_get, &dbmdb_ctx_t_maxpassbeforemerge_set, 0},
     {CONFIG_DB_DURABLE_TRANSACTIONS, CONFIG_TYPE_ONOFF, "on", &dbmdb_ctx_t_db_durable_transactions_get, &dbmdb_ctx_t_db_durable_transactions_set, CONFIG_FLAG_ALWAYS_SHOW},
+    {CONFIG_MDB_IMPORT_STATS, CONFIG_TYPE_ONOFF, "off", &dbmdb_ctx_t_db_import_stats_get, &dbmdb_ctx_t_db_import_stats_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_MDB_ONLINE_IMPORT_NOSYNC, CONFIG_TYPE_ONOFF, "off", &dbmdb_ctx_t_db_online_import_nosync_get, &dbmdb_ctx_t_db_online_import_nosync_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &dbmdb_ctx_t_get_bypass_filter_test, &dbmdb_ctx_t_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &dbmdb_ctx_t_serial_lock_get, &dbmdb_ctx_t_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "25", &mdb_config_cache_autosize_get, &mdb_config_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void
@@ -1388,7 +1469,6 @@ dbmdb_ctx_t_internal_set(struct ldbminfo *li, char *attrname, char *value)
 
     bval.bv_val = value;
     bval.bv_len = strlen(value);
-
     if (dbmdb_ctx_t_set((void *)li, attrname, dbmdb_ctx_t_param, &bval,
                         err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */,
                         LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
@@ -1442,4 +1522,3 @@ dbmdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int 
     }
     return rc;
 }
-

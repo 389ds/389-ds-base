@@ -462,7 +462,7 @@ extensible_candidates(
         case SLAPI_OP_EQUAL:
         case SLAPI_OP_GREATER_OR_EQUAL:
         case SLAPI_OP_GREATER: {
-            IFP mrINDEX = NULL;
+            int32_t (*mrINDEX)(Slapi_PBlock *) = NULL;
             void *mrOBJECT = NULL;
             struct berval **mrVALUES = NULL;
             char *mrOID = NULL;
@@ -489,24 +489,30 @@ extensible_candidates(
                  * Search the index, for the computed keys.
                  * Collect the resulting IDs in idl.
                  */
-                size_t n;
                 struct berval **val;
                 mrTYPE = slapi_attr_basetype(mrTYPE, NULL, 0);
-                for (n = 0, val = mrVALUES; *val; ++n, ++val) {
+                for (val = mrVALUES; *val; ++val) {
                     struct berval **keys = NULL;
                     /* keys = mrINDEX (*val), conceptually.  In detail: */
                     struct berval *bvec[2];
+                    Slapi_Value **svals = NULL;
                     bvec[0] = *val;
                     bvec[1] = NULL;
 
+                    /* Convert berval array to Slapi_Value array */
+                    valuearray_init_bervalarray(bvec, &svals);
+
                     /* coverity[var_deref_model] */
                     if (slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrOBJECT) ||
-                        slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, bvec) ||
+                        slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, svals) ||
                         mrINDEX(pb) ||
                         slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &keys)) {
                         /* something went wrong.  bail. */
+                        valuearray_free(&svals);
                         break;
-                    } else if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
+                    }
+                    valuearray_free(&svals);
+                    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
                         /*
                          * REMEMBER: this flag is only set on WARN levels. If the filter verify
                          * is on strict, we reject in search.c, if we ar off, the flag will NOT
@@ -667,7 +673,7 @@ range_candidates(
 
     /* Check if it is for bulk import. */
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    if (entryrdn_get_switch() && op && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+    if (op && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
         operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
         /* parentid is treated specially that is needed for the bulk import. (See #48755) */
         operator= SLAPI_OP_RANGE_NO_IDL_SORT | SLAPI_OP_RANGE_NO_ALLIDS;
@@ -1105,11 +1111,14 @@ keys2idl(
         struct component_keys_lookup *key_stat;
         int key_len;
 
-        idl2 = index_read_ext_allids(pb, be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit);
         if (op_stat) {
             /* gather the index lookup statistics */
             key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
-
+            clock_gettime(CLOCK_MONOTONIC, &(key_stat->key_lookup_start));
+        }
+        idl2 = index_read_ext_allids(pb, be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit);
+        if (op_stat) {
+            clock_gettime(CLOCK_MONOTONIC, &(key_stat->key_lookup_end));
             /* indextype e.g. "eq" or "sub" (see index.c) */
             if (indextype) {
                 key_stat->index_type = slapi_ch_strdup(indextype);

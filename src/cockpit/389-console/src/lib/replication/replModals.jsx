@@ -25,11 +25,8 @@ import {
 	TimePicker,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { DsNumberInput, INT32_MAX } from "../dsNumberInput.jsx";
 import PropTypes from "prop-types";
 import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 
@@ -292,8 +289,8 @@ export class WinsyncAgmtModal extends React.Component {
                         <TimePicker
                             time={startTime}
                             id="agmtStartTime"
-                            onChange={(val) => {
-                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", val);
+                            onChange={(_event, time, hour, min, seconds, isValid) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", time);
                             }}
                             stepMinutes={5}
                             direction="up"
@@ -312,8 +309,8 @@ export class WinsyncAgmtModal extends React.Component {
                         <TimePicker
                             time={endTime}
                             id="agmtEndTime"
-                            onChange={(val) => {
-                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", val);
+                            onChange={(_event, time, hour, min, seconds, isValid) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", time);
                             }}
                             stepMinutes={5}
                             direction="up"
@@ -404,16 +401,15 @@ export class WinsyncAgmtModal extends React.Component {
                                         {_("Windows AD Port")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={agmtPort}
-                                            type="number"
                                             id="agmtPort"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="agmtPort"
-                                            onChange={(e, str) => {
+                                            min={1}
+                                            max={65535}
+                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
+                                            onChange={(e) => {
                                                 handleChange(e);
                                             }}
-                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -589,16 +585,15 @@ export class WinsyncAgmtModal extends React.Component {
                                         {_("Synchronization Interval")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={agmtSyncInterval}
-                                            type="number"
                                             id="agmtSyncInterval"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="agmtSyncInterval"
-                                            onChange={(e, str) => {
+                                            min={1}
+                                            max={INT32_MAX}
+                                            validated={error.agmtSyncInterval ? ValidatedOptions.error : ValidatedOptions.default}
+                                            onChange={(e) => {
                                                 handleChange(e);
                                             }}
-                                            validated={error.agmtSyncInterval ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -607,25 +602,18 @@ export class WinsyncAgmtModal extends React.Component {
                                         {_("Exclude Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type an attribute"
-                                            onToggle={onSelectToggle}
+                                        <TypeaheadSelect
+                                            selected={agmtFracAttrs}
                                             onSelect={(e, selection) => { handleFracChange(selection) }}
                                             onClear={onSelectClear}
-                                            selections={agmtFracAttrs}
+                                            options={availAttrs}
                                             isOpen={isExcludeAttrOpen}
-                                            aria-labelledby="typeAhead-exclude-attrs"
-                                            placeholderText={_("Start typing an attribute...")}
-                                            noResultsFoundText={_("There are no matching entries")}
-                                        >
-                                            {availAttrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            onToggle={onSelectToggle}
+                                            placeholder={_("Start typing an attribute...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            ariaLabel="Type an attribute"
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top-med">
@@ -1066,8 +1054,8 @@ export class ReplAgmtModal extends React.Component {
                         <TimePicker
                             time={startTime}
                             id="agmtStartTime"
-                            onChange={(val) => {
-                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", val);
+                            onChange={(_event, time, hour, min, seconds, isValid) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", time);
                             }}
                             stepMinutes={5}
                             is24Hour
@@ -1085,8 +1073,8 @@ export class ReplAgmtModal extends React.Component {
                         <TimePicker
                             time={endTime}
                             id="agmtEndTime"
-                            onChange={(val) => {
-                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", val);
+                            onChange={(_event, time, hour, min, seconds, isValid) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", time);
                             }}
                             stepMinutes={5}
                             is24Hour
@@ -1184,16 +1172,15 @@ export class ReplAgmtModal extends React.Component {
                                         {_("Consumer Port")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <DsNumberInput
                                             value={agmtPort}
-                                            type="number"
                                             id="agmtPort"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="agmtPort"
-                                            onChange={(e, str) => {
+                                            min={1}
+                                            max={65535}
+                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
+                                            onChange={(e) => {
                                                 handleChange(e);
                                             }}
-                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText  >
                                             {_("Port must be between 1 and 65535")}
@@ -1311,24 +1298,17 @@ export class ReplAgmtModal extends React.Component {
                                         {_("Exclude Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type an attribute"
-                                            onToggle={onExcludeAttrsToggle}
+                                        <TypeaheadSelect
+                                            selected={agmtFracAttrs}
                                             onSelect={(e, selection) => { handleFracChange(selection) }}
                                             onClear={onExcludeAttrsClear}
-                                            selections={agmtFracAttrs}
+                                            options={availAttrs}
                                             isOpen={isExcludeAttrsOpen}
-                                            aria-labelledby="typeAhead-exclude-attrs"
-                                            placeholderText={_("Start typing an attribute...")}
-                                        >
-                                            {availAttrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            onToggle={onExcludeAttrsToggle}
+                                            placeholder={_("Start typing an attribute...")}
+                                            ariaLabel="Type an attribute"
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Attribute to exclude from replica Initializations")}>
@@ -1336,25 +1316,18 @@ export class ReplAgmtModal extends React.Component {
                                         {_("Exclude Init Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type an attribute"
-                                            onToggle={onExcludeAttrsInitToggle}
+                                        <TypeaheadSelect
+                                            selected={agmtFracInitAttrs}
                                             onSelect={(e, selection) => { handleFracInitChange(selection) }}
                                             onClear={onExcludeAttrsInitClear}
-                                            selections={agmtFracInitAttrs}
+                                            options={availAttrs}
                                             isOpen={isExcludeInitAttrsOpen}
-                                            aria-labelledby="typeAhead-exclude-init-attrs"
-                                            placeholderText={_("Start typing an attribute...")}
-                                            noResultsFoundText={_("There are no matching entries")}
-                                        >
-                                            {availAttrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            onToggle={onExcludeAttrsInitToggle}
+                                            placeholder={_("Start typing an attribute...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            ariaLabel="Type an attribute"
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Attributes to strip from a replication update")}>
@@ -1362,25 +1335,18 @@ export class ReplAgmtModal extends React.Component {
                                         {_("Strip Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type an attribute"
-                                            onToggle={onStripAttrsToggle}
+                                        <TypeaheadSelect
+                                            selected={agmtStripAttrs}
                                             onSelect={(e, selection) => { handleStripChange(selection) }}
                                             onClear={onStripAttrsClear}
-                                            selections={agmtStripAttrs}
+                                            options={availAttrs}
                                             isOpen={isStripAttrsOpen}
-                                            aria-labelledby="typeAhead-strip-attrs"
-                                            placeholderText={_("Start typing an attribute...")}
-                                            noResultsFoundText={_("There are no matching entries")}
-                                        >
-                                            {availAttrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            onToggle={onStripAttrsToggle}
+                                            placeholder={_("Start typing an attribute...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            ariaLabel="Type an attribute"
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                             </Tab>
@@ -1547,7 +1513,7 @@ export class ChangeReplRoleModal extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("New Role")}
                         </GridItem>
-                        <GridItem span={3}>
+                        <GridItem span={4}>
                             <FormSelect
                                 value={newRole}
                                 id="newRole"
@@ -1582,7 +1548,7 @@ export class ChangeReplRoleModal extends React.Component {
     }
 }
 
-export class AddManagerModal extends React.Component {
+export class AddEditManagerModal extends React.Component {
     render() {
         const {
             showModal,
@@ -1593,18 +1559,19 @@ export class AddManagerModal extends React.Component {
             manager,
             manager_passwd,
             manager_passwd_confirm,
-            error
+            error,
+            edit,
         } = this.props;
-        let saveBtnName = _("Add Replication Manager");
+        let saveBtnName = this.props.edit ? "Save Replication Manager" : _("Add Replication Manager");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = _("Adding Replication Manager ...");
+            saveBtnName = this.props.edit ? "Saving Replication Manager ..." : _("Adding Replication Manager ...");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title={_("Add Replication Manager")}
+                title={this.props.edit ? "Edit Replication Manager" : _("Add Replication Manager")}
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
@@ -1628,7 +1595,10 @@ export class AddManagerModal extends React.Component {
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            {_("Create a Replication Manager entry, and add it to the replication configuration for this suffix.  If the entry already exists it will be overwritten with the new credentials.")}
+                            {this.props.edit ?
+                                ""
+                            :
+                                _("Create a Replication Manager entry, and add it to the replication configuration for this suffix.  If the entry already exists it will be overwritten with the new credentials.")}
                         </Text>
                     </TextContent>
                     <Grid className="ds-margin-top-lg" title={_("The DN of the replication manager")}>
@@ -1645,13 +1615,14 @@ export class AddManagerModal extends React.Component {
                                 onChange={(e, str) => {
                                     handleChange(e);
                                 }}
+                                isDisabled={this.props.edit}
                                 validated={error.manager ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top" title={_("Replication Manager password")}>
                         <GridItem className="ds-label" span={3}>
-                            {_("Password")}
+                            {this.props.edit ? "New password" : _("Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1669,7 +1640,7 @@ export class AddManagerModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top" title={_("Replication Manager password")}>
                         <GridItem className="ds-label" span={3}>
-                            {_("Confirm Password")}
+                            {this.props.edit ? "Confirm new password" : _("Confirm Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1776,19 +1747,18 @@ export class EnableReplModal extends React.Component {
                         <GridItem span={3} className="ds-label">
                             {_("Replication Role")}
                         </GridItem>
-                        <GridItem span={2}>
-                            <FormSelect
-                                id="enableRole"
-                                value={enableRole}
-                                onChange={(e, str) => {
-                                    handleChange(e);
+                        <GridItem span={3}>
+                            <TypeaheadSelect
+                                selected={enableRole}
+                                onSelect={(e, selection) => {
+                                    const syntheticEvent = { target: { id: 'enableRole', value: selection } };
+                                    handleChange(syntheticEvent);
                                 }}
-                                aria-label="FormSelect Input"
-                            >
-                                <FormSelectOption key={0} value="Supplier" label={_("Supplier")} />
-                                <FormSelectOption key={1} value="Hub" label={_("Hub")} />
-                                <FormSelectOption key={2} value="Consumer" label={_("Consumer")} />
-                            </FormSelect>
+                                options={[_("Supplier"), _("Hub"), _("Consumer")]}
+                                placeholder={_("Select role...")}
+                                ariaLabel="Replication role selection"
+                                isMulti={false}
+                            />
                         </GridItem>
                     </Grid>
                     {replicaIDRow}
@@ -2041,16 +2011,17 @@ EnableReplModal.defaultProps = {
     error: {},
 };
 
-AddManagerModal.propTypes = {
+AddEditManagerModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
     handleChange: PropTypes.func,
     saveHandler: PropTypes.func,
     spinning: PropTypes.bool,
     error: PropTypes.object,
+    edit: PropTypes.bool,
 };
 
-AddManagerModal.defaultProps = {
+AddEditManagerModal.defaultProps = {
     showModal: false,
     spinning: false,
     error: {},

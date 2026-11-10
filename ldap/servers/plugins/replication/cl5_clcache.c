@@ -242,7 +242,7 @@ clcache_get_buffer(Replica *replica, CLC_Buffer **buf, dbi_db_t *db, ReplicaId c
             if (0 == clcache_enqueue_busy_list(replica, db, *buf)) {
                 Slapi_Backend *be = (*buf)->buf_busy_list->bl_be;
                 /* buf_busy_list is now set, and we can get the backend. So lets initialize the dbimpl buffers */
-                
+
                 dblayer_bulk_set_buffer(be, &(*buf)->buf_bulk, &(*buf)->buf_bulkdata,
                         WORK_CLC_BUFFER_PAGE_SIZE, DBI_VF_BULK_RECORD);
                 dblayer_value_set_buffer(be, &(*buf)->buf_key, (*buf)->buf_keydata, CSN_STRSIZE +1);
@@ -412,7 +412,7 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
                 buf->buf_cscbs[i]->state = CLC_STATE_READY;
             }
         } else {
-            slapi_log_err(SLAPI_LOG_ERR, buf->buf_agmt_name,
+            slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name,
                           "clcache_load_buffer - Can't locate CSN %s in the changelog (DB rc=%d). "
                           "If replication stops, the consumer may need to be reinitialized.\n",
                           (char *)buf->buf_key.data, rc);

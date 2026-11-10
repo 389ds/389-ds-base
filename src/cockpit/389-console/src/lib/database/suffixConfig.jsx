@@ -11,22 +11,28 @@ import {
     GridItem,
     TextInput,
 } from "@patternfly/react-core";
+import { displayBytes } from "../tools.jsx";
+import { DsNumberInput, INT32_MAX } from "../dsNumberInput.jsx";
 
 const _ = cockpit.gettext;
 
 export class SuffixConfig extends React.Component {
     render() {
+        const ec_size_pretty = displayBytes(this.props.cachememsize);
+        const dn_size_pretty = displayBytes(this.props.dncachememsize);
         let cacheInputs;
         if (this.props.autoTuning) {
             const cacheValue = this.props.cachesize + "  (auto-sized)";
-            const cachememValue = this.props.cachememsize + "  (auto-sized)";
+            const cachememValue = displayBytes(this.props.cachememsize) + "  (auto-sized)";
+            const dnCacheValue = displayBytes(this.props.dncachememsize) + "  (auto-sized)";
+            console
             cacheInputs = (
                 <Form isHorizontal autoComplete="off">
-                    <Grid title={_("The entry cache size in bytes setting is being auto-sized and is read-only - see Global Database Configuration")}>
+                    <Grid title={_("The entry cache size in bytes setting is being auto-sized and is read-only - see Global Database Configuration (Advanced Settings)")}>
                         <GridItem className="ds-label" span={3}>
                             {_("Entry Cache Size")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={3}>
                             <TextInput
                                 value={cachememValue}
                                 type="text"
@@ -37,11 +43,11 @@ export class SuffixConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title={_("The entry cache max entries setting is being auto-sized and is read-only - see Global Database Configuration")}>
+                    <Grid title={_("The entry cache max entries setting is being auto-sized and is read-only - see Global Database Configuration (Advanced Settings)")}>
                         <GridItem className="ds-label" span={3}>
                             {_("Entry Cache Max Entries")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={3}>
                             <TextInput
                                 value={cacheValue}
                                 type="text"
@@ -56,16 +62,15 @@ export class SuffixConfig extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("DN Cache Size")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={3} title={dn_size_pretty}>
                             <TextInput
-                                value={this.props.dncachememsize}
-                                type="number"
+                                value={dnCacheValue}
                                 id="dncachememsize"
-                                aria-describedby="dncachememsize"
-                                name="dncachememsize"
-                                onChange={(e, str) => {
+                                onChange={(e) => {
                                     this.props.handleChange(e);
                                 }}
+                                type="text"
+                                isDisabled
                             />
                         </GridItem>
                     </Grid>
@@ -78,16 +83,16 @@ export class SuffixConfig extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("Entry Cache Size")}
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
+                        <GridItem span={3} title={ec_size_pretty}>
+                            <DsNumberInput
                                 value={this.props.cachememsize}
-                                type="number"
                                 id="cachememsize"
-                                aria-describedby="cachememsize"
-                                name="cachememsize"
-                                onChange={(e, str) => {
+                                min={512000}
+                                max={INT32_MAX}
+                                onChange={(e) => {
                                     this.props.handleChange(e);
                                 }}
+                                widthChars={10}
                             />
                         </GridItem>
                     </Grid>
@@ -95,16 +100,16 @@ export class SuffixConfig extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("Entry Cache Max Entries")}
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
+                        <GridItem span={3}>
+                            <DsNumberInput
                                 value={this.props.cachesize}
-                                type="number"
                                 id="cachesize"
-                                aria-describedby="cachesize"
-                                name="cachesize"
-                                onChange={(e, str) => {
+                                min={-1}
+                                max={INT32_MAX}
+                                onChange={(e) => {
                                     this.props.handleChange(e);
                                 }}
+                                widthChars={10}
                             />
                         </GridItem>
                     </Grid>
@@ -112,16 +117,16 @@ export class SuffixConfig extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("DN Cache Size")}
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
+                        <GridItem span={3} title={dn_size_pretty}>
+                            <DsNumberInput
                                 value={this.props.dncachememsize}
-                                type="number"
                                 id="dncachememsize"
-                                aria-describedby="dncachememsize"
-                                name="dncachememsize"
-                                onChange={(e, str) => {
+                                min={512000}
+                                max={INT32_MAX}
+                                onChange={(e) => {
                                     this.props.handleChange(e);
                                 }}
+                                widthChars={10}
                             />
                         </GridItem>
                     </Grid>
@@ -136,7 +141,7 @@ export class SuffixConfig extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("saving");
         }
         return (
-            <div className="ds-margin-top-lg">
+            <div className="ds-margin-top-lg ds-left-margin">
                 {cacheInputs}
                 <Form isHorizontal autoComplete="off">
                     <Grid
@@ -146,7 +151,7 @@ export class SuffixConfig extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("Backend State")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={3}>
                             <FormSelect
                                 id="dbstate"
                                 value={this.props.dbstate}
@@ -163,7 +168,7 @@ export class SuffixConfig extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid title={_("Put database in Read-Only mode (nsslapd-readonly).")}>
-                        <GridItem span={12}>
+                        <GridItem span={3}>
                             <Checkbox
                                 label={_("Database Read-Only Mode")}
                                 id="readOnly"
@@ -176,7 +181,7 @@ export class SuffixConfig extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid title={_("Block unindexed searches on this suffix (nsslapd-require-index).")}>
-                        <GridItem span={12}>
+                        <GridItem span={3}>
                             <Checkbox
                                 label={_("Block Unindexed Searches")}
                                 id="requireIndex"

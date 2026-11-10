@@ -27,7 +27,10 @@ else
   AC_MSG_RESULT([libdb-${db_ver_maj}.${db_ver_min}-389ds.so])
 fi
 
+db_bdb_srcdir="ldap/servers/slapd/back-ldbm/db-bdb"
 
+AM_CONDITIONAL([WITH_LIBBDB_RO],[false])
+AC_SUBST(db_bdb_srcdir)
 AC_SUBST(db_inc)
 AC_SUBST(db_lib)
 AC_SUBST(db_libver)

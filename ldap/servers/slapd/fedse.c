@@ -153,6 +153,7 @@ static const char *internal_entries[] =
         "dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectclass: top\n"
         "objectclass: nsSlapdPlugin\n"
+        "objectclass: pwdPBKDF2PluginConfig\n"
         "cn: PBKDF2_SHA256\n"
         "nsslapd-pluginpath: libpwdstorage-plugin\n"
         "nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init\n"
@@ -240,7 +241,8 @@ static const char *internal_entries[] =
         "nsslapd-pluginId: PBKDF2\n"
         "nsslapd-pluginVersion: none\n"
         "nsslapd-pluginVendor: 389 Project\n"
-        "nsslapd-pluginDescription: PBKDF2\n",
+        "nsslapd-pluginDescription: PBKDF2\n"
+        "nsslapd-pwdPBKDF2AcceptMaxIterations: 600000\n",
 
         "dn: cn=PBKDF2-SHA1,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectclass: top\n"
@@ -254,7 +256,8 @@ static const char *internal_entries[] =
         "nsslapd-pluginId: PBKDF2-SHA1\n"
         "nsslapd-pluginVersion: none\n"
         "nsslapd-pluginVendor: 389 Project\n"
-        "nsslapd-pluginDescription: PBKDF2-SHA1\n",
+        "nsslapd-pluginDescription: PBKDF2-SHA1\n"
+        "nsslapd-pwdPBKDF2AcceptMaxIterations: 600000\n",
 
         "dn: cn=PBKDF2-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectclass: top\n"
@@ -268,7 +271,23 @@ static const char *internal_entries[] =
         "nsslapd-pluginId: PBKDF2-SHA256\n"
         "nsslapd-pluginVersion: none\n"
         "nsslapd-pluginVendor: 389 Project\n"
-        "nsslapd-pluginDescription: PBKDF2-SHA256\n",
+        "nsslapd-pluginDescription: PBKDF2-SHA256\n"
+        "nsslapd-pwdPBKDF2AcceptMaxIterations: 600000\n",
+
+        "dn: cn=PBKDF2-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsSlapdPlugin\n"
+        "objectClass: pwdPBKDF2PluginConfig\n"
+        "cn: PBKDF2-SHA512\n"
+        "nsslapd-pluginpath: libpwdchan-plugin\n"
+        "nsslapd-plugininitfunc: pwdchan_pbkdf2_sha512_plugin_init\n"
+        "nsslapd-plugintype: pwdstoragescheme\n"
+        "nsslapd-pluginenabled: on\n"
+        "nsslapd-pluginId: PBKDF2-SHA512\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: PBKDF2-SHA512\n"
+        "nsslapd-pwdPBKDF2AcceptMaxIterations: 600000\n",
 };
 
 static int NUM_INTERNAL_ENTRIES = sizeof(internal_entries) / sizeof(internal_entries[0]);

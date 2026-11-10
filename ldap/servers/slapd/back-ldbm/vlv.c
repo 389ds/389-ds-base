@@ -673,7 +673,7 @@ vlv_getindexnames(backend *be)
 /* Return the list of VLV indices to the import code. Added read lock */
 
 void
-vlv_getindices(IFP callback_fn, void *param, backend *be)
+vlv_getindices(int32_t (*callback_fn)(caddr_t, caddr_t), void *param, backend *be)
 {
     /* Traverse the list, calling the import code's callback function */
     struct vlvSearch *ps = NULL;
@@ -683,7 +683,7 @@ vlv_getindices(IFP callback_fn, void *param, backend *be)
     for (; ps != NULL; ps = ps->vlv_next) {
         struct vlvIndex *pi = ps->vlv_index;
         for (; pi != NULL; pi = pi->vlv_next) {
-            callback_fn(pi->vlv_attrinfo, param);
+            callback_fn((caddr_t)(pi->vlv_attrinfo), (caddr_t)param);
         }
     }
     slapi_rwlock_unlock(be->vlvSearchList_lock);
@@ -866,6 +866,7 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
     struct vlv_key *key = NULL;
     dbi_val_t data = {0};
     dblayer_private *priv = NULL;
+    size_t key_size_limit = li->li_max_key_len - sizeof(entry->ep_id);
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     priv = (dblayer_private *)li->li_dblayer_private;
@@ -886,6 +887,10 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
         return rc;
     }
 
+    /* Truncate the key if it is too long */
+    if (key->key.size > key_size_limit) {
+        key->key.size = key_size_limit;
+    }
     if (NULL != txn) {
         db_txn = txn->back_txn_txn;
     } else {
@@ -930,7 +935,7 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
         if (txn && txn->back_special_handling_fn) {
             rc = txn->back_special_handling_fn(be, BTXNACT_VLV_DEL, db, &key->key, &data, txn);
         } else {
-            rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key->key, NULL);
+            rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key->key, &data);
         }
         if (rc == 0) {
             if (txn && txn->back_special_handling_fn) {
@@ -1670,7 +1675,7 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
             slapi_attr_values2keys(&sort_control->sattr, invalue, &typedown_value, LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
             if (compare_fn == NULL) {
                 slapi_log_err(SLAPI_LOG_WARNING, "vlv_trim_candidates_byvalue",
-                              "Attempt to compare an unordered attribute");
+                              "Attempt to compare an unordered attribute\n");
                 compare_fn = slapi_berval_cmp;
             }
         }
@@ -1865,7 +1870,11 @@ vlv_print_access_log(Slapi_PBlock *pb,
         logpb.vlv_req_index = vlvi->index;
         logpb.vlv_req_value = vlvi->value.bv_val;
         logpb.vlv_req_value_len = vlvi->value.bv_len;
-        logpb.vlv_sort_str = sort_log_access(pb, sort_control, NULL, PR_TRUE);
+        if (sort_control) {
+            logpb.vlv_sort_str = sort_log_access(pb, sort_control, NULL, PR_TRUE);
+        } else {
+            logpb.vlv_sort_str = slapi_ch_strdup("None ");
+        }
         if (vlvo) {
             logpb.vlv_res_target_position = vlvo->targetPosition;
             logpb.vlv_res_content_count = vlvo->contentCount;
@@ -1906,7 +1915,9 @@ vlv_print_access_log(Slapi_PBlock *pb,
             ldbm_log_access_message(pb, msg);
             slapi_ch_free_string(&msg);
         }
-        sort_log_access(pb, sort_control, NULL, PR_FALSE);
+        if (sort_control) {
+            sort_log_access(pb, sort_control, NULL, PR_FALSE);
+        }
     }
 }
 

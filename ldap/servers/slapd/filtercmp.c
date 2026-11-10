@@ -86,7 +86,7 @@ get_mr_normval(char *oid, char *type, struct berval **inval, struct berval ***ou
 {
     Slapi_PBlock *pb = slapi_pblock_new();
     unsigned int sort_indicator = SLAPI_PLUGIN_MR_USAGE_SORT;
-    IFP mrIndex = NULL;
+    int32_t (*mrIndex)(Slapi_PBlock *) = NULL;
 
     if (!pb) {
         return NULL;
@@ -118,7 +118,7 @@ get_mr_normval(char *oid, char *type, struct berval **inval, struct berval ***ou
 static void
 done_mr_normval(Slapi_PBlock *pb)
 {
-    IFP mrDestroy = NULL;
+    int32_t (*mrDestroy)(Slapi_PBlock *) = NULL;
 
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DESTROY_FN, &mrDestroy) == 0) {
         if (mrDestroy)

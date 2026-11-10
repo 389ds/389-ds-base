@@ -70,6 +70,13 @@ smd5_pw_cmp(const char *userpwd, const char *dbpwd)
         goto loser;
     }
 
+    if (hash_len < MD5_LENGTH) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, SALTED_MD5_SUBSYSTEM_NAME,
+                      "smd5_pw_cmp: decoded hash length %u is too short\n",
+                      hash_len);
+        goto loser;
+    }
+
     salt.bv_val = (void *)(dbhash + MD5_LENGTH); /* salt starts after hash value */
     salt.bv_len = hash_len - MD5_LENGTH;         /* remaining bytes must be salt */
 

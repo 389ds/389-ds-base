@@ -424,6 +424,10 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
              * but it in the importing dir so no other process can change
              * things while we are doing ldif2db with the -r flag. */
                 add_this_process_to(import_dir);
+                /* But also add the process in export_dir to differenciate 
+                 * from and import task
+                 */
+                add_this_process_to(export_dir);
                 result = 0;
             }
         } else {

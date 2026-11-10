@@ -17,7 +17,7 @@ import ldap
 from datetime import datetime
 from lib389._constants import DN_DM, PASSWORD, DEFAULT_SUFFIX, INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES, TASK_WAIT
-from lib389.topologies import topology_st as topo, topology_m2 as topo_m2, set_timeout
+from test389.topologies import topology_st as topo, topology_m2 as topo_m2, set_timeout
 from lib389.backend import Backends, Backend
 from lib389.dbgen import dbgen_users
 from lib389.tasks import BackupTask, RestoreTask
@@ -327,7 +327,7 @@ def test_backup_task_after_failure(mytopo):
     inst = mytopo.standalone
     tasks = inst.tasks
     archive_dir1 = f'{inst.ds_paths.backup_dir}/bak1'
-    archive_dir1b = f'{inst.ds_paths.backup_dir}/bak1b'
+    dir1bidx = 1
     archive_dir2 = f'{inst.ds_paths.backup_dir}/bak2'
 
     # Sometime the backup complete too fast, so lets retry if first
@@ -342,6 +342,8 @@ def test_backup_task_after_failure(mytopo):
         done,exitCode,warningCode = (False, None, None)
         while not done:
             if os.path.isdir(archive_dir1):
+                archive_dir1b = f'{inst.ds_paths.backup_dir}/bak1b{dir1bidx}'
+                dir1bidx += 1
                 os.rename(archive_dir1, archive_dir1b)
             done,exitCode,warningCode = tasks.checkTask(tasks.entry)
             time.sleep(0.01)

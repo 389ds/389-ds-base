@@ -10,7 +10,7 @@ import pytest
 import os
 import logging
 
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_conf.plugins.ldappassthrough import pta_add
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.cli_base import FakeArgs

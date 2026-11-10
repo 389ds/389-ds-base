@@ -1,0 +1,98 @@
+---
+# See the documentation for more information:
+# https://packit.dev/docs/configuration/
+specfile_path: rpm/389-ds-base.spec
+upstream_project_url: https://github.com/389ds/389-ds-base
+upstream_package_name: 389-ds-base
+downstream_package_name: 389-ds-base
+
+# See: https://packit.dev/docs/configuration/#upstream_tag_template
+upstream_tag_template: "389-ds-base-{version}"
+
+# See: https://packit.dev/docs/configuration/#release_suffix
+release_suffix: "{PACKIT_PROJECT_BRANCH}"
+
+# Prevent cross-major.minor updates on stable Fedora branches.
+version_update_mask: '\\d+\\.\\d+'
+
+srpm_build_deps:
+  - make
+  - cargo
+  - npm
+  - rsync
+
+actions:
+  post-upstream-clone:
+    - cargo install cargo-license
+    - make -f rpm.mk rpmroot rpmspec
+    - python3 rpm/bundle-rust-npm.py -f src src/cockpit/389-console rpm/389-ds-base.spec
+  pre-sync:
+    - >-
+      bash -c 'curl --fail --location
+      "https://github.com/389ds/389-ds-base/releases/download/389-ds-base-${PACKIT_PROJECT_VERSION}/389-ds-base-${PACKIT_PROJECT_VERSION}.tar.bz2"
+      --output "389-ds-base-${PACKIT_PROJECT_VERSION}.tar.bz2"'
+  create-archive:
+    - make -f rpm.mk BUNDLE_LIBDB=1 download-cargo-dependencies tarballs
+    - python3 rpm/bundle-rust-npm.py -f src src/cockpit/389-console rpm/389-ds-base.spec
+    - "bash -c 'ls -1 dist/sources/389-ds-base*.tar.bz2'"
+
+  get-current-version:
+    - rpmspec -q --qf "%{Version}" --srpm rpm/389-ds-base.spec
+
+files_to_sync:
+  - src: rpm/389-ds-base.spec
+    dest: 389-ds-base.spec
+  - src:
+      - "389-ds-base-*.tar.bz2"
+    dest: .
+  - .packit.yaml
+
+allowed_pr_authors:
+  - packit
+  - all_admins
+
+notifications:
+  pull_request:
+    successful_build: true
+
+jobs:
+- job: copr_build
+  trigger: pull_request
+  targets:
+    fedora-all:
+        without_opts:
+            - bundle_libdb
+    epel-10-all:
+        with_opts:
+            - bundle_libdb
+
+- job: copr_build
+  trigger: commit
+  branch: main
+  preserve_project: true
+  targets:
+    fedora-all:
+        without_opts:
+            - bundle_libdb
+    epel-10-all:
+        with_opts:
+            - bundle_libdb
+
+# Downstream release automation.
+- job: propose_downstream
+  trigger: release
+  dist_git_branches:
+    - fedora-all
+
+# Builds in Koji automatically when the dist-git PR is merged.
+- job: koji_build
+  trigger: commit
+  dist_git_branches:
+    - fedora-all
+
+# Creates a Bodhi update after a successful Koji build.
+# Rawhide updates are created automatically by Fedora infrastructure.
+- job: bodhi_update
+  trigger: koji_build
+  dist_git_branches:
+    - fedora-branched

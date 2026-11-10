@@ -195,6 +195,8 @@ bdb_verify(Slapi_PBlock *pb)
                 }
                 rval_main |= bdb_dbverify_ext(inst, verbose);
             } else {
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_verify",
+                              "Backend '%s' does not exist.\n", *inp);
                 rval_main |= 1; /* no such instance */
             }
         }

@@ -1,0 +1,38 @@
+#!/usr/bin/env bpftrace
+/*
+ * Access-log latency histogram.
+ * Usage: bpftrace probe_log_access_detail.bt /usr/lib64/dirsrv/libslapd.so
+ * Probes live in libslapd.so, not ns-slapd.
+ *
+ * Mirrors profiling/stap/probe_log_access_detail.stp.
+ */
+
+usdt:$1:ns-slapd:vslapd_log_access__entry
+{
+    @entry_us[tid] = nsecs / 1000;
+    @prepared_us[tid] = nsecs / 1000;
+}
+
+usdt:$1:ns-slapd:vslapd_log_access__prepared
+{
+    @log_access_prepared = hist((nsecs / 1000) - @prepared_us[tid]);
+    delete(@prepared_us[tid]);
+
+    @finalise_us[tid] = nsecs / 1000;
+}
+
+usdt:$1:ns-slapd:vslapd_log_access__buffer
+{
+    @log_access_complete = hist((nsecs / 1000) - @finalise_us[tid]);
+    delete(@finalise_us[tid]);
+
+    @log_access_full = hist((nsecs / 1000) - @entry_us[tid]);
+    delete(@entry_us[tid]);
+}
+
+END
+{
+    clear(@entry_us);
+    clear(@prepared_us);
+    clear(@finalise_us);
+}

@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -26,7 +26,16 @@
 
 static char *sourcefile = "dbmdb_import.c";
 
-static int dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted, back_txn *txn);
+/* Helper struct used to compute numsubordinates */
+
+typedef struct {
+    backend *be;
+    dbi_txn_t *txn;
+    const char *attrname;
+    struct attrinfo *ai;
+    dbi_db_t *db;
+    MDB_cursor *dbc;
+} subcount_cursor_info_t;
 
 /********** routines to manipulate the entry fifo **********/
 
@@ -126,57 +135,74 @@ dbmdb_import_task_abort(Slapi_Task *task)
 
 /********** helper functions for importing **********/
 
-static int
-dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted, back_txn *txn)
+static void
+dbmdb_close_subcount_cursor(subcount_cursor_info_t *info)
 {
-    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    if  (info->dbc) {
+        MDB_CURSOR_CLOSE(info->dbc);
+        info->dbc = NULL;
+    }
+    if (info->db) {
+        dblayer_release_index_file(info->be, info->ai, info->db);
+        info->db = NULL;
+        info->ai = NULL;
+    }
+}
+
+static int
+dbmdb_open_subcount_cursor(backend *be, const char *attrname, dbi_txn_t *txn, subcount_cursor_info_t *info)
+{
+    char errfunc[60];
     int ret = 0;
-    modify_context mc = {0};
-    char value_buffer[22] = {0}; /* enough digits for 2^64 children */
-    struct backentry *e = NULL;
-    int isreplace = 0;
-    char *numsub_str = numsubordinates;
 
-    /* Get hold of the parent */
-    e = id2entry(be, parentid, txn, &ret);
-    if ((NULL == e) || (0 != ret)) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_update_entry_subcount", "failed to read entry with ID %d ret=%d\n",
-                parentid, ret);
-        ldbm_nasty("dbmdb_import_update_entry_subcount", sourcefile, 5, ret);
-        return (0 == ret) ? -1 : ret;
-    }
-    /* Lock it (not really required since we're single-threaded here, but
-     * let's do it so we can reuse the modify routines) */
-    cache_lock_entry(&inst->inst_cache, e);
-    modify_init(&mc, e);
-    mc.attr_encrypt = isencrypted;
-    sprintf(value_buffer, "%lu", (long unsigned int)sub_count);
-    /* If it is a tombstone entry, add tombstonesubordinates instead of
-     * numsubordinates. */
-    if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
-        numsub_str = LDBM_TOMBSTONE_NUMSUBORDINATES_STR;
-    }
-    /* attr numsubordinates/tombstonenumsubordinates could already exist in
-     * the entry, let's check whether it's already there or not */
-    isreplace = (attrlist_find(e->ep_entry->e_attrs, numsub_str) != NULL);
-    {
-        int op = isreplace ? LDAP_MOD_REPLACE : LDAP_MOD_ADD;
-        Slapi_Mods *smods = slapi_mods_new();
+    snprintf(errfunc, (sizeof errfunc), "%s[%s]", __FUNCTION__, attrname);
+    info->attrname = attrname;
+    info->txn = txn;
+    info->be = be;
 
-        slapi_mods_add(smods, op | LDAP_MOD_BVALUES, numsub_str,
-                       strlen(value_buffer), value_buffer);
-        ret = modify_apply_mods(&mc, smods); /* smods passed in */
-    }
-    if (0 == ret || LDAP_TYPE_OR_VALUE_EXISTS == ret) {
-        /* This will correctly index subordinatecount: */
-        ret = modify_update_all(be, NULL, &mc, txn);
-        if (0 == ret) {
-            modify_switch_entries(&mc, be);
+    /* Lets get the attrinfo */
+    ainfo_get(be, (char*)attrname, &info->ai);
+    PR_ASSERT(info->ai);
+    /* Lets get the db instance */
+    if ((ret = dblayer_get_index_file(be, info->ai, &info->db, 0)) != 0) {
+        if (ret == DBI_RC_NOTFOUND) {
+            dbmdb_close_subcount_cursor(info);
+            return ret;
         }
+        ldbm_nasty(errfunc, sourcefile, 70, ret);
+        dbmdb_close_subcount_cursor(info);
+        return ret;
     }
-    /* entry is unlocked and returned to the cache in modify_term */
-    modify_term(&mc, be);
+
+    /* Lets get the cursor */
+    if ((ret = MDB_CURSOR_OPEN(TXN(info->txn), DB(info->db), &info->dbc)) != 0) {
+        ldbm_nasty(errfunc, sourcefile, 71, ret);
+        dbmdb_close_subcount_cursor(info);
+        ret = dbmdb_map_error(__FUNCTION__, ret);
+    }
     return ret;
+}
+
+static bool
+dbmdb_subcount_is_tombstone(subcount_cursor_info_t *info, MDB_val *id)
+{
+    /*
+     * Check if record =nstombstone ==> id exists in objectclass index
+     */
+    MDB_val key = {0};
+    int ret;
+    key.mv_data = "=nstombstone" ;
+    key.mv_size = 13;
+    ret = MDB_CURSOR_GET(info->dbc, &key, id, MDB_GET_BOTH);
+    switch (ret) {
+        case 0:
+            return true;
+        case MDB_NOTFOUND:
+            return false;
+        default:
+            ldbm_nasty((char*)__FUNCTION__, sourcefile, 72, ret);
+            return false;
+    }
 }
 
 /*
@@ -188,47 +214,58 @@ dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, i
 static int
 dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
 {
-    int isencrypted = job->encrypt;
+    subcount_cursor_info_t c_objectclass = {0};
+    subcount_cursor_info_t c_entryrdn = {0};
     int started_progress_logging = 0;
-    int key_count = 0;
-    int ret = 0;
-    dbmdb_dbi_t*db = NULL;
-    MDB_cursor *dbc = NULL;
-    struct attrinfo *ai = NULL;
-    MDB_val key = {0};
+    int isencrypted = job->encrypt;
     MDB_val data = {0};
-    dbmdb_cursor_t cursor = {0};
-    struct ldbminfo *li = (struct ldbminfo*)be->be_database->plg_private;
-	back_txn btxn = {0};
+    MDB_val key = {0};
+    back_txn btxn = {0};
+    int key_count = 0;
+    char tmp[11];
+    int ret2 = 0;
+    int ret = 0;
 
-    /* Open the parentid index */
-    ainfo_get(be, LDBM_PARENTID_STR, &ai);
-
-    /* Open the parentid index file */
-    if ((ret = dblayer_get_index_file(be, ai, (dbi_db_t**)&db, DBOPEN_CREATE)) != 0) {
-        ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 67, ret);
-        return (ret);
+    PR_ASSERT(txn == NULL); /* Apparently always called with null txn */
+    /* Need txn / should be rw to update id2entry */
+    ret = START_TXN(&txn, NULL, 0);
+    if (ret) {
+        ldbm_nasty((char*)__FUNCTION__, sourcefile, 60, ret);
+        return dbmdb_map_error(__FUNCTION__, ret);
     }
-    /* Get a cursor with r/w txn so we can walk through the parentid */
-    ret = dbmdb_open_cursor(&cursor, MDB_CONFIG(li), db, 0);
-    if (ret != 0) {
-        ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 68, ret);
-        dblayer_release_index_file(be, ai, db);
-        return ret;
-    }
-    dbc = cursor.cur;
-    txn = cursor.txn;
     btxn.back_txn_txn = txn;
-    ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_FIRST);
+    /* Open cursor on the objectclass index */
+    ret = dbmdb_open_subcount_cursor(be, SLAPI_ATTR_OBJECTCLASS, txn, &c_objectclass);
+    if (ret) {
+        if (ret != DBI_RC_NOTFOUND) {
+            /* No database ==> There is nothing to do. */
+            ldbm_nasty((char*)__FUNCTION__, sourcefile, 61, ret);
+        } else {
+            ret = 0;
+        }
+        return END_TXN(&txn, ret);
+    }
+			/* Open cursor on the entryrdn index */
+    ret = dbmdb_open_subcount_cursor(be, LDBM_ENTRYRDN_STR, txn, &c_entryrdn);
+    if (ret) {
+        ldbm_nasty((char*)__FUNCTION__, sourcefile, 62, ret);
+        dbmdb_close_subcount_cursor(&c_objectclass);
+        return END_TXN(&txn, ret);
+    }
 
-    /* Walk along the index */
-    while (ret != MDB_NOTFOUND) {
+    /* Walk along C* keys (usually starting at C1) */
+    key.mv_data = "C";
+    key.mv_size = 1;
+    ret = MDB_CURSOR_GET(c_entryrdn.dbc, &key, &data, MDB_SET_RANGE);
+    while (ret == 0) {
         size_t sub_count = 0;
+        size_t t_sub_count = 0;
+        MDB_val oldkey = key;
         ID parentid = 0;
 
         if (0 != ret) {
             key.mv_data=NULL;
-            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 62, ret);
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 63, ret);
             break;
         }
         /* check if we need to abort */
@@ -247,33 +284,50 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
                               key_count);
             started_progress_logging = 1;
         }
-
-        if (*(char *)key.mv_data == EQ_PREFIX) {
-            char tmp[11];
-
-            /* construct the parent's ID from the key */
-            if (key.mv_size >= sizeof tmp) {
-                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 66, ret);
-                break;
-            }
-            memcpy(tmp, key.mv_data, key.mv_size);
-            tmp[key.mv_size] = 0;
-            parentid = (ID)atol(tmp+1);
-            PR_ASSERT(0 != parentid);
-            /* Get number of records having the same key */
-            ret = mdb_cursor_count(dbc, &sub_count);
-            if (ret) {
-                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 63, ret);
-                break;
-            }
-            PR_ASSERT(0 != sub_count);
-            ret = dbmdb_import_update_entry_subcount(be, parentid, sub_count, isencrypted, &btxn);
-            if (ret) {
-                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 64, ret);
-                break;
-            }
+        if (!key.mv_data || *(char *)key.mv_data != 'C') {
+            /* No more children */
+            break;
         }
-        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
+
+        /* construct the parent's ID from the key */
+        if (key.mv_size >= sizeof tmp) {
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 64, ret);
+            ret = DBI_RC_INVALID;
+            break;
+        }
+        /* Generate expected value for parentid */
+        memcpy(tmp, key.mv_data, key.mv_size);
+        tmp[key.mv_size] = 0;
+        parentid = (ID)atol(tmp+1);
+        PR_ASSERT(0 != parentid);
+        oldkey = key;
+        /* Walk the entries having same key and check if they are tombstone */
+        do {
+            /* Reorder data */
+            ID old_data, new_data;
+            if (data.mv_size < sizeof old_data) {
+                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 66, ret);
+                ret = DBI_RC_INVALID;
+                break;
+            }
+            memcpy(&old_data, data.mv_data, sizeof old_data);
+            id_internal_to_stored(old_data, (char*)&new_data);
+            data.mv_data = &new_data;
+            data.mv_size = sizeof new_data;
+            if (!dbmdb_subcount_is_tombstone(&c_objectclass, &data)) {
+                sub_count++;
+            } else {
+                t_sub_count++;
+            }
+            ret = MDB_CURSOR_GET(c_entryrdn.dbc, &key, &data, MDB_NEXT);
+        } while (ret == 0 && key.mv_size == oldkey.mv_size &&
+             memcmp(key.mv_data, oldkey.mv_data, key.mv_size) == 0);
+        ret2 = import_update_entry_subcount(be, parentid, sub_count, t_sub_count, isencrypted, &btxn);
+        if (ret2) {
+            ret = ret2;
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 65, ret);
+            break;
+        }
     }
     if (started_progress_logging) {
         /* Finish what we started... */
@@ -285,17 +339,21 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
     if (ret == MDB_NOTFOUND) {
         ret = 0;
     }
-
-    dbmdb_close_cursor(&cursor, ret);
-    dblayer_release_index_file(be, ai, db);
-
-    return (ret);
+    dbmdb_close_subcount_cursor(&c_entryrdn);
+    dbmdb_close_subcount_cursor(&c_objectclass);
+    if (txn) {
+        return END_TXN(&txn, ret);
+    } else {
+        return ret;
+    }
 }
 
 /* Function used to gather a list of indexed attrs */
-static int
-dbmdb_import_attr_callback(void *node, void *param)
+static int32_t
+dbmdb_import_attr_callback(caddr_t n, caddr_t p)
 {
+    void *node = (void *)n;
+    void *param  = (void *)p;
     ImportJob *job = (ImportJob *)param;
     struct attrinfo *a = (struct attrinfo *)node;
 
@@ -362,10 +420,6 @@ dbmdb_import_free_job(ImportJob *job)
         slapi_ch_free((void **)&asabird);
     }
     job->index_list = NULL;
-    if (NULL != job->mothers) {
-        import_subcount_stuff_term(job->mothers);
-        slapi_ch_free((void **)&job->mothers);
-    }
 
     dbmdb_back_free_incl_excl(job->include_subtrees, job->exclude_subtrees);
 
@@ -534,7 +588,6 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
     int count = 1; /* 1 to prevent premature status report */
     const int display_interval = 200;
     time_t time_now = 0;
-    int i = 0;
 
     for (current_worker = job->worker_list; current_worker != NULL;
          current_worker = current_worker->next)
@@ -563,12 +616,13 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
     dbmdb_import_clear_progress_history(job);
 
     while (!finished) {
+        size_t max_slots = ctx->workerq.max_slots;
         DS_Sleep(tenthsecond);
         finished = 1;
 
         /* Compute the number of entries processed by the workers */
         entry_processed = 0;
-        for (i=0; i<ctx->workerq.max_slots; i++) {
+        for (size_t i = 0; i < max_slots; i++) {
             entry_processed += slots[i].count;
         }
 
@@ -596,7 +650,7 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
         for (current_worker = job->worker_list; current_worker != NULL;
              current_worker = current_worker->next) {
             if ((current_worker->state & ABORTED) && !(job->flags & FLAG_ABORT)) {
-                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_monitor_threads", "thread %s aborted ==> Aborting %s.\n", current_worker->name, dbmdb_import_role(job));
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_monitor_threads", "thread %s aborted ==> Aborting %s.", current_worker->name, dbmdb_import_role(job));
                 job->flags |= FLAG_ABORT;
             }
             if ((current_worker->state & FINISHED) == 0) {
@@ -647,7 +701,7 @@ dbmdb_import_run_pass(ImportJob *job, int *status)
     /* Start the threads startcfg */
     ret = dbmdb_import_start_threads(job);
     if (ret != 0) {
-        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Starting threads failed: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Starting threads failed: %d", ret);
         goto error;
     }
 
@@ -655,10 +709,10 @@ dbmdb_import_run_pass(ImportJob *job, int *status)
     ret = dbmdb_import_monitor_threads(job, status);
     if ((ret == ERR_IMPORT_ABORTED) || (ret == NEED_DN_NORM) ||
         (ret == NEED_DN_NORM_SP) || (ret == NEED_DN_NORM_BT)) {
-        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Thread monitoring returned: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Thread monitoring returned: %d", ret);
         goto error;
     } else if (ret != 0) {
-        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Thread monitoring aborted: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Thread monitoring aborted: %d", ret);
         goto error;
     }
 
@@ -729,6 +783,25 @@ dbmdb_import_all_done(ImportJob *job, int ret)
             index->ai->ai_indexmask &= ~INDEX_OFFLINE;
             index = index->next;
         }
+        /* Re-enable fsync before going back online, but only if we set it */
+        if (job->nosync_set) {
+            struct ldbminfo *li = (struct ldbminfo *)inst->inst_be->be_database->plg_private;
+            dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+            if (ctx->env) {
+                int nosync_rc = mdb_env_set_flags(ctx->env, MDB_NOSYNC, 0);
+                if (nosync_rc != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_all_done",
+                                  "Failed to clear MDB_NOSYNC flag "
+                                  "(error %d: %s)\n",
+                                  nosync_rc, mdb_strerror(nosync_rc));
+                } else {
+                    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_all_done",
+                                  "MDB_NOSYNC cleared. "
+                                  "Per-commit fsync re-enabled.\n");
+                }
+            }
+            job->nosync_set = 0;
+        }
         /* start up the instance */
         rc = dbmdb_instance_start(job->inst->inst_be, DBLAYER_NORMAL_MODE);
         if (rc == 0) {
@@ -738,11 +811,11 @@ dbmdb_import_all_done(ImportJob *job, int ret)
             /* Bring backend online again:
              * In lmdb case, the import framework is also used for reindexing
              * while in bdb case reindexing uses its own code.
-             * So dbmdb_import_all_done is called either after 
+             * So dbmdb_import_all_done is called either after
              * dbmdb_ldif2db or after dbmdb_db2index while
              * bdb_import_all_done is only called after bdb_ldif2db.
              *
-             * dbmdb_db2index uses instance_set_busy_and_readonly 
+             * dbmdb_db2index uses instance_set_busy_and_readonly
              * while dbmdb_ldif2db uses slapi_mtn_be_disable
              * and these functions have to be reverted accordingly.
              */
@@ -771,9 +844,12 @@ dbmdb_import_all_done(ImportJob *job, int ret)
 
 /* vlv_getindices callback that truncate vlv index (in reindex case) */
 static int
-truncate_index_dbi(struct attrinfo *ai, ImportCtx_t *ctx)
+truncate_index_dbi(caddr_t a, caddr_t c)
 {
+    struct attrinfo *ai = (struct attrinfo *)a;
+    ImportCtx_t *ctx = (ImportCtx_t *)c;
     int rc = 0;
+
     if (is_reindexed_attr(ai->ai_type, ctx, ctx->indexVlvs)) {
         backend *be = ctx->job->inst->inst_be;
         dbmdb_dbi_t *dbi = NULL;
@@ -805,6 +881,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
 
     if (job->task) {
         slapi_task_inc_refcount(job->task);
+        slapi_task_wait(job->task);
     }
 
     if (job->flags & (FLAG_UPGRADEDNFORMAT | FLAG_UPGRADEDNFORMAT_V1)) {
@@ -828,9 +905,9 @@ dbmdb_public_dbmdb_import_main(void *arg)
         /* Here, we get an AVL tree which contains nodes for all attributes
          * in the schema.  Given this tree, we need to identify those nodes
          * which are marked for indexing. */
-        avl_apply(job->inst->inst_attrs, (IFP)dbmdb_import_attr_callback,
+        avl_apply(job->inst->inst_attrs, dbmdb_import_attr_callback,
                   (caddr_t)job, -1, AVL_INORDER);
-        vlv_getindices((IFP)dbmdb_import_attr_callback, (void *)job, be);
+        vlv_getindices(dbmdb_import_attr_callback, (void *)job, be);
     }
 
     /* insure all dbi get open */
@@ -851,7 +928,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
             pthread_mutex_unlock(&job->wire_lock);
             break;
         case IM_INDEX:
-            vlv_getindices((IFP)truncate_index_dbi, ctx, job->inst->inst_be);
+            vlv_getindices(truncate_index_dbi, ctx, job->inst->inst_be);
         default:
             break;
     }
@@ -932,39 +1009,70 @@ error:
        except dry run mode */
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) {
-        cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
-    }
+    cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
     if (aborted) {
         /* If aborted, it's safer to rebuild the caches. */
         cache_destroy_please(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
-        }
+        cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
         /* initialize the entry cache */
-        if (!cache_init(&(inst->inst_cache), inst->inst_cache.c_maxsize,
+        if (!cache_init(&(inst->inst_cache), inst, inst->inst_cache.c_stats.maxsize,
                         DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dbmdb_import_main",
                           "cache_init failed.  Server should be restarted.\n");
         }
 
         /* initialize the dn cache */
-        if (!cache_init(&(inst->inst_dncache), inst->inst_dncache.c_maxsize,
+        if (!cache_init(&(inst->inst_dncache), inst, inst->inst_dncache.c_stats.maxsize,
                         DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dbmdb_import_main",
                           "dn cache_init failed.  Server should be restarted.\n");
         }
     }
     if (0 != ret) {
-        dblayer_instance_close(job->inst->inst_be);
-        if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
-            /* If not dryrun NOR upgradedn space */
-            /* if startcfg in the dry run mode, don't touch the db */
-            dbmdb_delete_instance_dir(be);
+        if (job->flags & FLAG_REINDEXING) {
+            /* Reindex only rebuilds secondary indexes from id2entry
+             * which is never modified during reindex. On failure we
+             * must NOT close or delete the instance, just bring the
+             * backend back online so the server can continue operating
+             * or shut down cleanly.
+             */
+            import_log_notice(job, SLAPI_LOG_CRIT, "dbmdb_public_dbmdb_import_main",
+                              "Reindex failed. Indexes may be incomplete."
+                              " The backend is unavailable until offline"
+                              " reindex is performed:"
+                              " stop the server, run 'dsctl <instance> db2index %s',"
+                              " then start the server.",
+                              inst->inst_name);
+        } else {
+            dblayer_instance_close(job->inst->inst_be);
+            if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
+                /* Not dryrun nor upgradedn - delete the half-imported db */
+                dbmdb_delete_instance_dir(be);
+                if (job->has_backup) {
+                    /* This was an online (bulk) import and we kept a
+                     * pre-import backup -- restore it instead of
+                     * leaving the backend empty. */
+                    if (dbmdb_import_backup_restore(be) == 0 &&
+                        dbmdb_instance_start(be, DBLAYER_NORMAL_MODE) == 0) {
+                        import_reenable_backend_after_restore(job, be);
+                        import_log_notice(job, SLAPI_LOG_NOTICE, "dbmdb_public_dbmdb_import_main",
+                                          "Online import failed; restored '%s' to its "
+                                          "pre-import state.", inst->inst_name);
+                    } else {
+                        import_log_notice(job, SLAPI_LOG_CRIT, "dbmdb_public_dbmdb_import_main",
+                                          "Online import failed and the pre-import backup "
+                                          "for '%s' could not be restored; the backend is "
+                                          "empty and must be re-imported.", inst->inst_name);
+                    }
+                }
+            }
         }
     } else {
         if (0 != (ret = dblayer_instance_close(job->inst->inst_be))) {
             import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_public_dbmdb_import_main", "Failed to close database");
+        }
+        if (job->has_backup) {
+            dbmdb_import_backup_discard(be);
         }
     }
     end = slapi_current_rel_time_t();
@@ -1063,6 +1171,9 @@ error:
         import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_public_dbmdb_import_main", "%s failed.", opstr);
         dbmdb_task_finish(job, ret);
     } else {
+        dblayer_private *priv = NULL;
+        struct ldbminfo *li = inst->inst_li;
+
         if (job->task) {
             /* set task warning if there are no errors */
             if (job->skipped) {
@@ -1077,6 +1188,34 @@ error:
             ret |= ERR_DUPLICATE_DN;
         }
         dbmdb_import_all_done(job, ret);
+
+        /* Import is done, we need to autotune caches */
+        priv = (dblayer_private *)li->li_dblayer_private;
+        priv->dblayer_auto_tune_fn(li);
+    }
+
+    /*
+     * If NOSYNC was set by us and not yet cleared (e.g. import thread failed
+     * before reaching dbmdb_import_all_done), clear it now to restore
+     * durability for all backends.
+     */
+    if (job->nosync_set) {
+        struct ldbminfo *li = inst->inst_li;
+        dbmdb_ctx_t *mdb_ctx = MDB_CONFIG(li);
+        if (mdb_ctx->env) {
+            int nosync_rc = mdb_env_set_flags(mdb_ctx->env, MDB_NOSYNC, 0);
+            if (nosync_rc != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dbmdb_import_main",
+                              "Failed to clear MDB_NOSYNC after import failure "
+                              "(error %d: %s)\n",
+                              nosync_rc, mdb_strerror(nosync_rc));
+            } else {
+                slapi_log_err(SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main",
+                              "MDB_NOSYNC cleared after import failure. "
+                              "Per-commit fsync re-enabled.\n");
+            }
+        }
+        job->nosync_set = 0;
     }
 
     /* Re-enable the ndn cache */
@@ -1106,6 +1245,7 @@ error:
 void
 dbmdb_import_main(void *arg)
 {
+    slapi_set_thread_name("import");
     /* For online import tasks increment/decrement the global thread count */
     g_incr_active_threadcnt();
     dbmdb_public_dbmdb_import_main(arg);
@@ -1164,6 +1304,20 @@ process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
             pt = strchr(attrname, ':');
             if (pt != NULL) {
                 *pt = '\0';
+            }
+            if (ldbm_index_entrydn_should_ignore(attrname)) {
+                if (ctx->job && ctx->job->task && ctx->job->inst) {
+                    slapi_task_log_notice(ctx->job->task,
+                                          "%s: Requested to index %s, but the index is no longer applicable",
+                                          ctx->job->inst->inst_name, LDBM_ENTRYDN_STR);
+                }
+                if (ctx->job && ctx->job->inst) {
+                    slapi_log_err(SLAPI_LOG_WARNING,
+                                  "process_db2index_attrs", "%s: Requested to index %s, but the index is no longer applicable\n",
+                                  ctx->job->inst->inst_name, LDBM_ENTRYDN_STR);
+                }
+                slapi_ch_free_string(&attrname);
+                break;
             }
             slapi_ch_array_add(&ctx->indexAttrs, attrname);
             break;
@@ -1232,6 +1386,37 @@ dbmdb_run_ldif2db(Slapi_PBlock *pb)
             job->flags |= FLAG_REINDEXING; /* call dbmdb_index_producer */
             dbmdb_import_init_writer(job, IM_INDEX);
             process_db2index_attrs(pb, job->writer_ctx);
+            /*
+             * If specific indexes were requested but all were skipped
+             * do not fall through to a full rebuild.
+             */
+            {
+                char **req_attrs = NULL;
+                ImportCtx_t *ctx = job->writer_ctx;
+
+                slapi_pblock_get(pb, SLAPI_DB2INDEX_ATTRS, &req_attrs);
+                if (req_attrs && req_attrs[0] && ctx &&
+                    !ctx->indexAttrs && !ctx->indexVlvs) {
+                    if (job->task) {
+                        slapi_task_log_notice(job->task,
+                                              "%s: No applicable indexes to rebuild",
+                                              job->inst->inst_name);
+                    }
+                    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_run_ldif2db",
+                                  "%s: No applicable indexes to rebuild\n",
+                                  job->inst->inst_name);
+                    /* Backend was set busy before we got here */
+                    instance_set_not_busy(job->inst);
+                    if (job->task) {
+                        slapi_task_log_status(job->task, "%s: Finished indexing.",
+                                              job->inst->inst_name);
+                    }
+                    dbmdb_free_import_ctx(job);
+                    dbmdb_import_free_job(job);
+                    FREE(job);
+                    return 0;
+                }
+            }
         }
     } else {
         dbmdb_import_init_writer(job, IM_IMPORT);
@@ -1244,7 +1429,6 @@ dbmdb_run_ldif2db(Slapi_PBlock *pb)
     }
     job->starting_ID = 1;
     job->first_ID = 1;
-    job->mothers = CALLOC(import_subcount_stuff);
 
     /* how much space should we allocate to index buffering? */
     job->job_index_buffer_size = dbmdb_import_get_index_buffer_size();
@@ -1255,7 +1439,6 @@ dbmdb_run_ldif2db(Slapi_PBlock *pb)
             (job->inst->inst_li->li_import_cachesize / 10) + (1024 * 1024);
         PR_Unlock(job->inst->inst_li->li_config_mutex);
     }
-    import_subcount_stuff_init(job->mothers);
 
     if (job->task != NULL) {
         /* count files, use that to track "progress" in cn=tasks */
@@ -1382,7 +1565,6 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     job->starting_ID = 1;
     job->first_ID = 1;
 
-    job->mothers = CALLOC(import_subcount_stuff);
     /* how much space should we allocate to index buffering? */
     job->job_index_buffer_size = dbmdb_import_get_index_buffer_size();
     if (job->job_index_buffer_size == 0) {
@@ -1390,7 +1572,6 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
         job->job_index_buffer_size = (job->inst->inst_li->li_dbcachesize / 10) +
                                      (1024 * 1024);
     }
-    import_subcount_stuff_init(job->mothers);
     dbmdb_import_init_writer(job, IM_BULKIMPORT);
 
     pthread_mutex_init(&job->wire_lock, NULL);
@@ -1400,10 +1581,14 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
 
     /* shutdown this instance of the db */
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) {
-        cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
-    }
+    cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
     dblayer_instance_close(be);
+
+    /* Try to keep a quick binary backup of the pre-import data so this
+     * online import can be undone if it fails. If we can't (e.g. first
+     * import ever, or not enough mapsize/dbi headroom), just proceed
+     * exactly like before -- job->has_backup stays 0. */
+    job->has_backup = (dbmdb_import_backup_create(be) == 0);
 
     /* Delete old database files */
     dbmdb_delete_instance_dir(be);
@@ -1414,6 +1599,34 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     ret = dbmdb_instance_start(be, DBLAYER_IMPORT_MODE);
     if (ret != 0)
         goto fail;
+
+    /*
+     * Skip per-commit fsync during bulk import (nsslapd-mdb-online-import-nosync).
+     * Same optimization as dbmdb_ldif2db. The backend is offline so intermediate
+     * durability is not needed. The writer thread calls mdb_env_sync() at the end.
+     * Note: MDB_NOSYNC is environment-level and affects all backends.
+     */
+    if (MDB_CONFIG(li)->dsecfg.online_import_nosync) {
+        dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+        unsigned int env_flags = 0;
+
+        mdb_env_get_flags(ctx->env, &env_flags);
+        if (!(env_flags & MDB_NOSYNC)) {
+            ret = mdb_env_set_flags(ctx->env, MDB_NOSYNC, 1);
+            if (ret != 0) {
+                slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_bulk_import_start",
+                              "Failed to set MDB_NOSYNC (error %d: %s). "
+                              "Import will continue with fsync enabled.\n",
+                              ret, mdb_strerror(ret));
+            } else {
+                job->nosync_set = 1;
+                slapi_log_err(SLAPI_LOG_INFO, "dbmdb_bulk_import_start",
+                              "MDB_NOSYNC enabled for online import "
+                              "(nsslapd-mdb-online-import-nosync: on). "
+                              "Per-commit fsync is disabled until import completes.\n");
+            }
+        }
+    }
 
     /* END OF COPIED SECTION */
 
@@ -1452,6 +1665,41 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     return 0;
 
 fail:
+    if (job->nosync_set) {
+        dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+        if (ctx->env) {
+            int nosync_rc = mdb_env_set_flags(ctx->env, MDB_NOSYNC, 0);
+            if (nosync_rc != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_bulk_import_start",
+                              "Failed to clear MDB_NOSYNC on failure path "
+                              "(error %d: %s).\n",
+                              nosync_rc, mdb_strerror(nosync_rc));
+            } else {
+                slapi_log_err(SLAPI_LOG_INFO, "dbmdb_bulk_import_start",
+                              "MDB_NOSYNC cleared on import failure path. "
+                              "Per-commit fsync re-enabled.\n");
+            }
+        }
+        job->nosync_set = 0;
+    }
+    if (job->has_backup) {
+        /* We already wiped the original data before hitting this
+         * failure (e.g. dbmdb_instance_start() or the thread create
+         * failed) -- try to put it back rather than leave the backend
+         * empty. */
+        if (dbmdb_import_backup_restore(be) == 0 &&
+            dbmdb_instance_start(be, DBLAYER_NORMAL_MODE) == 0) {
+            import_reenable_backend_after_restore(job, be);
+            slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_bulk_import_start",
+                          "Restored '%s' to its pre-import state after a failed start.\n",
+                          job->inst->inst_name);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_bulk_import_start",
+                          "Could not restore '%s' to its pre-import state; "
+                          "it may need to be re-imported.\n",
+                          job->inst->inst_name);
+        }
+    }
     PR_Lock(job->inst->inst_config_mutex);
     job->inst->inst_flags &= ~INST_FLAG_BUSY;
     PR_Unlock(job->inst->inst_config_mutex);

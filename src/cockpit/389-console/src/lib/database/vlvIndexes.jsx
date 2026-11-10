@@ -2,7 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { VLVTable } from "./databaseTables.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -19,11 +19,7 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -182,7 +178,7 @@ export class VLVIndexes extends React.Component {
 
         log_cmd("createSortIndex", "Add index", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.closeCreateSortIndex();
                     this.props.reload(this.props.suffix);
@@ -195,12 +191,12 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.closeCreateSortIndex();
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to add VLV index entry - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to add VLV index entry - $0"), errMsg)
                     );
                     this.setState({
                         updating: false,
@@ -236,7 +232,7 @@ export class VLVIndexes extends React.Component {
         });
         log_cmd("deleteSortIndex", "delete index", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.closeDeleteSortIndexConfirm();
                     this.props.reload(this.props.suffix);
@@ -250,12 +246,12 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.closeDeleteSortIndexConfirm();
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to delete VLV sort index - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to delete VLV sort index - $0"), errMsg)
                     );
                     this.setState({
                         updating: false,
@@ -280,7 +276,7 @@ export class VLVIndexes extends React.Component {
         ];
         log_cmd("saveVLV", "Add vlv search", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.closeVLVModal();
                     this.props.reload(this.props.suffix);
@@ -293,11 +289,11 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.closeVLVModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed create VLV search entry - $0"), errMsg.desc)
+                        cockpit.format(_("Failed create VLV search entry - $0"), errMsg)
                     );
                     this.setState({
                         saving: false
@@ -328,7 +324,7 @@ export class VLVIndexes extends React.Component {
         ];
         log_cmd("deleteVLV", "delete LV search and indexes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -340,11 +336,11 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to deletre VLV index - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to deletre VLV index - $0"), errMsg)
                     );
                     this.setState({
                         modalSpinning: false
@@ -375,7 +371,7 @@ export class VLVIndexes extends React.Component {
         ];
         log_cmd("reindexVLV", "reindex VLV indexes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -387,11 +383,11 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to index VLV index - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to index VLV index - $0"), errMsg)
                     );
                     this.setState({
                         modalSpinning: false
@@ -414,7 +410,7 @@ export class VLVIndexes extends React.Component {
 
     render() {
         return (
-            <div className="ds-tab-table ds-margin-bottom-md">
+            <div className="ds-tab-table ds-margin-bottom-md ds-left-margin">
                 <VLVTable
                     rows={this.props.vlvItems}
                     key={this.props.vlvItems}
@@ -427,6 +423,7 @@ export class VLVIndexes extends React.Component {
                 <Button
                     variant="primary"
                     onClick={this.handleShowVLVModal}
+                    className="ds-margin-top"
                 >
                     {_("Create VLV Index")}
                 </Button>
@@ -528,21 +525,10 @@ class AddVLVIndexModal extends React.Component {
     }
 
     onTypeaheadChange(e, selection) {
-        if (this.state.sortValue.includes(selection)) {
-            this.setState(
-                (prevState) => ({
-                    sortValue: prevState.sortValue.filter((item) => item !== selection),
-                    isVLVSortOpen: false
-                }),
-            );
-        } else {
-            this.setState(
-                (prevState) => ({
-                    sortValue: [...prevState.sortValue, selection],
-                    isVLVSortOpen: false
-                }),
-            );
-        }
+        this.setState({
+            sortValue: Array.isArray(selection) ? selection : [],
+            isVLVSortOpen: false,
+        });
     }
 
     render() {
@@ -551,6 +537,7 @@ class AddVLVIndexModal extends React.Component {
             handleChange,
             attrs,
             saving,
+            saveHandler,
         } = this.props;
         let saveBtnName = _("Create Sort Index");
         const extraPrimaryProps = {};
@@ -572,7 +559,7 @@ class AddVLVIndexModal extends React.Component {
                         key="confirm"
                         variant="primary"
                         onClick={() => {
-                            this.props.handleSave(this.state.sortValue);
+                            saveHandler(this.state.sortValue);
                         }}
                         isLoading={saving}
                         spinnerAriaValueText={saving ? _("Saving") : undefined}
@@ -591,27 +578,20 @@ class AddVLVIndexModal extends React.Component {
                         <GridItem className="ds-label" span={12}>
                             {_("Build a list of attributes to form the \"Sort\" index")}
                         </GridItem>
-                        <Select
-                            variant={SelectVariant.typeaheadMulti}
-                            typeAheadAriaLabel={_("Type an attribute names to create a sort index")}
-                            className="ds-margin-top-lg"
-                            onToggle={(event, isOpen) => this.handleVLVSortToggle(event, isOpen)}
-                            onClear={this.handleVLVSortClear}
-                            onSelect={this.handleTypeaheadChange}
-                            maxHeight={1000}
-                            selections={this.state.sortValue}
-                            isOpen={this.state.isVLVSortOpen}
-                            aria-labelledby="typeAhead-vlv-sort-index"
-                            placeholderText={_("Type an attribute name ...")}
-                            noResultsFoundText={_("There are no matching entries")}
-                        >
-                            {attrs.map((attr, index) => (
-                                <SelectOption
-                                    key={index}
-                                    value={attr}
-                                />
-                            ))}
-                        </Select>
+                        <GridItem className="ds-margin-top" span={12}>
+                            <TypeaheadSelect
+                                selected={this.state.sortValue}
+                                onSelect={this.onTypeaheadChange}
+                                onClear={this.handleVLVSortClear}
+                                options={attrs}
+                                isOpen={this.state.isVLVSortOpen}
+                                onToggle={this.handleVLVSortToggle}
+                                placeholder={_("Type an attribute name ...")}
+                                noResultsText={_("There are no matching entries")}
+                                ariaLabel={_("Type an attribute names to create a sort index")}
+                                isMulti={true}
+                            />
+                        </GridItem>
                         <GridItem className="ds-margin-top-xlg" span={12}>
                             <Checkbox
                                 id="reindexVLV"
@@ -749,7 +729,7 @@ class AddVLVModal extends React.Component {
                         <GridItem offset={1} className="ds-margin-top-lg ds-margin-bottom" span={10}>
                             <TextContent>
                                 <Text component={TextVariants.h4}>
-                                    {_("After creating this VLV Search entry you can go to the table and add VLV Sort Indexes to this VLV Search.  After adding the Sort Indexes you will need to <i>reindex</i> the VLV Index to make it active.")}
+                                    {_("After creating this VLV Search entry you can go to the table and add VLV Sort Indexes to this VLV Search.  After adding the Sort Indexes you will need to reindex the VLV Index to make it active.")}
                                 </Text>
                             </TextContent>
                         </GridItem>

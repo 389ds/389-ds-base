@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -128,6 +128,9 @@
 #include <unistd.h>
 #endif /* USE_SYSCONF */
 #include "slap.h"
+#ifdef ENABLE_HIBP
+#include "hibp.h"
+#endif
 #include "plhash.h"
 #if defined(LINUX)
 #include <malloc.h>
@@ -213,6 +216,7 @@ slapi_onoff_t init_pw_exp;
 slapi_onoff_t init_pw_send_expiring;
 slapi_onoff_t init_pw_palindrome;
 slapi_onoff_t init_pw_dict_check;
+slapi_onoff_t init_pw_breach_check;
 slapi_onoff_t init_allow_hashed_pw;
 slapi_onoff_t init_pw_syntax;
 slapi_onoff_t init_schemacheck;
@@ -245,6 +249,7 @@ slapi_onoff_t init_close_on_failed_bind;
 slapi_onoff_t init_minssf_exclude_rootdse;
 slapi_onoff_t init_force_sasl_external;
 slapi_onoff_t init_slapi_counters;
+slapi_onoff_t init_thread_pool_stats;
 slapi_onoff_t init_entryusn_global;
 slapi_onoff_t init_disk_monitoring;
 slapi_onoff_t init_disk_threshold_readonly;
@@ -271,6 +276,7 @@ slapi_onoff_t init_enable_ldapssotoken;
 slapi_onoff_t init_return_orig_dn;
 slapi_onoff_t init_pw_admin_skip_info;
 
+
 static int
 isInt(ConfigVarType type)
 {
@@ -282,6 +288,13 @@ typedef void *(*ConfigGetFunc)(void);
 
 /* static Ref_Array global_referrals; */
 static slapdFrontendConfig_t global_slapdFrontendConfig;
+
+/*
+ * Special default value to allow attribute removal.
+ * Real default value is set by the set function
+ *  when value == ALLOW_ATTRIBUTE_DELETION
+ */
+static const char ALLOW_ATTRIBUTE_DELETION[] = "";
 
 static struct config_get_and_set
 {
@@ -575,6 +588,21 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_policy.pw_bad_words,
      CONFIG_STRING, NULL, "", NULL},
+    /* password breach check */
+    {CONFIG_PW_BREACH_CHECK_ATTRIBUTE, config_set_pw_breach_check,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_check_breach,
+     CONFIG_ON_OFF, NULL, &init_pw_breach_check, NULL},
+    /* password breach database URL */
+    {CONFIG_PW_BREACH_URL_ATTRIBUTE, config_set_pw_breach_url,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_breach_db_url,
+     CONFIG_STRING, NULL, "", NULL},
+    /* password breach database timeout */
+    {CONFIG_PW_BREACH_TIMEOUT_ATTRIBUTE, config_set_pw_breach_timeout,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_breach_db_timeout,
+     CONFIG_INT, NULL, "10", NULL},
     /* password max sequence */
     {CONFIG_PW_MAX_SEQ_ATTRIBUTE, config_set_pw_max_seq,
      NULL, 0,
@@ -741,7 +769,7 @@ static struct config_get_and_set
     {CONFIG_STATLOGLEVEL_ATTRIBUTE, config_set_statlog_level,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.statloglevel,
-     CONFIG_INT, NULL, SLAPD_DEFAULT_STATLOG_LEVEL, NULL},
+     CONFIG_INT, NULL, SLAPD_DEFAULT_STATLOG_LEVEL_STR, NULL},
     {CONFIG_SECURITYLOGLEVEL_ATTRIBUTE, config_set_securitylog_level,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.securityloglevel,
@@ -844,7 +872,7 @@ static struct config_get_and_set
     {CONFIG_ACCESSLOG_TIME_FORMAT_ATTRIBUTE, config_set_accesslog_time_format,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accesslog_time_format,
-     CONFIG_STRING, NULL, SLAPD_INIT_LOG_TIME_FORMAT, NULL},
+     CONFIG_STRING, NULL, SLAPD_INIT_ACCESS_LOG_TIME_FORMAT, NULL},
     {CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE, config_set_accesslogbuffering,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accesslogbuffering,
@@ -861,6 +889,14 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.errorlogbuffering,
      CONFIG_ON_OFF, NULL, &init_errorlogbuffering, NULL},
+    {CONFIG_ERRORLOG_LOG_FORMAT_ATTRIBUTE, config_set_errorlog_log_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.errorlog_log_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_FORMAT, NULL},
+    {CONFIG_ERRORLOG_TIME_FORMAT_ATTRIBUTE, config_set_errorlog_time_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.errorlog_time_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_ERROR_LOG_TIME_FORMAT, NULL},
     {CONFIG_CSNLOGGING_ATTRIBUTE, config_set_csnlogging,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.csnlogging,
@@ -940,6 +976,11 @@ static struct config_get_and_set
      (void **)&global_slapdFrontendConfig.slapi_counters,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_slapi_counters,
      &init_slapi_counters, NULL},
+    {CONFIG_THREAD_POOL_STATS_ATTRIBUTE, config_set_thread_pool_stats,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.thread_pool_stats,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_thread_pool_stats,
+     &init_thread_pool_stats, NULL},
     {CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
      log_set_mindiskspace, SLAPD_ACCESS_LOG,
      (void **)&global_slapdFrontendConfig.accesslog_minfreespace,
@@ -1418,6 +1459,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.enable_upgrade_hash,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_upgrade_hash, &init_enable_upgrade_hash, NULL},
+    {CONFIG_SCHEME_LIST_NO_UPGRADE_HASH, config_set_scheme_list_no_upgrade_hash,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.scheme_list_no_upgrade_hash,
+     CONFIG_STRING_OR_EMPTY, NULL, SLAPD_DEFAULT_PWD_SCHEME_LIST_NO_UPGRADE_HASH, NULL},
     {CONFIG_VERIFY_FILTER_SCHEMA, config_set_verify_filter_schema,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.verify_filter_schema,
@@ -1454,6 +1499,21 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.return_orig_dn,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_return_orig_dn, &init_return_orig_dn, NULL},
+    {CONFIG_FGOT_ATTRIBUTE, config_set_fgot,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.fgot,
+     CONFIG_STRING, (ConfigGetFunc)config_get_fgot,
+     SLAPD_DEFAULT_FGOT, NULL },
+    {CONFIG_MAXCONTROLS_PER_OP_ATTRIBUTE, config_set_maxcontrolsperop,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.maxcontrols_per_op,
+     CONFIG_INT, (ConfigGetFunc)config_get_maxcontrolsperop,
+     SLAPD_DEFAULT_MAXCONTROLS_PER_OP_STR, NULL},
+    {CONFIG_IGNORED_CRITICALITY_LIST_ATTRIBUTE,
+     config_set_ignored_criticality_list, NULL, 0,
+     (void **)&global_slapdFrontendConfig.ignored_criticality_list,
+     CONFIG_CHARRAY, (ConfigGetFunc)config_get_ignored_criticality_list,
+     (void*)ALLOW_ATTRIBUTE_DELETION, NULL}
     /* End config */
     };
 
@@ -1720,6 +1780,9 @@ pwpolicy_init_defaults (passwdPolicy *pw_policy)
     pw_policy->pw_admin_user = NULL;
     pw_policy->pw_is_legacy = LDAP_ON;
     pw_policy->pw_track_update_time = LDAP_OFF;
+    pw_policy->pw_check_breach = LDAP_OFF;
+    pw_policy->pw_breach_db_url = NULL;
+    pw_policy->pw_breach_db_timeout = 10;
 }
 
 static void
@@ -1737,6 +1800,7 @@ pwpolicy_fe_init_onoff(passwdPolicy *pw_policy)
     init_pw_track_update_time = pw_policy->pw_track_update_time;
     init_pw_palindrome = pw_policy->pw_palindrome;
     init_pw_dict_check = pw_policy->pw_check_dict;
+    init_pw_breach_check = pw_policy->pw_check_breach;
 }
 
 void
@@ -1745,6 +1809,9 @@ FrontendConfig_init(void)
     slapdFrontendConfig_t *cfg = getFrontendConfig();
     struct rlimit rlp;
     int64_t maxdescriptors = SLAPD_DEFAULT_MAXDESCRIPTORS;
+#ifdef ENABLE_EPOLL
+    int64_t epoll_max_user_watches = SLAPD_DEFAULT_MAXDESCRIPTORS;
+#endif /* ENABLE_EPOLL */
 
     /* prove rust is working */
     PR_ASSERT(do_nothing_rust() == 0);
@@ -1754,13 +1821,13 @@ FrontendConfig_init(void)
     /* initialize the read/write configuration lock */
     if ((cfg->cfg_rwlock = slapi_new_rwlock()) == NULL) {
         slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
-                      "Failed to initialize cfg_rwlock. Exiting now.");
+                      "Failed to initialize cfg_rwlock. Exiting now.\n");
         exit(-1);
     }
 #else
     if ((cfg->cfg_lock = PR_NewLock()) == NULL) {
         slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
-                      "Failed to initialize cfg_lock. Exiting now.");
+                      "Failed to initialize cfg_lock. Exiting now.\n");
         exit(-1);
     }
 #endif
@@ -1770,6 +1837,38 @@ FrontendConfig_init(void)
             maxdescriptors = (int64_t)rlp.rlim_max;
         }
     }
+
+#ifdef ENABLE_EPOLL
+/* Determine the value of fs.epoll.max_user_watches, if this is smaller than
+ * maxdescriptors, then reduce maxdescriptors to match
+ */
+
+    FILE *f;
+    char epoll_max_user_watches_s[32];
+    epoll_max_user_watches_s[sizeof(epoll_max_user_watches_s) - 1] = '\0';
+
+    if ((f = fopen("/proc/sys/fs/epoll/max_user_watches", "r")) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "Frontend_config_init",
+                      "Unable to open file \"/proc/sys/fs/epoll/max_user_watches\". errno=%d\n", errno);
+        exit(-1);
+    } else {
+        if (fgets(epoll_max_user_watches_s, sizeof(epoll_max_user_watches_s) - 1, f) == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "Frontend_config_init",
+                          "Unable to get value from \"/proc/sys/fs/epoll/max_user_watches\". errno=%d\n", errno);
+            exit(-1);
+        } else {
+            epoll_max_user_watches = atoll(epoll_max_user_watches_s);
+        }
+    }
+    fclose(f);
+    if (epoll_max_user_watches > 0 && epoll_max_user_watches < maxdescriptors) {
+        maxdescriptors = epoll_max_user_watches;
+        slapi_log_err(SLAPI_LOG_INFO, "Frontend_config_init",
+                      "Reducing maxdescriptors to %lld based on /proc/sys/fs/epoll/max_user_watches\n",
+                      (long long)maxdescriptors);
+    }
+
+#endif /* ENABLE_EPOLL */
 
     /* Take the lock to make sure we barrier correctly. */
     CFG_LOCK_WRITE(cfg);
@@ -1794,6 +1893,7 @@ FrontendConfig_init(void)
     init_close_on_failed_bind = cfg->close_on_failed_bind = LDAP_OFF;
     cfg->allow_anon_access = SLAPD_DEFAULT_ALLOW_ANON_ACCESS;
     init_slapi_counters = cfg->slapi_counters = LDAP_ON;
+    init_thread_pool_stats = cfg->thread_pool_stats = LDAP_ON;
     cfg->threadnumber = util_get_hardware_threads();
     cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
     cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
@@ -1884,7 +1984,8 @@ FrontendConfig_init(void)
     cfg->accesslog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->accessloglevel = SLAPD_DEFAULT_ACCESSLOG_LEVEL;
     cfg->accesslog_log_format = slapi_ch_strdup(SLAPD_INIT_LOG_FORMAT);
-    cfg->accesslog_time_format = slapi_ch_strdup(SLAPD_INIT_LOG_TIME_FORMAT);
+    cfg->accesslog_log_format_type = LOG_FORMAT_DEFAULT;
+    cfg->accesslog_time_format = slapi_ch_strdup(SLAPD_INIT_ACCESS_LOG_TIME_FORMAT);
     init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
     init_csnlogging = cfg->csnlogging = LDAP_ON;
     init_accesslog_compress_enabled = cfg->accesslog_compress = LDAP_OFF;
@@ -1924,6 +2025,8 @@ FrontendConfig_init(void)
     cfg->errorlog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
     cfg->errorlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->errorloglevel = SLAPD_DEFAULT_FE_ERRORLOG_LEVEL;
+    cfg->errorlog_log_format = slapi_ch_strdup(SLAPD_INIT_LOG_FORMAT);
+    cfg->errorlog_time_format = slapi_ch_strdup(SLAPD_INIT_ERROR_LOG_TIME_FORMAT);
     init_errorlog_compress_enabled = cfg->errorlog_compress = LDAP_OFF;
     init_errorlogbuffering = cfg->errorlogbuffering = LDAP_OFF;
 
@@ -1992,6 +2095,7 @@ FrontendConfig_init(void)
     init_cn_uses_dn_syntax_in_dns = cfg->cn_uses_dn_syntax_in_dns = LDAP_OFF;
     init_global_backend_local = LDAP_OFF;
     cfg->maxsimplepaged_per_conn = SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN;
+    cfg->maxcontrols_per_op = SLAPD_DEFAULT_MAXCONTROLS_PER_OP;
     cfg->maxbersize = SLAPD_DEFAULT_MAXBERSIZE;
     cfg->logging_backend = slapi_ch_strdup(SLAPD_INIT_LOGGING_BACKEND_INTERNAL);
     cfg->rootdn = slapi_ch_strdup(SLAPD_DEFAULT_DIRECTORY_MANAGER);
@@ -2018,6 +2122,7 @@ FrontendConfig_init(void)
      * scheme set in cn=config
      */
     init_enable_upgrade_hash = cfg->enable_upgrade_hash = LDAP_ON;
+    cfg->scheme_list_no_upgrade_hash = slapi_ch_strdup(SLAPD_DEFAULT_PWD_SCHEME_LIST_NO_UPGRADE_HASH);
     init_verify_filter_schema = cfg->verify_filter_schema = SLAPI_WARN_SAFE;
     /*
      * Default to enabled ldapssotoken, but if no secret is given we generate one
@@ -2029,6 +2134,14 @@ FrontendConfig_init(void)
 
     cfg->tcp_fin_timeout = SLAPD_DEFAULT_TCP_FIN_TIMEOUT;
     cfg->tcp_keepalive_time = SLAPD_DEFAULT_TCP_KEEPALIVE_TIME;
+
+    /* Initialize parsed HAProxy trusted IP entries */
+    cfg->haproxy_trusted_ip_parsed = NULL;
+    cfg->haproxy_trusted_ip_parsed_count = 0;
+
+    /* Initialize Fine Grain Operation Timing */
+    cfg->fgot = slapi_ch_strdup(SLAPD_DEFAULT_FGOT);
+    cfg->fgot_flags = SLAPD_DEFAULT_FGOT_FLAGS;
 
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
@@ -2154,6 +2267,11 @@ alloc_global_snmp_vars()
 
 /* Allocated the next slots of the arrays of counters
  * with a slot per worker thread
+ *
+ * Must complete before any reader of per_thread_snmp_vars starts (worker
+ * threads, snmp collator, thread-pool stats heartbeat): the slot count and
+ * the array pointer are published without synchronization, and the realloc
+ * frees the old array under a concurrent reader.
  */
 void
 alloc_per_thread_snmp_vars(int32_t maxthread)
@@ -2206,6 +2324,9 @@ get_entry_point(int ep_name, caddr_t *ep_addr)
             break;
         case ENTRY_POINT_SLAPD_SSL_INIT2:
             *ep_addr = sep->sep_slapd_ssl_init2;
+            break;
+        case ENTRY_POINT_SLAPD_CERT_REFRESH_ASKED:
+            *ep_addr = sep->sep_slapd_ssl_refresh_certs;
             break;
         default:
             rc = -1;
@@ -2381,9 +2502,17 @@ config_set_accesslog_log_format(const char *attrname, char *value, char *errorbu
     }
 
     if (apply) {
+        int32_t log_format = LOG_FORMAT_JSON_PRETTY;
+
+        if (strcasecmp(value, "default") == 0) {
+            log_format = LOG_FORMAT_DEFAULT;
+        } else if (strcasecmp(value, "json") == 0) {
+            log_format = LOG_FORMAT_JSON;
+        }
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&slapdFrontendConfig->accesslog_log_format);
         slapdFrontendConfig->accesslog_log_format = slapi_ch_strdup(value);
+        slapi_atomic_store_32(&(slapdFrontendConfig->accesslog_log_format_type), log_format, __ATOMIC_RELEASE);
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
 
@@ -2833,26 +2962,236 @@ config_set_haproxy_trusted_ip(const char *attrname, struct berval **value, char 
     if (value && value[0] &&
         PL_strncasecmp((char *)value[0]->bv_val, HAPROXY_TRUSTED_IP_REMOVE_CMD, value[0]->bv_len) != 0) {
         for (size_t i = 0; value[i] != NULL; i++) {
-            end = strspn(value[i]->bv_val, "0123456789:ABCDEFabcdef.*");
-            /*
-            * If no valid characters are found, or if there are characters after the valid ones,
-            * then print an error message and exit with LDAP_OPERATIONS_ERROR.
-            */
-            if (!end || value[i]->bv_val[end] != '\0') {
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "IP address contains invalid characters (%s), skipping\n",
-                                value[i]->bv_val);
+            char *slash_pos = strchr(value[i]->bv_val, '/');
+            char ip_part[MAX_CIDR_STRING_LEN];
+            int prefix_len = -1;
+
+            /* Validate total input length before processing */
+            if (value[i]->bv_len >= MAX_CIDR_STRING_LEN) {
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                      "IP address/subnet string too long (max %d bytes): %s\n",
+                                      MAX_CIDR_STRING_LEN, value[i]->bv_val);
                 return LDAP_OPERATIONS_ERROR;
             }
-            if (strstr(value[i]->bv_val, ":") == 0) {
-                /* IPv4 - make sure it's just numbers, dots, and wildcard */
-                end = strspn(value[i]->bv_val, "0123456789.*");
-                if (!end || value[i]->bv_val[end] != '\0') {
-                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "IPv4 address contains invalid characters (%s), skipping\n",
-                                    value[i]->bv_val);
+
+            /* Check for embedded null bytes */
+            if (strlen(value[i]->bv_val) != value[i]->bv_len) {
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                      "Null bytes not allowed in IP address/subnet (%s)\n",
+                                      value[i]->bv_val);
+                return LDAP_OPERATIONS_ERROR;
+            }
+
+            /* Reject leading or trailing whitespace - ambiguous and error-prone */
+            if (value[i]->bv_len > 0) {
+                const char *str = value[i]->bv_val;
+                if (isspace((unsigned char)str[0]) || isspace((unsigned char)str[value[i]->bv_len - 1])) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Leading or trailing whitespace not allowed in IP address/subnet (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+            }
+
+            /* Check for CIDR notation */
+            if (slash_pos != NULL) {
+                size_t ip_len = slash_pos - value[i]->bv_val;
+                if (ip_len >= sizeof(ip_part)) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "IP address part too long in CIDR notation (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Extract IP part */
+                memcpy(ip_part, value[i]->bv_val, ip_len);
+                ip_part[ip_len] = '\0';
+
+                /* Check for multiple slashes */
+                if (strchr(slash_pos + 1, '/') != NULL) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Multiple slashes not allowed in CIDR notation (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Validate the prefix part contains only digits */
+                const char *p = slash_pos + 1;
+                if (*p == '\0') {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Empty CIDR prefix length (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Reject leading zeros (e.g., "024", "007") - ambiguous and non-standard */
+                if (*p == '0' && *(p + 1) != '\0') {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Leading zeros not allowed in CIDR prefix (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                while (*p) {
+                    if (*p < '0' || *p > '9') {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "Invalid characters in CIDR prefix (must be numeric) (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                    p++;
+                }
+
+                /* Parse and validate prefix length */
+                char *endptr;
+                errno = 0;
+                long parsed_prefix = strtol(slash_pos + 1, &endptr, 10);
+                if (*endptr != '\0' || errno == ERANGE || parsed_prefix < 0) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Invalid CIDR prefix length in (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+                prefix_len = (int)parsed_prefix;
+
+                /* Validate prefix length based on IP type */
+                if (strstr(ip_part, ":") != NULL) {
+                    /* IPv6 */
+                    if (prefix_len > 128) {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "IPv6 CIDR prefix length must be 0-128 (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                } else {
+                    /* IPv4 */
+                    if (prefix_len > 32) {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "IPv4 CIDR prefix length must be 0-32 (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                }
+
+                /* Validate CIDR IP address */
+                int is_ipv6 = (strchr(ip_part, ':') != NULL);
+
+                /* Check for valid IP address characters based on protocol */
+                if (is_ipv6) {
+                    /* IPv6: hex digits, colons, dots */
+                    end = strspn(ip_part, "0123456789:ABCDEFabcdef.");
+                } else {
+                    /* IPv4: digits and dots */
+                    end = strspn(ip_part, "0123456789.");
+                }
+
+                if (!end || ip_part[end] != '\0') {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "CIDR IP address contains invalid characters (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Validate that the CIDR IP address is parseable */
+                /* For IPv4, ensure exactly 4 octets (3 dots) */
+                if (!is_ipv6) {
+                    int dot_count = 0;
+                    for (const char *p = ip_part; *p; p++) {
+                        if (*p == '.') dot_count++;
+                    }
+                    if (dot_count != 3) {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "IPv4 address in CIDR must have exactly 4 octets (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                }
+
+                PRNetAddr test_addr;
+                if (PR_StringToNetAddr(ip_part, &test_addr) != PR_SUCCESS) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Invalid IP address in CIDR notation (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+            } else {
+                /* Validate individual IP address */
+                PL_strncpyz(ip_part, value[i]->bv_val, sizeof(ip_part));
+
+                /* Determine IP protocol type */
+                int is_ipv6 = (strchr(ip_part, ':') != NULL);
+
+                /* Reject wildcards with helpful error message */
+                if (strchr(ip_part, '*') != NULL) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                         "Wildcard patterns are not supported (%s). "
+                                         "Use CIDR notation instead, for example:\n"
+                                         "  - For single IP: 192.168.1.50 (or 192.168.1.50/32)\n"
+                                         "  - For subnet: 192.168.1.0/24 (matches 192.168.1.0-255)\n"
+                                         "  - For IPv6: 2001:db8::/32\n",
+                                         value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Validate characters based on protocol type */
+                if (is_ipv6) {
+                    /* IPv6: hex digits, colons, dots */
+                    end = strspn(ip_part, "0123456789:ABCDEFabcdef.");
+                } else {
+                    /* IPv4: digits and dots */
+                    end = strspn(ip_part, "0123456789.");
+                }
+
+                if (!end || ip_part[end] != '\0') {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "IP address contains invalid characters (%s)\n",
+                                          value[i]->bv_val);
+                    return LDAP_OPERATIONS_ERROR;
+                }
+
+                /* Validate that the IP address is parseable */
+                /* For IPv4, ensure exactly 4 octets (3 dots) */
+                if (!is_ipv6) {
+                    int dot_count = 0;
+                    for (const char *p = ip_part; *p; p++) {
+                        if (*p == '.') dot_count++;
+                    }
+                    if (dot_count != 3) {
+                        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "IPv4 address must have exactly 4 octets (%s)\n",
+                                              value[i]->bv_val);
+                        return LDAP_OPERATIONS_ERROR;
+                    }
+                }
+
+                PRNetAddr test_addr;
+                if (PR_StringToNetAddr(ip_part, &test_addr) != PR_SUCCESS) {
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                          "Invalid IP address format (%s)\n",
+                                          value[i]->bv_val);
                     return LDAP_OPERATIONS_ERROR;
                 }
             }
         }
+
+        /*
+         * Final validation: test that all values can be successfully parsed into binary format.
+         * This ensures the parsed entries will always be available at runtime
+         */
+        haproxy_trusted_entry_t *test_parsed = NULL;
+        size_t test_count = 0;
+        char parse_errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
+
+        test_parsed = haproxy_parse_trusted_ips(value, &test_count, parse_errorbuf);
+        if (test_parsed == NULL && test_count == 0) {
+            /* Parsing failed - this should not happen if validation above is correct */
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "Failed to parse trusted IPs into binary format: %s\n",
+                                  parse_errorbuf[0] ? parse_errorbuf : "unknown error");
+            return LDAP_OPERATIONS_ERROR;
+        }
+        /* Free the test parsed entries - they'll be re-parsed during apply */
+        slapi_ch_free((void **)&test_parsed);
     }
 
     if (apply) {
@@ -3146,6 +3485,23 @@ config_set_slapi_counters(const char *attrname, char *value, char *errorbuf, int
 
     retVal = config_set_onoff(attrname, value,
                               &(slapdFrontendConfig->slapi_counters), errorbuf, apply);
+
+    return retVal;
+}
+
+/*
+ * Enable/disable the thread-pool status diagnostics (mmap file, "dsctl
+ * thread-pool status", threadpoolworker on cn=monitor). Read once at
+ * startup; changing it requires a restart.
+ */
+int32_t
+config_set_thread_pool_stats(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->thread_pool_stats), errorbuf, apply);
 
     return retVal;
 }
@@ -3482,7 +3838,7 @@ config_set_pw_dict_path(const char *attrname, char *value, char *errorbuf, int a
     int retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+    if (config_value_is_null(attrname, value, errorbuf, 1)) {
         value = NULL;
     } else {
         /* We have a value, do some basic checks */
@@ -3499,6 +3855,127 @@ config_set_pw_dict_path(const char *attrname, char *value, char *errorbuf, int a
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&slapdFrontendConfig->pw_policy.pw_dict_path);
         slapdFrontendConfig->pw_policy.pw_dict_path = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int32_t
+config_set_pw_breach_check(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+#ifndef ENABLE_HIBP
+    if (value && strcasecmp(value, "on") == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: HIBP breached password checking is not available. "
+                              "Rebuild with --enable-hibp to enable this feature.", attrname);
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_pw_breach_check",
+                      "HIBP breached password checking is not available - "
+                      "rebuild with --enable-hibp to enable this feature\n");
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+#endif
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->pw_policy.pw_check_breach),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_pw_breach_url(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    size_t len;
+
+#ifndef ENABLE_HIBP
+    if (apply && value && strlen(value) > 0) {
+        slapi_log_err(SLAPI_LOG_WARNING, "config_set_pw_breach_url",
+                      "HIBP breached password checking not enabled - passwordBreachDbUrl has no effect\n");
+    }
+#endif
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        value = NULL;
+    }
+
+    /* Validate URL if provided */
+    if (value && strlen(value) > 0) {
+        /* Require https:// endpoint for security */
+        if (strncasecmp(value, "https://", 8) != 0) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "%s: URL must use https://", attrname);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        /* Require trailing slash for correct URL construction */
+        len = strlen(value);
+        if (value[len - 1] != '/') {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "%s: URL must end with a trailing slash (e.g., https://api.pwnedpasswords.com/range/)",
+                                  attrname);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->pw_policy.pw_breach_db_url);
+        slapdFrontendConfig->pw_policy.pw_breach_db_url = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+char *
+config_get_pw_breach_url(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_strdup(slapdFrontendConfig->pw_policy.pw_breach_db_url);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_set_pw_breach_timeout(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    int32_t timeout;
+    char *endp = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+#ifndef ENABLE_HIBP
+    if (apply) {
+        slapi_log_err(SLAPI_LOG_WARNING, "config_set_pw_breach_timeout",
+                      "HIBP breached password checking not enabled  - passwordBreachDbTimeout has no effect\n");
+    }
+#endif
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    timeout = strtol(value, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || timeout < 1 || timeout > 300) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: invalid value \"%s\". Must be between 1 and 300.",
+                              attrname, value);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->pw_policy.pw_breach_db_timeout = timeout;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;
@@ -5659,7 +6136,6 @@ config_set_pw_warning(const char *attrname, char *value, char *errorbuf, int app
     return retVal;
 }
 
-
 int
 config_set_errorlog_level(const char *attrname, char *value, char *errorbuf, int apply)
 {
@@ -6046,6 +6522,13 @@ config_get_slapi_counters()
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     return slapi_atomic_load_32(&(slapdFrontendConfig->slapi_counters), __ATOMIC_ACQUIRE);
 
+}
+
+int32_t
+config_get_thread_pool_stats(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return slapi_atomic_load_32(&(slapdFrontendConfig->thread_pool_stats), __ATOMIC_ACQUIRE);
 }
 
 char *
@@ -6916,6 +7399,101 @@ config_get_errorlog()
 }
 
 int32_t
+config_set_errorlog_log_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (strcasecmp(value, "default") && strcasecmp(value, "json") && strcasecmp(value, "json-pretty")) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is invalid, the acceptable values "
+                              "are \"default\", \"json\", and \"json-pretty\"",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->errorlog_log_format);
+        slapdFrontendConfig->errorlog_log_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return LDAP_SUCCESS;
+}
+
+int
+config_get_errorlog_log_format()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *value;
+    int retVal;
+
+    /* map string value to int to avoid excessive freeing and duping */
+    CFG_LOCK_READ(slapdFrontendConfig);
+    value = slapdFrontendConfig->errorlog_log_format;
+    if (strcasecmp(value, "default") == 0) {
+        retVal = LOG_FORMAT_DEFAULT;
+    } else if (strcasecmp(value, "json") == 0) {
+        retVal = LOG_FORMAT_JSON;
+    } else {
+        retVal = LOG_FORMAT_JSON_PRETTY;
+    }
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_set_errorlog_time_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    time_t curtime;
+    char local_time[75] = "";
+    struct tm tms;
+    int32_t retVal = LDAP_SUCCESS;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    /* validate the value */
+    curtime = slapi_current_utc_time();
+    (void)localtime_r(&curtime, &tms);
+    if (strftime(local_time, 75, value, &tms) == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is not a valid string format for strftime",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->errorlog_time_format);
+        slapdFrontendConfig->errorlog_time_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
+}
+
+char *
+config_get_errorlog_time_format(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *ret;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    ret = config_copy_strval(slapdFrontendConfig->errorlog_time_format);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return ret;
+}
+
+int32_t
 config_get_external_libs_debug_enabled()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -6982,6 +7560,19 @@ config_get_pw_warning(void)
 
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapdFrontendConfig->pw_policy.pw_warning;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_get_pwpolicy_local(void)
+{
+    int32_t retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->pwpolicy_local;
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;
@@ -7104,22 +7695,12 @@ int
 config_get_accesslog_log_format()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    char *value;
-    int retVal;
 
-    /* map string value to int to avoid excessive freeing and duping */
-    CFG_LOCK_READ(slapdFrontendConfig);
-    value = slapdFrontendConfig->accesslog_log_format;
-    if (strcasecmp(value, "default") == 0) {
-        retVal = LOG_FORMAT_DEFAULT;
-    } else if (strcasecmp(value, "json") == 0) {
-        retVal = LOG_FORMAT_JSON;
-    } else {
-        retVal = LOG_FORMAT_JSON_PRETTY;
-    }
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    /*
+     * This is called for every access log line, so the format is kept as an
+     * int by config_set_accesslog_log_format() and read without the config lock.
+     */
+    return slapi_atomic_load_32(&(slapdFrontendConfig->accesslog_log_format_type), __ATOMIC_ACQUIRE);
 }
 
 char *
@@ -7325,12 +7906,27 @@ config_set_maxsasliosize(const char *attrname, char *value, char *errorbuf, int 
 
     if (retVal != LDAP_SUCCESS) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                              "%s: \"%s\" is invalid. Value must range from -1 to %lld",
-                              attrname, value, (long long int)LONG_MAX);
-    } else if (apply) {
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapdFrontendConfig->maxsasliosize = maxsasliosize;
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+                              "%s: \"%s\" is invalid. Value must range from -1 to %u",
+                              attrname, value, SLAPD_MAX_SASLIO_SIZE);
+        return retVal;
+    }
+
+    /* Cap at the Cyrus SASL 3-octet protocol maximum (0xFFFFFF).
+     * Follow the nsslapd-maxdescriptors pattern: enforce the hard limit
+     * and return LDAP_UNWILLING_TO_PERFORM so startup is not blocked. */
+    if (maxsasliosize > SLAPD_MAX_SASLIO_SIZE) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" exceeds the SASL protocol maximum (%u). "
+                              "Server will use a setting of %u.",
+                              attrname, value, SLAPD_MAX_SASLIO_SIZE,
+                              SLAPD_MAX_SASLIO_SIZE);
+        maxsasliosize = SLAPD_MAX_SASLIO_SIZE;
+        retVal = LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        slapi_atomic_store_32(&(slapdFrontendConfig->maxsasliosize),
+                              (int32_t)maxsasliosize, __ATOMIC_RELEASE);
     }
 
     return retVal;
@@ -7339,12 +7935,8 @@ config_set_maxsasliosize(const char *attrname, char *value, char *errorbuf, int 
 int32_t
 config_get_maxsasliosize()
 {
-    int32_t maxsasliosize;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
-    maxsasliosize = slapdFrontendConfig->maxsasliosize;
-
-    return maxsasliosize;
+    return slapi_atomic_load_32(&(slapdFrontendConfig->maxsasliosize), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -8790,6 +9382,51 @@ config_set_enable_upgrade_hash(const char *attrname, char *value, char *errorbuf
     return retVal;
 }
 
+int32_t
+config_set_scheme_list_no_upgrade_hash(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free((void **)&(slapdFrontendConfig->scheme_list_no_upgrade_hash));
+        if (value) {
+            char *shrink_lower;
+            int32_t len, idx;
+            /* Craft the input string to remove spaces,
+             * lowercase char, add heading/leading ',' (separator)
+             * This is helpful to check if the current hash
+             * is present in the configuration attribute
+             *
+             * "Hash_1 , hasH_2, HASH_3 ,hash_4 " creates
+             * ",hash_1,hash_2,hash_3,hash_4,"
+             */
+            len = strlen(value);
+            shrink_lower = slapi_ch_malloc(len + 1);
+            idx = 0;
+            for(int32_t i = 0; i < len; i++) {
+                if (isascii(value[i])) {
+                    /* skip spaces */
+                    if (! isspace(value[i])) {
+                        if (isupper(value[i])) {
+                            shrink_lower[idx++] = tolower(value[i]);
+                        } else {
+                            shrink_lower[idx++] = value[i];
+                        }
+                    }
+                }
+            }
+            shrink_lower[idx] = '\0';
+            slapdFrontendConfig->scheme_list_no_upgrade_hash = shrink_lower;
+        } else {
+            slapdFrontendConfig->scheme_list_no_upgrade_hash = NULL;
+        }
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
 static char *
 config_initvalue_to_onoff(struct config_get_and_set *cgas, char *initvalbuf, size_t initvalbufsize)
 {
@@ -9212,6 +9849,26 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
                 slapi_log_err(SLAPI_LOG_ERR, "config_set",
                               "The attribute %s is read only; ignoring setting NULL value\n", attr);
             }
+        } else if (values != NULL && values[0] != NULL &&
+                   cgas->config_var_type == CONFIG_CHARRAY) {
+            char **vals = NULL;
+            for (ii = 0; values && values[ii]; ++ii) {
+                char *val = slapi_berval_get_string_copy(values[ii]);
+                charray_add(&vals, val);
+            }
+            if (cgas->setfunc) {
+                retval = (cgas->setfunc)(cgas->attr_name,
+                                         (char *)vals, errorbuf, apply);
+            } else if (cgas->logsetfunc) {
+                retval = (cgas->logsetfunc)(cgas->attr_name,
+                                            (char *)vals, cgas->whichlog,
+                                            errorbuf, apply);
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, "config_set",
+                              "The attribute %s is read only; ignoring new values\n",
+                              attr);
+            }
+            charray_free(vals);
         } else if (values != NULL) {
             for (ii = 0; !retval && values && values[ii]; ++ii) {
                 if (cgas->setfunc) {
@@ -9702,6 +10359,52 @@ config_get_maxsimplepaged_per_conn()
     return retVal;
 }
 
+int
+config_set_maxcontrolsperop(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    long size;
+    char *endp;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    size = strtol(value, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || size < 1 || size > 1000) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "(%s) value (%s) is invalid, must be at least 1 and less than 1000\n",
+                              attrname, value);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (!apply) {
+        return retVal;
+    }
+
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+
+    slapdFrontendConfig->maxcontrols_per_op = size;
+
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    return retVal;
+}
+
+int
+config_get_maxcontrolsperop()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = slapdFrontendConfig->maxcontrols_per_op;
+    if (retVal == 0) {
+        retVal = SLAPD_DEFAULT_MAXCONTROLS_PER_OP;
+    }
+    return retVal;
+}
+
 int32_t
 config_set_extract_pem(const char *attrname, char *value, char *errorbuf, int apply)
 {
@@ -9850,6 +10553,170 @@ config_get_malloc_mmap_threshold()
     retVal = slapdFrontendConfig->malloc_mmap_threshold;
     return retVal;
 }
+
+static struct {
+    const char *name;
+    fgot_id_t id;
+} fgot_allowed_values_table[] = {
+    { "wqtime", FGOT_WQ },
+    { "wq", FGOT_WQ },
+    { "writetime", FGOT_WRITE },
+    { "write", FGOT_WRITE },
+    { "optime", FGOT_OP },
+    { "op", FGOT_OP },
+    { "etime", FGOT_ETIME },
+    { "e", FGOT_ETIME },
+    { "wtime", FGOT_W },
+    { "w", FGOT_W },
+    { 0 }
+};
+
+const char *
+fgot_allowed_values()
+{
+    static char names[128];
+    size_t len = 0;
+    if (!names[0]) {
+        for (size_t i=0; fgot_allowed_values_table[i].name; i++) {
+            size_t len2 = strlen(fgot_allowed_values_table[i].name);
+            if (len+len2+1 < sizeof names) {
+                strcpy(names+len, fgot_allowed_values_table[i].name);
+                len += len2;
+                if (fgot_allowed_values_table[i+1].name) {
+                    names[len++] = ',';
+                }
+            }
+        }
+    }
+    return names;
+}
+
+const char *
+fgot_get_name(fgot_id_t id)
+{
+    for (size_t i=0; fgot_allowed_values_table[i].name; i++) {
+        if (fgot_allowed_values_table[i].id == id) {
+            return fgot_allowed_values_table[i].name;
+        }
+    }
+    return "???";
+}
+
+static bool
+fgot_is_allowed(const char *name, uint64_t *flags)
+{
+    for (size_t i=0; fgot_allowed_values_table[i].name; i++) {
+        if (strcasecmp(name, fgot_allowed_values_table[i].name) == 0) {
+            fgot_id_t id = fgot_allowed_values_table[i].id;
+            *flags |= 1UL << id;
+            return true;
+        }
+    }
+    return false;
+}
+
+char *
+config_get_fgot()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = config_copy_strval(slapdFrontendConfig->fgot);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_fgot(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    uint64_t flags = 0;
+
+    if (value != NULL) {
+        char *pt = slapi_ch_strdup(value);
+        const char *delim = " \t\n+|,";
+        char *iter = NULL;
+        for(char *elem=ldap_utf8strtok_r(pt, delim, &iter);
+            elem != NULL && retVal == LDAP_SUCCESS;
+            elem=ldap_utf8strtok_r(NULL, delim, &iter)) {
+            if (*elem == 0) {
+                /* Ignore empty elements */
+                continue;
+            }
+            if (!fgot_is_allowed(elem, &flags)) {
+                retVal = LDAP_UNWILLING_TO_PERFORM;
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "(%s) value (%s) is invalid. Should be a subset of %s\n",
+                    attrname, value, fgot_allowed_values());
+            }
+        }
+        slapi_ch_free_string(&pt);
+    }
+    if (apply && retVal == LDAP_SUCCESS) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free((void **)&slapdFrontendConfig->fgot);
+        slapdFrontendConfig->fgot = slapi_ch_strdup(value);
+        slapdFrontendConfig->fgot_flags = flags;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+char **
+config_get_ignored_criticality_list()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char **retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_array_dup(slapdFrontendConfig->ignored_criticality_list);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_ignored_criticality_list(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+
+    if (value == ALLOW_ATTRIBUTE_DELETION) {
+        value = NULL;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_array_free(slapdFrontendConfig->ignored_criticality_list);
+        slapdFrontendConfig->ignored_criticality_list = slapi_ch_array_dup((char**)value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+bool
+config_is_control_criticality_ignored(const char *oid)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    bool res = false;
+    CFG_LOCK_READ(slapdFrontendConfig);
+    if (slapdFrontendConfig->ignored_criticality_list) {
+        char **vals = slapdFrontendConfig->ignored_criticality_list;
+        for (size_t i=0; vals[i]; i++) {
+            if (strcasecmp(oid, vals[i]) == 0) {
+                res = true;
+                break;
+            }
+        }
+    }
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+    return res;
+}
+
+
 #endif
 #endif
 

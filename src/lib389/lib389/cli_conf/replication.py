@@ -11,15 +11,31 @@ import os
 import json
 import ldap
 import stat
+from datetime import datetime
 from shutil import copyfile
 from getpass import getpass
 from lib389._constants import ReplicaRole, DSRC_HOME
 from lib389.cli_base.dsrc import dsrc_to_repl_monitor
 from lib389.cli_base import _get_arg, CustomHelpFormatter
-from lib389.utils import is_a_dn, copy_with_permissions, ds_supports_new_changelog, get_passwd_from_file
+from lib389.utils import (
+    is_a_dn, copy_with_permissions, ds_supports_new_changelog,
+    get_passwd_from_file, validate_max_age)
+from lib389.repltools import ReplicationLogAnalyzer
 from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF, Changelog
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
+
+try:
+    import plotly
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+
+try:
+    import matplotlib
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
 
 arg_to_attr = {
         # replica config
@@ -514,6 +530,129 @@ def get_repl_monitor_info(inst, basedn, log, args):
         log.info(json.dumps({"type": "list", "items": report_items}, indent=4))
 
 
+def generate_lag_report(inst, basedn, log, args):
+    """Generate detailed replication lag analysis report from server logs."""
+
+    # Validate input parameters
+    if not args.log_dirs:
+        raise ValueError("No log directories specified")
+
+    # Validate log directories
+    for log_dir in args.log_dirs:
+        if not os.path.isdir(log_dir):
+            raise ValueError(f"Log directory not found or not accessible: {log_dir}")
+
+    # Validate output directory
+    if not os.path.exists(args.output_dir):
+        try:
+            os.makedirs(args.output_dir)
+        except OSError as e:
+            raise ValueError(f"Cannot create output directory: {e}")
+    elif not os.access(args.output_dir, os.W_OK):
+        raise ValueError(f"Output directory not writable: {args.output_dir}")
+
+    # Determine output formats
+    formats = []
+    if args.output_format:
+        for fmt in args.output_format:
+            fmt = fmt.lower()
+            if fmt == 'json':
+                formats.append('json')
+            elif fmt == 'html':
+                formats.append('html')
+            elif fmt == 'png':
+                formats.append('png')
+            elif fmt == 'csv':
+                formats.append('csv')
+            else:
+                log.warning(f"Ignoring unknown format: {fmt}")
+
+    if not formats:  # Prefer JSON/CSV when no valid formats specified
+        formats.extend(['json', 'csv'])
+
+    # Deduplicate while preserving order
+    seen = set()
+    formats = [fmt for fmt in formats if not (fmt in seen or seen.add(fmt))]
+
+    # Parse time range if specified
+    time_range = {}
+    try:
+        if args.start_time:
+            time_range['start'] = datetime.strptime(args.start_time, '%Y-%m-%d %H:%M:%S')
+        if args.end_time:
+            time_range['end'] = datetime.strptime(args.end_time, '%Y-%m-%d %H:%M:%S')
+    except ValueError as e:
+        raise ValueError(f"Invalid time format. Use YYYY-MM-DD HH:MM:SS: {e}")
+
+    # Track if we're in json-only mode (for command output format)
+    json_output_only = args.json
+
+    try:
+        # Initialize ReplicationLogAnalyzer with enhanced options
+        if not json_output_only:
+            log.info("Initializing replication log analysis...")
+
+        repl_analyzer = ReplicationLogAnalyzer(
+            log_dirs=args.log_dirs,
+            suffixes=args.suffixes,
+            anonymous=args.anonymous,
+            only_fully_replicated=args.only_fully_replicated,
+            only_not_replicated=args.only_not_replicated,
+            lag_time_lowest=args.lag_time_lowest,
+            etime_lowest=args.etime_lowest,
+            utc_offset=args.utc_offset,
+            time_range=time_range,
+            sampling_mode=("none" if getattr(args, "precision", "balanced") == "full" else "auto"),
+            max_chart_points=getattr(args, "max_chart_points", None),
+            analysis_precision=getattr(args, "precision", "balanced")
+        )
+
+        # Parse logs
+        if not json_output_only:
+            log.info("Analyzing replication logs...")
+
+        repl_analyzer.parse_logs()
+
+        # Check if we have any data after parsing and filtering
+        if not repl_analyzer.csns:
+            error_msg = "No replication data found matching the specified criteria."
+            if args.lag_time_lowest is not None or args.etime_lowest is not None:
+                error_msg += "\n  - The threshold filters (lag time or etime) may be too restrictive."
+            if args.only_fully_replicated or args.only_not_replicated:
+                error_msg += "\n  - The replication status filter may have excluded all entries."
+            if time_range:
+                error_msg += "\n  - The time range may not contain any replication events."
+            error_msg += "\nTry adjusting the filters or expanding the time range."
+            raise ValueError(error_msg)
+
+        # Generate reports
+        if not json_output_only:
+            log.info("Generating analysis reports...")
+            log.info(f"Creating reports in formats: {formats}")  # Debug message
+
+        generated_files = repl_analyzer.generate_report(
+            output_dir=args.output_dir,
+            formats=formats,
+            report_name="replication_analysis"
+        )
+
+        # Report output locations - always as JSON if json flag is set
+        if json_output_only:
+            # Only output pure JSON, no additional messages
+            print(json.dumps({"type": "list", "items": generated_files}, indent=4))
+        else:
+            # Regular output mode with log messages
+            if args.json:
+                log.info(json.dumps({"type": "list", "items": generated_files}, indent=4))
+            else:
+                log.info("Generated report files:")
+                for fmt, path in generated_files.items():
+                    log.info(f"  {fmt}: {path}")
+
+    except Exception as e:
+        raise ValueError(f"Failed to generate replication lag report: {e}")
+
+
 # This subcommand is available when 'not ds_supports_new_changelog'
 def create_cl(inst, basedn, log, args):
     cl = Changelog5(inst)
@@ -575,6 +714,9 @@ def set_per_backend_cl(inst, basedn, log, args):
     replace_list = []
     did_something = False
 
+    if (is_replica_role_consumer(inst, suffix)):
+        log.error("Warning: Changelogs are not supported for consumer replicas. You may run into undefined behavior.")
+
     if args.encrypt:
         cl.replace('nsslapd-encryptionalgorithm', 'AES')
         del args.encrypt
@@ -585,6 +727,9 @@ def set_per_backend_cl(inst, basedn, log, args):
         del args.disable_encrypt
         did_something = True
         log.info("You must restart the server for this to take effect")
+
+    if args.max_age:
+        validate_max_age(args.max_age, ignore_value="-1")
 
     for attr, value in attrs.items():
         if value == "":
@@ -604,6 +749,10 @@ def set_per_backend_cl(inst, basedn, log, args):
 # that means there is a changelog config entry per backend (aka suffix)
 def get_per_backend_cl(inst, basedn, log, args):
     suffix = args.suffix
+
+    if (is_replica_role_consumer(inst, suffix)):
+        log.error("Warning: Changelogs are not supported for consumer replicas. You may run into undefined behavior.")
+
     cl = Changelog(inst, suffix)
     if args and args.json:
         log.info(cl.get_all_attrs_json())
@@ -711,6 +860,22 @@ def del_repl_manager(inst, basedn, log, args):
 
     log.info("Successfully deleted replication manager: " + manager_dn)
 
+def is_replica_role_consumer(inst, suffix):
+    """Helper function for get_per_backend_cl and set_per_backend_cl.
+    Makes sure the instance in question is not a consumer, which is a role that
+    does not support changelogs.
+    """
+    replicas = Replicas(inst)
+    try:
+        replica = replicas.get(suffix)
+        role = replica.get_role()
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f"Backend \"{suffix}\" is not enabled for replication")
+
+    if role == ReplicaRole.CONSUMER:
+        return True
+    else:
+        return False
 
 #
 # Agreements
@@ -789,6 +954,20 @@ def add_agmt(inst, basedn, log, args):
         properties['nsds5replicatedattributelisttotal'] = frac_total_list
     if args.strip_list is not None:
         properties['nsds5replicastripattrs'] = args.strip_list
+    if args.conn_timeout is not None:
+        properties['nsds5replicatimeout'] = args.conn_timeout
+    if args.protocol_timeout is not None:
+        properties['nsds5replicaprotocoltimeout'] = args.protocol_timeout
+    if args.wait_async_results is not None:
+        properties['nsds5replicawaitforasyncresults'] = args.wait_async_results
+    if args.busy_wait_time is not None:
+        properties['nsds5replicabusywaittime'] = args.busy_wait_time
+    if args.session_pause_time is not None:
+        properties['nsds5replicaSessionPauseTime'] = args.session_pause_time
+    if args.flow_control_window is not None:
+        properties['nsds5replicaflowcontrolwindow'] = args.flow_control_window
+    if args.flow_control_pause is not None:
+        properties['nsds5replicaflowcontrolpause'] = args.flow_control_pause
 
     # Handle the optional bootstrap settings
     if args.bootstrap_bind_dn is not None:
@@ -1385,7 +1564,9 @@ def create_parser(subparsers):
     repl_set_per_backend_cl.set_defaults(func=set_per_backend_cl)
     repl_set_per_backend_cl.add_argument('--suffix', required=True, help='Sets the suffix that uses the changelog')
     repl_set_per_backend_cl.add_argument('--max-entries', help="Sets the maximum number of entries to get in the replication changelog")
-    repl_set_per_backend_cl.add_argument('--max-age', help="Set the maximum age of a replication changelog entry")
+    repl_set_per_backend_cl.add_argument('--max-age',
+                                         help='Specifies the maximum age of any entry in the changelog. '
+                                              'The value must be a number followed by a duration unit [sSmMhHdDwW].')
     repl_set_per_backend_cl.add_argument('--trim-interval', help="Sets the interval to check if the replication changelog can be trimmed")
     repl_set_per_backend_cl.add_argument('--encrypt', action='store_true',
                                          help="Sets the replication changelog to use encryption. You must export and "
@@ -1472,6 +1653,66 @@ def create_parser(subparsers):
     repl_monitor_parser.add_argument('-a', '--aliases', nargs="*",
                                      help="Enables displaying an alias instead of host:port, if an alias is "
                                           "assigned to a host:port combination. The format: alias=host:port")
+
+    repl_lag_report_parser = repl_subcommands.add_parser('lag-report',
+        help='Generate detailed replication lag monitoring report',
+        formatter_class=CustomHelpFormatter)
+    repl_lag_report_parser.set_defaults(func=generate_lag_report)
+
+    # Input options group
+    input_group = repl_lag_report_parser.add_argument_group('Input options')
+    input_group.add_argument('--log-dirs', nargs='+', required=True,
+        help='List of log directories to analyze')
+    input_group.add_argument('--suffixes', nargs='+', required=True,
+        help='List of suffixes to analyze')
+
+    # Output options group
+    output_group = repl_lag_report_parser.add_argument_group('Output options')
+    output_group.add_argument('--output-dir', required=True,
+        help='Directory to write analysis reports to')
+    output_group.add_argument('--output-format', nargs='+', default=['html'],
+                         help='One or more output formats: html, json, png, csv. Default: html')
+    output_group.add_argument('--json', action='store_true',
+                          help='Output the result as JSON (for UI integration/programmatic use)')
+
+    # Filtering options group
+    filter_group = repl_lag_report_parser.add_argument_group('Filtering options')
+
+    # Create mutually exclusive group for replication filters
+    repl_filter_group = filter_group.add_mutually_exclusive_group()
+    repl_filter_group.add_argument('--only-fully-replicated', action='store_true',
+        help='Show only fully replicated entries')
+    repl_filter_group.add_argument('--only-not-replicated', action='store_true',
+        help='Show only entries that failed to replicate')
+
+    # Other filtering options
+    filter_group.add_argument('--lag-time-lowest', type=float,
+        help='Filter entries with lag time above this threshold (seconds)')
+    filter_group.add_argument('--etime-lowest', type=float,
+        help='Filter entries with etime above this threshold (seconds)')
+
+    # Time range options subgroup
+    time_group = repl_lag_report_parser.add_argument_group('Time range options')
+    time_group.add_argument('--start-time',
+        default='1970-01-01 00:00:00',
+        help='Start time for analysis (YYYY-MM-DD HH:MM:SS)')
+    time_group.add_argument('--end-time',
+        default='9999-12-31 23:59:59',
+        help='End time for analysis (YYYY-MM-DD HH:MM:SS)')
+
+    # Additional options group
+    additional_group = repl_lag_report_parser.add_argument_group('Additional options')
+    additional_group.add_argument('--utc-offset',
+        help='UTC offset in ±HHMM format (e.g., -0400, +0530)')
+    additional_group.add_argument('--anonymous', action='store_true',
+        help='Anonymize server names in the report')
+
+    # Performance options
+    perf_group = repl_lag_report_parser.add_argument_group('Performance options')
+    perf_group.add_argument('--precision', choices=['fast', 'balanced', 'full'], default='balanced',
+        help='Analysis precision vs speed: fast (more sampling), balanced (default), full (no sampling)')
+    perf_group.add_argument('--max-chart-points', type=int,
+        help='Maximum total data points to include across all chart series (sampling applied if exceeded). Default depends on --precision')
 
     ############################################
     # Replication Agmts

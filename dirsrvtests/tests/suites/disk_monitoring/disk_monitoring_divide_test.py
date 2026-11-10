@@ -11,7 +11,7 @@ import subprocess
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389._mapped_object import DSLdapObjects
 
 pytestmark = pytest.mark.tier2
@@ -31,15 +31,16 @@ def create_dummy_mount(topology_st, request):
     log.info('Create dummy mount')
     for cmd in cmds:
         log.info('Command used : %s' % cmd)
-        subprocess.Popen(cmd, shell=True)
+        subprocess.run(cmd, shell=True)
 
     def fin():
         cmds = ['umount /var/log/dirsrv/slapd-{}/tmp'.format(topology_st.standalone.serverid),
+                'rmdir /var/log/dirsrv/slapd-{}/tmp'.format(topology_st.standalone.serverid),
                 'setenforce 1']
 
         for cmd in cmds:
-            log.info('Command used : %s' % cmds)
-            subprocess.Popen(cmd, shell=True)
+            log.info('Command used : %s' % cmd)
+            subprocess.run(cmd, shell=True)
 
     request.addfinalizer(fin)
 

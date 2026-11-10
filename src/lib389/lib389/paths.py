@@ -14,10 +14,7 @@ from lib389._constants import DIRSRV_STATE_ONLINE, DSRC_CONTAINER
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
-if MAJOR >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
+import configparser
 
 # Read the paths from default.inf
 
@@ -63,6 +60,7 @@ MUST = [
     'ldif_dir',
     'initconfig_dir',
     'tmpfiles_d',
+    'sysusers_d',
 ]
 
 # will need to add the access, error, audit log later.
@@ -267,6 +265,8 @@ class Paths(object):
             return v
         # Else get from the config
         if self._config:
+            if name == 'runtime_tmpfiles_d' and not self._config.has_option(SECTION, name):
+                return os.path.join(ensure_str(self._config.get(SECTION, 'sysconf_dir')), 'tmpfiles.d')
             if self._serverid is not None:
                 return ensure_str(self._config.get(SECTION, name).format(instance_name=self._serverid))
             else:

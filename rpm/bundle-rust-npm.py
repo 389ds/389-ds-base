@@ -118,7 +118,7 @@ def process_npm_license(license_data) -> str:
 
 def enclose_if_contains_or(license_str: str) -> str:
     """Enclose the license string in parentheses if it contains 'OR'."""
-    return f"({license_str})" if 'OR' in license_str and not license_str.startswith('(') else license_str
+    return f"({license_str})" if license_str is not None and 'OR' in license_str and not license_str.startswith('(') else license_str
 
 
 def build_provides_lines(rust_crates: Dict[str, Tuple[str, str]], npm_packages: Dict[str, Tuple[str, str]]) -> list[str]:
@@ -146,11 +146,11 @@ def replace_license(spec_file: str, license_string: str):
         for line in contents:
             if line.startswith("License: "):
                 if args.fix_it:
-                    result.append(f"License:          GPL-3.0-or-later AND WITH GPL-3.0-389-ds-base-exception {license_string}\n")
+                    result.append(f"License:          GPL-3.0-or-later WITH GPL-3.0-389-ds-base-exception AND {license_string}\n")
                 else:
                     result.append("# IMPORTANT - Check if it looks right. Additionally, "
                                   "compare with the original line. Then, remove this comment and # FIXME - part.\n")
-                    result.append(f"# FIXME - License:          GPL-3.0-or-later AND WITH GPL-3.0-389-ds-base-exception {license_string}\n")
+                    result.append(f"# FIXME - License:          GPL-3.0-or-later WITH GPL-3.0-389-ds-base-exception AND {license_string}\n")
             else:
                 result.append(line)
     with open(spec_file, "w") as file:
@@ -191,19 +191,33 @@ def write_provides_bundled(provides_lines: List[str], spec_file: str, cleaned: b
     """Writes bundled package information to the spec file.
     Includes generated 'Provides' lines and marks the section for easy future modification.
     """
-    # Find a line index where 'Provides' ends
+    # Find a line index where 'Provides' ends in the main package section
+    # (before the first %description). If no Provides: line exists,
+    # fall back to inserting right before the first %description.
     with open(spec_file, "r") as file:
         spec_file_lines = file.readlines()
     last_provides = -1
+    first_description = -1
     for i in range(0, len(spec_file_lines)):
         if spec_file_lines[i].startswith("%description"):
+            first_description = i
             break
         if spec_file_lines[i].startswith("Provides:"):
             last_provides = i
 
+    if last_provides >= 0:
+        # Insert after the last existing Provides line (plus one blank line)
+        insert_at = last_provides + 2
+    elif first_description >= 0:
+        # No Provides found, insert before first %description
+        insert_at = first_description
+    else:
+        log.error("Could not find %description in the spec file")
+        sys.exit(1)
+
     # Insert the generated 'Provides' to the specfile
     log.info(f"Add the fresh '{SPECFILE_COMMENT_LINE}' content to {spec_file}")
-    i = last_provides + 2
+    i = insert_at
     spec_file_lines.insert(i, START_LINE)
     for line in sorted(provides_lines):
         i = i + 1
@@ -241,14 +255,20 @@ if __name__ == '__main__':
         log.error(f"Path {args.npm_path} does not exist or is not a directory")
         sys.exit(1)
 
-    if shutil.which("cargo-license") is None:
+    cargo_license_path = shutil.which("cargo-license")
+    if cargo_license_path is None:
+        # cargo install puts binaries in $HOME/.cargo/bin which may not be in PATH
+        home_cargo_bin = os.path.join(os.path.expanduser("~"), ".cargo", "bin")
+        cargo_license_path = shutil.which("cargo-license", path=home_cargo_bin)
+    if cargo_license_path is None:
         log.error("cargo-license is not installed. Please install it with 'cargo install cargo-license' and try again.")
         sys.exit(1)
+    log.debug(f"Found cargo-license at: {cargo_license_path}")
     if shutil.which("npm") is None:
         log.error("npm is not installed. Please install it with 'dnf install npm' and try again.")
         sys.exit(1)
 
-    rust_output = run_cmd(["cargo", "license", "--json", "--current-dir", args.cargo_path])
+    rust_output = run_cmd([cargo_license_path, "--json", "--current-dir", args.cargo_path])
     npm_output = run_cmd(["npx", "--yes", "license-checker", "--production", "--json", "--start", args.npm_path])
 
     if rust_output is None or npm_output is None:

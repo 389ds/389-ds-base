@@ -37,6 +37,9 @@
 #include "slap.h"
 #include "pratom.h"
 #include "csngen.h"
+#ifdef ENABLE_HIBP
+#include "hibp.h"
+#endif
 
 /* Forward declarations */
 static int add_internal_pb(Slapi_PBlock *pb);
@@ -571,6 +574,7 @@ op_shared_add(Slapi_PBlock *pb)
                 logpb.op_id = op_id;
                 logpb.op_internal_id = op_internal_id;
                 logpb.op_nested_count = op_nested_count;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_add(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_ARGS,
@@ -665,6 +669,47 @@ op_shared_add(Slapi_PBlock *pb)
                  * Check password syntax, unless this is a pwd admin/rootDN
                  */
                 present_values = attr_get_present_values(attr);
+#ifdef ENABLE_HIBP
+                /* Check all passwords against breach database (admin bypass) */
+                if (!pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
+                    pwpolicy->pw_check_breach) {
+                    /* Cap cleartext password values to prevent worker pool exhaustion */
+                    size_t cleartext_count = 0;
+                    for (size_t i = 0; present_values[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(present_values[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            cleartext_count++;
+                        }
+                    }
+                    if (cleartext_count > HIBP_MAX_PASSWORDS_PER_OP) {
+                        slapi_log_err(SLAPI_LOG_ERR, "op_shared_add",
+                            "Too many cleartext password values (%zu) for %s - max %d allowed\n",
+                            cleartext_count, slapi_entry_get_dn_const(e), HIBP_MAX_PASSWORDS_PER_OP);
+                        send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                            "Too many password values in single operation", 0, NULL);
+                        goto done;
+                    }
+
+                    for (size_t i = 0; present_values[i] != NULL; i++) {
+                        const char *pwd = slapi_value_get_string(present_values[i]);
+                        if (pwd && !slapi_is_encoded((char *)pwd)) {
+                            int breach_count = hibp_check_password(pwd, pwpolicy);
+                            if (breach_count > 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_add",
+                                    "Password for %s found in breach database (%d occurrences)\n",
+                                    slapi_entry_get_dn_const(e), breach_count);
+                                send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                    "Password found in breach database", 0, NULL);
+                                goto done;
+                            } else if (breach_count < 0) {
+                                slapi_log_err(SLAPI_LOG_WARNING, "op_shared_add",
+                                    "Failed to check password against breach database for %s\n",
+                                    slapi_entry_get_dn_const(e));
+                            }
+                        }
+                    }
+                }
+#endif
                 if (!pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
                     check_pw_syntax(pb, slapi_entry_get_sdn_const(e),
                                     present_values, NULL, e, 0) != 0) {
@@ -765,6 +810,14 @@ op_shared_add(Slapi_PBlock *pb)
         }
         /* expand objectClass values to reflect the inheritance hierarchy */
         slapi_schema_expand_objectclasses(e);
+
+        /* Validate password policy attrs */
+        if (!internal_op) {
+            if ((err = check_pw_policy_attrs(e, NULL, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
+                send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
+                goto done;
+            }
+        }
     }
 
     /*
@@ -847,6 +900,7 @@ done:
     if (be)
         slapi_be_Unlock(be);
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
+    slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
     slapi_entry_free(pse);
     slapi_ch_free((void **)&operation->o_params.p.p_add.parentuniqueid);
     slapi_entry_free(e);
@@ -999,7 +1053,11 @@ handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "param error", 0, NULL);
         return;
     }
-    be = pb_conn->c_bi_backend;
+    /* do_add() saw CONN_FLAG_IMPORT without c_mutex: take the import state
+     * under c_mutex, as a failed import clears it under c_mutex */
+    pthread_mutex_lock(&(pb_conn->c_mutex));
+    be = (pb_conn->c_flags & CONN_FLAG_IMPORT) ? pb_conn->c_bi_backend : NULL;
+    pthread_mutex_unlock(&(pb_conn->c_mutex));
 
     if ((be == NULL) || (be->be_wire_import == NULL)) {
         /* can this even happen? */
@@ -1059,8 +1117,10 @@ handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
         slapi_entry_free(entry);
 
         /* turn off fast replica init -- import is now aborted */
+        pthread_mutex_lock(&(pb_conn->c_mutex));
         pb_conn->c_bi_backend = NULL;
         pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
+        pthread_mutex_unlock(&(pb_conn->c_mutex));
 
         return;
     }

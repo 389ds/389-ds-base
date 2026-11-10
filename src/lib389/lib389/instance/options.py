@@ -16,10 +16,7 @@ from lib389.utils import get_default_db_lib, get_default_mdb_max_size, socket_ch
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
-if MAJOR >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
+import configparser
 
 format_keys = [
     'prefix',

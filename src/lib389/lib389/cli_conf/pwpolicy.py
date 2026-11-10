@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -43,7 +43,7 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
         targetdn = 'cn=config'
         policydn = targetdn
         basedn = targetdn
-        attr_list.extend(['passwordisglobalpolicy', 'nsslapd-pwpolicy_local'])
+        attr_list.extend(['passwordisglobalpolicy', 'nsslapd-pwpolicy-local'])
         all_attrs = inst.config.get_attrs_vals_utf8(attr_list)
         attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
     else:
@@ -74,6 +74,31 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
         log.info(response)
 
 
+def _log_policy_result(log, entry, use_json=None):
+    """
+    Logs the result of creating/updating a password policy
+    in json or text format.
+    """
+    status = entry.ensure_status
+    if status == entry.ENSURE_UNCHANGED:
+        message = 'Password policy is already up to date'
+        ensure = "UNCHANGED"
+    elif status == entry.ENSURE_UPDATED:
+        message = 'Successfully updated password policy'
+        ensure = "UPDATED"
+    elif status == entry.ENSURE_ADDED:
+        message = 'Successfully created new password policy'
+        ensure = "ADDED"
+    else:
+        message = "Unknown password policy operation"
+        ensure = "UNKNOWN"
+
+    if use_json:
+        log.info(json.dumps({"ensure_status": ensure, "message": message}, indent=4))
+    else:
+        log.info(message)
+
+
 def list_policies(inst, basedn, log, args):
     log = log.getChild('list_policies')
 
@@ -91,6 +116,7 @@ def list_policies(inst, basedn, log, args):
     else:
         result = ""
 
+    seen_dns = set()
     for targetdn in targetdns:
         # Verify target dn exists before getting started
         user_entry = Account(inst, targetdn)
@@ -104,13 +130,30 @@ def list_policies(inst, basedn, log, args):
         attr_list = list(pwp_manager.arg_to_attr.values())
 
         for pwp_entry in pwp_entries.list():
+            # Filter duplicates because subtree search on parent suffix also returns
+            # policies from sub suffixes
+            if pwp_entry.dn in seen_dns:
+                continue
+            seen_dns.add(pwp_entry.dn)
             # Sometimes, the cn value includes quotes (for example, after migration from pre-CLI version).
             # We need to strip them as python-ldap doesn't expect them
             dn_comps_str = pwp_entry.get_attr_val_utf8_l('cn').strip("\'").strip("\"")
-            dn_comps = ldap.dn.explode_dn(dn_comps_str)
-            dn_comps.pop(0)
-            entrydn = ",".join(dn_comps)
-            policy_type = _get_policy_type(inst, entrydn)
+            try:
+                dn_comps = ldap.dn.explode_dn(dn_comps_str)
+                dn_comps.pop(0)
+                entrydn = ",".join(dn_comps)
+                policy_type = _get_policy_type(inst, entrydn)
+            except ldap.DECODING_ERROR:
+                # This is some kind of custom password policy, the UI relies on
+                # on type being "Unknown policy type" in this.unknownPolicyType
+                policy_type = "Unknown policy type"
+                entrydn = "Unknown target"
+                if not args.json:
+                    # If not JSON then set a custom response, otherwise the
+                    # JSON result is sufficient
+                    result += "%s (%s)\n" % (pwp_entry.dn, policy_type.lower())
+                    continue
+
             all_attrs = pwp_entry.get_attrs_vals_utf8(attr_list)
             attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
             if args.json:
@@ -147,18 +190,16 @@ def create_subtree_policy(inst, basedn, log, args):
     # Gather the attributes
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
-    pwp_manager.create_subtree_policy(args.DN[0], attrs)
-
-    log.info('Successfully created subtree password policy')
+    pwp_entry = pwp_manager.create_subtree_policy(args.DN[0], attrs)
+    _log_policy_result(log, pwp_entry, args.json)
 
 
 def create_user_policy(inst, basedn, log, args):
     log = log.getChild('create_user_policy')
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
-    pwp_manager.create_user_policy(args.DN[0], attrs)
-
-    log.info('Successfully created user password policy')
+    pwp_entry = pwp_manager.create_user_policy(args.DN[0], attrs)
+    _log_policy_result(log, pwp_entry, args.json)
 
 
 def set_global_policy(inst, basedn, log, args):
@@ -209,6 +250,32 @@ def list_schemes(inst, basedn, log, args):
     else:
         for scheme in scheme_list:
             log.info(scheme)
+
+
+def fixup_shadow_last_change(inst, basedn, log, args):
+    """Create the fixup shadow attributes task (shadowLastChange) and wait for it."""
+    log = log.getChild('fixup_shadow_last_change')
+    from lib389.tasks import ShadowFixupTask
+
+    if not args.watch:
+        log.info('Adding shadowLastChange fixup task for suffix "%s"%s ...',
+                 args.suffix, ' (force)' if args.force else '')
+
+    fixup_task = ShadowFixupTask(inst)
+    fixup_task.create(args.suffix, force=args.force)
+    if args.watch:
+        fixup_task.watch()
+    else:
+        fixup_task.wait()
+    result = fixup_task.get_exit_code()
+    warning = fixup_task.get_task_warn()
+
+    if result != 0:
+        raise ValueError(f'shadowLastChange fixup task {fixup_task.dn} exited with code {result}')
+    if warning:
+        log.warning('shadowLastChange fixup task completed with warning code %s', warning)
+
+    log.info('ShadowLastChange fixup task completed successfully')
 
 
 def create_parser(subparsers):
@@ -311,6 +378,20 @@ def create_parser(subparsers):
     # list password storage schemes
     list_scehmes_parser = global_subcommands.add_parser('list-schemes', help='Get a list of the current password storage schemes', formatter_class=CustomHelpFormatter)
     list_scehmes_parser.set_defaults(func=list_schemes)
+    # Fix up shadowLastChange on ShadowAccount entries under a suffix
+    fixup_shadow_parser = global_subcommands.add_parser(
+        'fixup-shadow',
+        help='Create a task to set shadowLastChange on ShadowAccount entries',
+        formatter_class=CustomHelpFormatter)
+    fixup_shadow_parser.set_defaults(func=fixup_shadow_last_change)
+    fixup_shadow_parser.add_argument(
+        'suffix', help='LDAP suffix to search (subtree) for objectClass ShadowAccount')
+    fixup_shadow_parser.add_argument(
+        '--force', action='store_true',
+        help='Update all users under the suffix regardless if shadowLastChange is set.')
+    fixup_shadow_parser.add_argument(
+        '--watch', action='store_true',
+        help='Watch the task\'s status and wait for it to finish.')
 
     #############################################
     # Wrap it up.  Now that we copied all the parent arguments to the subparsers,

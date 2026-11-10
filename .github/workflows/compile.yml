@@ -1,9 +1,32 @@
 name: Compile
 on:
-  - pull_request
-  - push
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      # not docs/**: slapi.doxy.in and the doxygen assets are build inputs
+      - 'docs/agents/**'
+      - 'docs/design/**'
+      - 'LICENSE*'
+      - '.packit.yaml'
+      - '.github/renovate.json'
+  push:
+    branches:
+      - main
+      - "389-ds-base-*"
+    paths-ignore:
+      - '**.md'
+      - 'docs/agents/**'
+      - 'docs/design/**'
+      - 'LICENSE*'
+      - '.packit.yaml'
+      - '.github/renovate.json'
+  workflow_dispatch:
 
-permissions: 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
   actions: read
   packages: read
   contents: read
@@ -11,6 +34,7 @@ permissions:
 jobs:
   compile:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -28,7 +52,7 @@ jobs:
             cpp-compiler: g++
             cflags:  "-O2 -g"
 
-          - name: GCC strict
+          - name: GCC Strict
             image: quay.io/389ds/ci-images:fedora
             compiler: gcc
             cpp-compiler: g++
@@ -58,7 +82,7 @@ jobs:
       image: ${{ matrix.image }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Checkout and configure
         run: autoreconf -fvi && ./configure
         env:
@@ -68,11 +92,11 @@ jobs:
           CXXFLAGS: ${{ matrix.cxxflags || env.CXXFLAGS }}
           LDFLAGS: ${{ matrix.ldflags || env.LDFLAGS }}
 
-      - uses: ammaraskar/gcc-problem-matcher@master
+      - uses: ammaraskar/gcc-problem-matcher@0f9c86f9e693db67dacf53986e1674de5f2e5f28 # 0.3.0
       - name: Build using ${{ matrix.compiler }}
         run: bash -c "(make V=0 2> >(tee /dev/stderr)) > log.txt"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ matrix.name }}
           path: log.txt

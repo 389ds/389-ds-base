@@ -1626,7 +1626,6 @@ posix_winsync_end_update_cb(void *cbdata __attribute__((unused)),
                           "posix_winsync_end_update_cb: "
                           "add task entry\n");
         }
-        /* slapi_entry_free(e_task); */
         slapi_pblock_destroy(pb);
         pb = NULL;
         posix_winsync_config_reset_MOFTaskCreated();

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -17,13 +17,19 @@
 """
 
 import copy
+import pwd
 import ldap
 from lib389._constants import *
 from lib389 import Entry
-from lib389._mapped_object import DSLdapObject
+from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.utils import ensure_bytes, selinux_label_port,  selinux_present
 from lib389.lint import (
-    DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSCLE0006, DSELE0001
+    DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSCLE0006, DSCLE0007, DSELE0001
+)
+from lib389._mapped_object_lint import (
+    lint_get_attr_val,
+    lint_get_attr_val_utf8,
+    lint_get_attr_val_utf8_l,
 )
 
 class Config(DSLdapObject):
@@ -205,8 +211,8 @@ class Config(DSLdapObject):
 
     def _lint_passwordscheme(self):
         allowed_schemes = ['PBKDF2-SHA512', 'PBKDF2_SHA256', 'PBKDF2_SHA512', 'GOST_YESCRYPT']
-        u_password_scheme = self.get_attr_val_utf8('passwordStorageScheme')
-        u_root_scheme = self.get_attr_val_utf8('nsslapd-rootpwstoragescheme')
+        u_password_scheme = lint_get_attr_val_utf8(self, 'passwordStorageScheme')
+        u_root_scheme = lint_get_attr_val_utf8(self, 'nsslapd-rootpwstoragescheme')
         if u_root_scheme not in allowed_schemes:
             report = copy.deepcopy(DSCLE0002)
             report['detail'] = report['detail'].replace('SCHEME', u_root_scheme)
@@ -226,7 +232,7 @@ class Config(DSLdapObject):
 
     def _lint_unauth_binds(self):
         # Allow unauthenticated binds
-        unauthbinds = self.get_attr_val_utf8_l('nsslapd-allow-unauthenticated-binds')
+        unauthbinds = lint_get_attr_val_utf8_l(self, 'nsslapd-allow-unauthenticated-binds')
         if unauthbinds == "on":
             report = copy.deepcopy(DSCLE0003)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -235,7 +241,7 @@ class Config(DSLdapObject):
 
     def _lint_accesslog_buffering(self):
         # access log buffering
-        buffering = self.get_attr_val_utf8_l('nsslapd-accesslog-logbuffering')
+        buffering = lint_get_attr_val_utf8_l(self, 'nsslapd-accesslog-logbuffering')
         if buffering == "off":
             report = copy.deepcopy(DSCLE0004)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -244,8 +250,8 @@ class Config(DSLdapObject):
 
     def _lint_auditlog_buffering(self):
         # audit log buffering
-        enabled = self.get_attr_val_utf8_l('nsslapd-auditlog-logging-enabled')
-        buffering = self.get_attr_val_utf8_l('nsslapd-auditlog-logbuffering')
+        enabled = lint_get_attr_val_utf8_l(self, 'nsslapd-auditlog-logging-enabled')
+        buffering = lint_get_attr_val_utf8_l(self, 'nsslapd-auditlog-logbuffering')
         if enabled == "on" and buffering == "off":
             report = copy.deepcopy(DSCLE0006)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -254,13 +260,27 @@ class Config(DSLdapObject):
 
     def _lint_securitylog_buffering(self):
         # security log buffering
-        enabled = self.get_attr_val_utf8_l('nsslapd-securitylog-logging-enabled')
-        buffering = self.get_attr_val_utf8_l('nsslapd-securitylog-logbuffering')
+        enabled = lint_get_attr_val_utf8_l(self, 'nsslapd-securitylog-logging-enabled')
+        buffering = lint_get_attr_val_utf8_l(self, 'nsslapd-securitylog-logbuffering')
         if enabled == "on" and buffering == "off":
             report = copy.deepcopy(DSCLE0005)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
             report['check'] = "config:securitylogbuffering"
             yield report
+
+    def _lint_localuser(self):
+        # nsslapd-localuser must map to a real system account, otherwise the
+        # server fails to start (often without a useful error in the logs).
+        localuser = lint_get_attr_val_utf8(self, 'nsslapd-localuser')
+        if localuser:
+            try:
+                pwd.getpwnam(localuser)
+            except KeyError:
+                report = copy.deepcopy(DSCLE0007)
+                report['detail'] = report['detail'].replace('USER', localuser)
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                report['check'] = "config:localuser"
+                yield report
 
     def disable_plaintext_port(self):
         """
@@ -302,7 +322,7 @@ class Encryption(DSLdapObject):
         return 'encryption'
 
     def _lint_check_tls_version(self):
-        tls_min = self.get_attr_val('sslVersionMin')
+        tls_min = lint_get_attr_val(self, 'sslVersionMin')
         if tls_min is not None and tls_min < ensure_bytes('TLS1.1'):
             report = copy.deepcopy(DSELE0001)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
@@ -428,6 +448,57 @@ class RSA(DSLdapObject):
             self._log.debug("dn on cn=Rsa create request is not None. This is a mistake.")
         # Our self._dn is already set, no need for rdn.
         super(RSA, self).create(properties=properties)
+
+
+class EncryptionModule(DSLdapObject):
+    """EncryptionModule DSLdapObject with:
+    - must attributes = ['cn']
+    - RDN attribute is 'cn'
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(EncryptionModule, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'nsSSLPersonalitySSL', 'nsSSLActivation', 'nsSSLToken']
+        self._create_objectclasses = ['top', 'nsEncryptionModule']
+        self._protected = False
+
+
+class EncryptionModules(DSLdapObjects):
+    """DSLdapObjects that represents Encryption modules
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance):
+        super(EncryptionModules, self).__init__(instance=instance)
+        self._objectclasses = ['nsEncryptionModule']
+        self._filterattrs = ['cn', 'nsSSLPersonalitySSL']
+        self._childobject = EncryptionModule
+        self._basedn = 'cn=encryption,cn=config'
+
+    def create(self, properties=None):
+        if properties is None:
+            properties = {}
+        token_set = False
+        for k, v in properties.items():
+            if k.lower() == 'nsssltoken':
+                token_set = True
+                break
+
+        if not token_set:
+            # Set the token name by default since it doesn't change
+            properties['nsSSLToken'] = 'internal (software)'
+
+        # Our self._dn is already set, no need for rdn.
+        super(EncryptionModules, self).create(rdn=None, properties=properties)
+
 
 class CertmapLegacy(object):
     """

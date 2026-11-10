@@ -250,11 +250,11 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
        replace all but the last colon with %3A
        Go to the 3rd '/' or to the end of the string (convert only the host:port part) */
     if (url) {
-        char *p = strstr(url, "://");
+        const char *p = strstr(url, "://");
         if (p) {
             int foundspace = 0;
             int coloncount = 0;
-            char *lastcolon = NULL;
+            const char *lastcolon = NULL;
 
             p += 3;
             for (; *p && (*p != '/'); p++) {
@@ -273,7 +273,7 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
                 urlescaped = slapi_ch_calloc(strlen(url) * 3, sizeof(char));
                 dest = urlescaped;
                 /* copy the scheme */
-                src = strstr(url, "://");
+                src = (char *)strstr(url, "://");
                 src += 3;
                 memcpy(dest, url, src - url);
                 dest += (src - url);
@@ -521,7 +521,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth, char **cauris)
     if (rc != LDAP_SUCCESS) {
         rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set REQUIRE_CERT option to %d: %d (%s) %s\n", 
+                      "failed: unable to set REQUIRE_CERT option to %d: %d (%s) %s\n",
                       ssl_strength, rc, ldap_err2string(rc), errmsg ? errmsg : "");
         slapi_ch_free_string(&errmsg);
     }
@@ -594,7 +594,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth, char **cauris)
         (void)getSSLVersionRange(&minstr, NULL);
         rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set minimum TLS protocol level to %s: %d (%s) %s\n", 
+                      "failed: unable to set minimum TLS protocol level to %s: %d (%s) %s\n",
                       minstr, rc, ldap_err2string(rc), errmsg ? errmsg : "");
         slapi_ch_free_string(&minstr);
         slapi_ch_free_string(&errmsg);
@@ -606,7 +606,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth, char **cauris)
         if (rc != LDAP_SUCCESS) {
             rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
             slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                          "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication: %d (%s) %s\n", 
+                          "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication: %d (%s) %s\n",
                           rc, ldap_err2string(rc), errmsg ? errmsg : "");
             slapi_ch_free_string(&errmsg);
         }
@@ -620,7 +620,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth, char **cauris)
     if (rc != LDAP_SUCCESS) {
         rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to create new TLS context: %d (%s) %s\n", 
+                      "failed: unable to create new TLS context: %d (%s) %s\n",
                       rc, ldap_err2string(rc), errmsg ? errmsg : "");
         slapi_ch_free_string(&errmsg);
     }
@@ -947,6 +947,18 @@ slapi_ldap_bind(
     struct berval bvcreds = {0, NULL};
     LDAPMessage *result = NULL;
     struct berval *servercredp = NULL;
+    struct timeval default_timeout, *bind_timeout;
+
+    if ((timeout == NULL) || ((timeout->tv_sec == 0) && (timeout->tv_usec == 0))) {
+        /* Let's wait 1 min max to bind */
+        default_timeout.tv_sec = 60;
+        default_timeout.tv_usec = 0;
+
+        bind_timeout = &default_timeout;
+    } else {
+        /* take the one provided by the caller. It should be the one defined in the protocol */
+        bind_timeout = timeout;
+    }
 
     /* do starttls if requested
        NOTE - starttls is an extop, not a control, but we don't have
@@ -1072,18 +1084,6 @@ slapi_ldap_bind(
         if (msgidp) { /* let caller process result */
             *msgidp = mymsgid;
         } else { /* process results */
-            struct timeval default_timeout, *bind_timeout;
-
-            if ((timeout == NULL) || ((timeout->tv_sec == 0) && (timeout->tv_usec == 0))) {
-                /* Let's wait 1 min max to bind */
-                default_timeout.tv_sec = 60;
-                default_timeout.tv_usec = 0;
-
-                bind_timeout = &default_timeout;
-            } else {
-                /* take the one provided by the caller. It should be the one defined in the protocol */
-                bind_timeout = timeout;
-            }
             rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, bind_timeout, &result);
             if (-1 == rc) { /* error */
                 rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
@@ -1180,6 +1180,7 @@ slapi_ldap_bind(
         }
     } else {
         int krb5_serialized = 0;
+        struct timeval *prev_api_timeout = NULL;
 
 #ifdef HAVE_KRB5
         if (mech && !strcmp(mech, "GSSAPI")) {
@@ -1200,6 +1201,16 @@ slapi_ldap_bind(
             rc = LDAP_LOCAL_ERROR;
             goto done;
         }
+
+        /*
+         * ldap_sasl_interactive_bind_s() waits for every server response
+         * with the LDAP_OPT_TIMEOUT of the connection, which is infinite by
+         * default.  Bound the wait with the bind timeout, so a server that
+         * accepts the connection but never answers cannot hang the bind -
+         * and, for GSSAPI, every other bind waiting on krb5_lock.
+         */
+        ldap_get_option(ld, LDAP_OPT_TIMEOUT, &prev_api_timeout);
+        ldap_set_option(ld, LDAP_OPT_TIMEOUT, bind_timeout);
 
 #ifdef HAVE_KRB5
         if (krb5_serialized) {
@@ -1228,6 +1239,15 @@ slapi_ldap_bind(
             PR_Unlock(krb5_lock);
         }
 #endif
+
+        /* Restore the caller's LDAP_OPT_TIMEOUT (unset means infinite) */
+        if (prev_api_timeout) {
+            ldap_set_option(ld, LDAP_OPT_TIMEOUT, prev_api_timeout);
+            ldap_memfree(prev_api_timeout);
+        } else {
+            struct timeval no_timeout = {-1, 0};
+            ldap_set_option(ld, LDAP_OPT_TIMEOUT, &no_timeout);
+        }
     }
 
 done:
@@ -1316,7 +1336,7 @@ slapi_add_auth_response_control(Slapi_PBlock *pb, const char *binddn)
 
     if (slapi_pblock_set(pb, SLAPI_ADD_RESCONTROL, &arctrl) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "slapi_add_auth_response_control",
-                      "Unable to add authentication response control");
+                      "Unable to add authentication response control\n");
     }
 
     if (NULL != dnbuf_dynamic) {

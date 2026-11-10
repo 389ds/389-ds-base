@@ -1,6 +1,6 @@
 /* BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -35,6 +35,7 @@ extern "C" {
 #include "nspr.h"
 #include <syslog.h>
 #include <plhash.h>
+#include <stdbool.h>
 
 #ifdef __GNUC__
     #define __ATTRIBUTE__(x) __attribute__(x)
@@ -144,6 +145,15 @@ PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...) __ATTRIBUTE__((format(pr
                                                  including case.              \
                                                  Used for DN. */
 
+#define TRIM_LEADING_BLANK    0x10
+#define TRIM_TRAILING_BLANK   0x20
+#define SHRINK_LEADING_BLANK  0x40
+#define SHRINK_TRAILING_BLANK 0x80
+#define NO_TRIM_SHRINK_BLANK  0x00
+#define COMPATIBLE_TRIM_SPACES 0x01
+#define COMPATIBLE_NOT_TRIM_SPACES 0x00
+#define COMPATIBLE_TRIM_MASK (TRIM_LEADING_BLANK | TRIM_TRAILING_BLANK)
+#define COMPATIBLE_NOT_TRIM_MASK 0x00
 /**
  * Flag to indicate that the attribute value is not exposed if specified.
  *
@@ -730,7 +740,7 @@ void slapi_pblock_init(Slapi_PBlock *pb); /* clear out for re-use */
  * \see slapi_pblock_destroy()
  * \see slapi_pblock_set()
  */
-__ATTRIBUTE__((access (write_only, 3))) int slapi_pblock_get(Slapi_PBlock *pb, int arg, void *value);
+__ATTRIBUTE__((access (write_only, 3))) int32_t slapi_pblock_get(Slapi_PBlock *pb, int arg, void *value);
 
 /**
  * Sets the value of a name-value pair in a parameter block.
@@ -782,7 +792,7 @@ __ATTRIBUTE__((access (write_only, 3))) int slapi_pblock_get(Slapi_PBlock *pb, i
  *
  * \see slapi_pblock_get()
  */
-__ATTRIBUTE__((access (read_only, 3))) int slapi_pblock_set(Slapi_PBlock *pb, int arg, void *value);
+__ATTRIBUTE__((access (read_only, 3))) int32_t slapi_pblock_set(Slapi_PBlock *pb, int arg, void *value);
 
 /**
  * Frees the specified parameter block from memory.
@@ -1115,6 +1125,25 @@ char *slapi_entry2str_with_options(Slapi_Entry *e, int *len, int options);
  * \see slapi_str2entry()
  */
 char *slapi_entry2str(Slapi_Entry *e, int *len);
+
+/**
+ * Generates an LDIF string description of an LDAP entry, omitting excluded attributes.
+ *
+ * This function behaves like slapi_entry2str(), but attributes that appear
+ * in \c exclude_attrs are not included in the output. The entry itself
+ * is not modified.
+ *
+ * \param e Entry that you want to convert into an LDIF string.
+ * \param len Length of the LDIF string returned by this function.
+ * \param exclude_attrs NULL terminated array of attribute names to omit.
+ * \return The LDIF string representation of the entry you specify.
+ * \return \c NULL if an error occurs.
+ * \warning When you no longer need to use the string, you should free it
+ *          from memory by calling the slapi_ch_free_string() function.
+ *
+ * \see slapi_entry2str()
+ */
+char *slapi_entry2str_exclude_attrs(Slapi_Entry *e, int *len, char **exclude_attrs);
 
 /**
  * Allocates memory for a new entry of the data type #Slapi_Entry.
@@ -5392,6 +5421,15 @@ int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrEntry);
 int slapi_matchingrule_unregister(char *oid);
 
 /**
+ * Is the given matching rule an ordering matching rule
+ *
+ * \param name_or_oid Name or OID of a matching rule
+ * \return \c TRUE if the matching rule is an ordering rule
+ * \return \c FALSE otherwise
+ */
+int slapi_matchingrule_is_ordering_only(const char *oid_or_name);
+
+/**
  * Is the given matching rule an ordering matching rule and is it
  * compatible with the given syntax?
  *
@@ -5599,6 +5637,7 @@ int slapi_get_supported_controls_copy(char ***ctrloidsp,
                                       unsigned long **ctrlopsp);
 int slapi_build_control(char *oid, BerElement *ber, char iscritical, LDAPControl **ctrlp);
 int slapi_build_control_from_berval(char *oid, struct berval *bvp, char iscritical, LDAPControl **ctrlp);
+int create_sessiontracking_ctrl(const char *session_tracking_id, LDAPControl **session_tracking_ctrl);
 
 /* Given an array of controls e.g. LDAPControl **ctrls, add the given
    control to the end of the array, growing the array with realloc
@@ -5813,7 +5852,7 @@ char *slapi_ch_malloc(unsigned long size) __ATTRIBUTE__((returns_nonnull));
 char *slapi_ch_memalign(uint32_t size, uint32_t alignment) __ATTRIBUTE__((returns_nonnull));
 char *slapi_ch_realloc(char *block, unsigned long size) __ATTRIBUTE__((returns_nonnull));
 char *slapi_ch_calloc(unsigned long nelem, unsigned long size) __ATTRIBUTE__((returns_nonnull));
-char *slapi_ch_strdup(const char *s) __ATTRIBUTE__((returns_nonnull));
+char *slapi_ch_strdup(const char *s);
 void slapi_ch_free(void **ptr);
 void slapi_ch_free_string(char **s);
 struct berval *slapi_ch_bvdup(const struct berval *);
@@ -5956,6 +5995,7 @@ void slapi_add_entry_internal_set_pb(Slapi_PBlock *pb, Slapi_Entry *e, LDAPContr
 int slapi_add_internal_set_pb(Slapi_PBlock *pb, const char *dn, LDAPMod **attrs, LDAPControl **controls, Slapi_ComponentId *plugin_identity, int operation_flags);
 void slapi_modify_internal_set_pb(Slapi_PBlock *pb, const char *dn, LDAPMod **mods, LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags);
 void slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mods, LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags);
+int slapi_single_modify_internal_override(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mod, Slapi_ComponentId *plugin_identity, int operation_flags);
 /**
  * Set \c Slapi_PBlock to perform modrdn/rename internally
  *
@@ -6106,6 +6146,9 @@ void slapi_destroy_condvar(Slapi_CondVar *cvar);
 int slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout) __attribute__((deprecated));
 int slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all);
 int slapi_wait_condvar_pt(Slapi_CondVar *cvar, Slapi_Mutex *mutex, struct timeval *timeout);
+
+/* Set OS-level thread name for visibility in ps, top, perf, etc. (max 15 chars) */
+void slapi_set_thread_name(const char *name);
 
 /**
  * Creates a new read/write lock
@@ -6695,6 +6738,7 @@ void slapi_task_log_status(Slapi_Task *task, char *format, ...) __ATTRIBUTE__((f
 void slapi_task_log_notice(Slapi_Task *task, const char *format, ...) __ATTRIBUTE__((format(printf, 2, 3)));
 void slapi_task_log_status_ext(Slapi_Task *task, char *format, va_list varg);
 void slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list varg);
+void slapi_task_wait(Slapi_Task *task);
 
 /*
  * slapi_new_task: create new task, fill in DN, and setup modify callback
@@ -7083,6 +7127,7 @@ typedef struct slapi_plugindesc
 
 /* miscellaneous plugin functions */
 #define SLAPI_PLUGIN_CLOSE_FN     210
+#define SLAPI_PLUGIN_PRE_CLOSE_FN 211
 #define SLAPI_PLUGIN_START_FN     212
 #define SLAPI_PLUGIN_CLEANUP_FN   232
 #define SLAPI_PLUGIN_POSTSTART_FN 233
@@ -7328,6 +7373,8 @@ typedef enum _slapi_op_note_t {
     SLAPI_OP_NOTE_FULL_UNINDEXED = 0x04,
     SLAPI_OP_NOTE_FILTER_INVALID = 0x08,
     SLAPI_OP_NOTE_MFA_AUTH = 0x10,
+    SLAPI_OP_NOTE_ASYNCH_OP = 0x20,
+    SLAPI_OP_NOTE_ASYNCH_BLOCKED = 0x40,
 } slapi_op_note_t;
 
 /**
@@ -7851,7 +7898,6 @@ enum
     BACK_INFO_INDEX_KEY,           /* Get the status of a key in an index */
     BACK_INFO_DB_DIRECTORY,        /* Get the db directory */
     BACK_INFO_DBHOME_DIRECTORY,    /* Get the dbhome directory */
-    BACK_INFO_IS_ENTRYRDN,         /* Get the flag for entryrdn */
     BACK_INFO_CLDB_FILENAME        /* Get the backend replication changelog name */
 };
 
@@ -8332,6 +8378,15 @@ void DS_Sleep(PRIntervalTime ticks);
  * \param struct timespec c the difference.
  */
 void slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *diff);
+
+/**
+ * add 'new' timespect into 'cumul'
+ * clock_monotonic to find time taken to perform operations.
+ *
+ * \param struct timespec cumul to compute total duration.
+ * \param struct timespec new is a additional duration
+ */
+void slapi_timespec_add(struct timespec *cumul, struct timespec *new);
 /**
  * Given an operation, determine the time elapsed since the op
  * began.
@@ -8472,6 +8527,16 @@ const char * slapi_fetch_attr(Slapi_Entry *e, char *attrname, char *default_val)
  * \return - ldap result code
  */
 int32_t slapi_search_get_entry(Slapi_PBlock **pb, Slapi_DN *dn, char **attrs, Slapi_Entry **ret_entry, void *component_identity);
+
+/**
+ * Take a hostname and verify if it's the local host
+ *
+ * \param hostname - the hostname to verify
+ * \param err_str - store the error string from checking the hostname
+ * \param server_err_str - store the error string when trying to get the server's hostname info
+ * \return true if the hostname is the local host, false otherwise
+ */
+bool slapi_is_local_host(char *hostname, char **err_str, char **server_err_str);
 
 /**
  * Free the resources allocated by slapi_search_get_entry()

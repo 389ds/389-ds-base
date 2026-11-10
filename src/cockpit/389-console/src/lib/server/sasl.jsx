@@ -1,10 +1,11 @@
 import cockpit from "cockpit";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import { log_cmd, listsEqual } from "../tools.jsx";
+import { log_cmd, listsEqual, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
+    Divider,
 	Form,
 	Grid,
 	GridItem,
@@ -14,11 +15,8 @@ import {
 	TextContent,
 	TextVariants
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { DsNumberInput, INT32_MAX } from "../dsNumberInput.jsx";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
 import { SyncAltIcon } from "@patternfly/react-icons";
@@ -66,22 +64,9 @@ export class ServerSASL extends React.Component {
             });
         };
         this.handleOnSelect = (event, selection) => {
-            const { allowedMechs } = this.state;
-            if (allowedMechs.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        allowedMechs: prevState.allowedMechs.filter(item => item !== selection),
-                        isAllowedMechOpen: false
-                    }), () => { this.validateSaveBtn() }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        allowedMechs: [...prevState.allowedMechs, selection],
-                        isAllowedMechOpen: false,
-                    }), () => { this.validateSaveBtn() }
-                );
-            }
+            this.setState({
+                allowedMechs: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateSaveBtn() });
         };
         this.handleOnAllowedMechClear = () => {
             this.setState({
@@ -264,7 +249,7 @@ export class ServerSASL extends React.Component {
         ];
         log_cmd("handleLoadConfig", "Get SASL settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -304,7 +289,7 @@ export class ServerSASL extends React.Component {
         ];
         log_cmd("loadMechs", "Get supported SASL mechanisms", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -317,7 +302,7 @@ export class ServerSASL extends React.Component {
         const cmd = ["dsconf", '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'sasl', 'list', '--details'];
         log_cmd('get_and_set_sasl', 'Get SASL mappings', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const saslMapObj = JSON.parse(content);
                     const mappings = [];
@@ -416,7 +401,7 @@ export class ServerSASL extends React.Component {
 
         log_cmd("createMapping", "Create sasl mapping", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadConfig();
                     this.props.addNotification(
@@ -425,11 +410,11 @@ export class ServerSASL extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadConfig();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error creating new SASL Mapping - $0"), errMsg.desc)
+                        cockpit.format(_("Error creating new SASL Mapping - $0"), errMsg)
                     );
                 });
     }
@@ -468,11 +453,11 @@ export class ServerSASL extends React.Component {
 
         log_cmd("editMapping", "deleting sasl mapping", delete_cmd);
         cockpit
-                .spawn(delete_cmd, { superuser: true, err: "message" })
+                .spawn(delete_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     log_cmd("editMapping", "Create new sasl mapping", create_cmd);
                     cockpit
-                            .spawn(create_cmd, { superuser: true, err: "message" })
+                            .spawn(create_cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 this.handleLoadConfig();
                                 this.props.addNotification(
@@ -481,22 +466,22 @@ export class ServerSASL extends React.Component {
                                 );
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.closeMapping();
                                 this.handleLoadConfig();
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error updating SASL Mapping - $0"), errMsg.desc)
+                                    cockpit.format(_("Error updating SASL Mapping - $0"), errMsg)
                                 );
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadConfig();
                     this.closeMapping();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error replacing SASL Mapping - $0"), errMsg.desc)
+                        cockpit.format(_("Error replacing SASL Mapping - $0"), errMsg)
                     );
                 });
     }
@@ -523,7 +508,7 @@ export class ServerSASL extends React.Component {
         ];
         log_cmd("deleteMapping", "Delete sasl mapping", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadConfig();
                     this.props.addNotification(
@@ -532,12 +517,12 @@ export class ServerSASL extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadConfig();
                     this.closeConfirmDelete();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error deleting SASL Mapping - $0"), errMsg.desc)
+                        cockpit.format(_("Error deleting SASL Mapping - $0"), errMsg)
                     );
                 });
     }
@@ -580,7 +565,7 @@ export class ServerSASL extends React.Component {
 
         log_cmd("handleSaveConfig", "Applying SASL config change", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadConfig();
                     this.props.addNotification(
@@ -589,11 +574,11 @@ export class ServerSASL extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadConfig();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating SASL configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating SASL configuration - $0"), errMsg)
                     );
                 });
     }
@@ -624,7 +609,7 @@ export class ServerSASL extends React.Component {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("SASL Settings")}
-                                    <Button 
+                                    <Button
                                         variant="plain"
                                         aria-label={_("Refresh SASL settings")}
                                         onClick={this.handleLoadConfig}
@@ -635,19 +620,18 @@ export class ServerSASL extends React.Component {
                             </TextContent>
                         </GridItem>
                     </Grid>
-                    <Form isHorizontal autoComplete="off" className="ds-left-margin">
+                    <Form isHorizontal autoComplete="off" className="ds-margin-left">
                         <Grid title={_("The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size).")} className="ds-margin-top-xlg">
                             <GridItem className="ds-label" span={3}>
                                 {_("Max SASL Buffer Size")}
                             </GridItem>
-                            <GridItem span={9}>
-                                <TextInput
+                            <GridItem span={2}>
+                                <DsNumberInput
                                     value={this.state.maxBufSize}
-                                    type="number"
                                     id="maxBufSize"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="maxBufSize"
-                                    onChange={(e, str) => {
+                                    min={2097152}
+                                    max={INT32_MAX}
+                                    onChange={(e) => {
                                         this.handleChange(e);
                                     }}
                                 />
@@ -659,26 +643,19 @@ export class ServerSASL extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Allowed SASL Mechanisms")}
                             </GridItem>
-                            <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type SASL mechanism to allow"
-                                    onToggle={(event, isOpen) => this.handleOnAllowedMechToggle(event, isOpen)}
+                            <GridItem span={8}>
+                                <TypeaheadSelect
+                                    selected={this.state.allowedMechs}
                                     onSelect={this.handleOnSelect}
                                     onClear={this.handleOnAllowedMechClear}
-                                    selections={this.state.allowedMechs}
+                                    options={this.state.supportedMechs}
                                     isOpen={this.state.isAllowedMechOpen}
-                                    aria-labelledby="typeAhead-sasl-mechs"
-                                    placeholderText={_("Type SASL mechanism to allow...")}
-                                    noResultsFoundText="There are no matching entries"
-                                >
-                                    {this.state.supportedMechs.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleOnAllowedMechToggle}
+                                    placeholder={_("Type SASL mechanism to allow...")}
+                                    noResultsText="There are no matching entries"
+                                    ariaLabel="Type SASL mechanism to allow"
+                                    isMulti={true}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid
@@ -697,7 +674,7 @@ export class ServerSASL extends React.Component {
                     <Button
                         isDisabled={this.state.saveDisabled || this.state.configLoading}
                         variant="primary"
-                        className="ds-margin-top-xlg"
+                        className="ds-margin-top-xlg ds-margin-left"
                         onClick={this.handleSaveConfig}
                         isLoading={this.state.configLoading}
                         spinnerAriaValueText={this.state.configLoading ? _("Saving") : undefined}
@@ -705,27 +682,29 @@ export class ServerSASL extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
-                    <hr />
-                    <Grid
-                        title={_("A list of SASL mechanisms the server will only accept (nsslapd-allowed-sasl-mechanisms).  The default is all mechanisms are allowed.")}
-                        className="ds-margin-top"
-                    >
+                    <Grid className="ds-margin-top ds-margin-left">
+                        <GridItem span={11}>
+                            <Divider />
+                        </GridItem>
                         <TextContent>
                             <Text className="ds-center ds-margin-top" component={TextVariants.h3}>
                                 {_("SASL Mappings")}
                             </Text>
                         </TextContent>
+                        <GridItem span={11}>
+                            <SASLTable
+                                key={this.state.mappingKey}
+                                rows={this.state.mappings}
+                                editMapping={this.showEditMapping}
+                                deleteMapping={this.showConfirmDelete}
+                                className="ds-margin-top ds-margin-left"
+                            />
+                        </GridItem>
                     </Grid>
-                    <SASLTable
-                        key={this.state.mappingKey}
-                        rows={this.state.mappings}
-                        editMapping={this.showEditMapping}
-                        deleteMapping={this.showConfirmDelete}
-                        className="ds-margin-top"
-                    />
                     <Button
                         variant="primary"
                         onClick={this.handleShowCreateMapping}
+                        className="ds-margin-top ds-margin-left"
                     >
                         {_("Create New Mapping")}
                     </Button>

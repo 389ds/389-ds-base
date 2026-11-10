@@ -342,6 +342,7 @@ parse_changes_string(char *str)
             if (strcasecmp(line, "-") == 0) {
                 if (slapi_mod_isvalid(&mod)) {
                     slapi_mods_add_smod(mods, &mod);
+                    slapi_mod_init(&mod, 0);
                 } else {
                     /* need to cleanup */
                     slapi_mod_done(&mod);
@@ -382,6 +383,7 @@ parse_changes_string(char *str)
             }
             line = ldif_getline(&next);
         }
+        slapi_mod_done(&mod);
     }
 
     return mods;
@@ -666,7 +668,6 @@ repl_set_mtn_state_and_referrals(
         }
         /* We should delete referral only if we want to set the
            replica database in backend state mode */
-        /* if chain on update mode, go ahead and set the referrals anyway */
         if (strcasecmp(mtn_state, STATE_BACKEND) == 0 || chain_on_update) {
             rc = slapi_mtn_set_referral(repl_root_sdn, referrals_to_set);
             if (rc == LDAP_NO_SUCH_ATTRIBUTE) {

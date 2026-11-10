@@ -12,7 +12,6 @@ import {
     GridItem,
     Modal,
     ModalVariant,
-    Spinner,
     Tab,
     Tabs,
     TabTitleText,
@@ -22,7 +21,8 @@ import {
     TextVariants,
     ValidatedOptions,
 } from "@patternfly/react-core";
-import { log_cmd, bad_file_name } from "../tools.jsx";
+import { LogViewer } from '@patternfly/react-log-viewer';
+import { log_cmd, bad_file_name, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -36,20 +36,22 @@ export class Backups extends React.Component {
             showConfirmBackup: false,
             showConfirmRestoreReplace: false,
             showConfirmLDIFReplace: false,
-            showRestoreSpinningModal: false,
-            showDelBackupSpinningModal: false,
             showBackupModal: false,
-            backupSpinning: false,
             backupName: "",
             deleteBackup: "",
+            backupBuffer: "",
+            importBuffer: "",
+            exportBuffer: "",
+            restoreBuffer: "",
+            backupCompleted: false,
+            restoreCompleted: false,
+            exportCompleted: false,
+            importCompleted: false,
             // LDIF
             showConfirmLDIFDelete: false,
             showConfirmLDIFImport: false,
             showConfirmRestore: false,
-            showLDIFSpinningModal: false,
-            showLDIFDeleteSpinningModal: false,
             showExportModal: false,
-            exportSpinner: false,
             includeReplData: false,
             ldifName: "",
             ldifSuffix: "",
@@ -102,48 +104,44 @@ export class Backups extends React.Component {
     handleShowExportModal () {
         this.setState({
             showExportModal: true,
-            exportSpinner: false,
+            modalSpinning: false,
             ldifName: "",
             ldifSuffix: this.props.suffixes[0],
             includeReplData: false,
+            exportBuffer: "",
+            exportCompleted: false,
         });
     }
 
     closeExportModal () {
         this.setState({
-            showExportModal: false
+            showExportModal: false,
+            exportBuffer: "",
+            exportCompleted: false,
         });
     }
 
     closeConfirmLDIFReplace () {
         this.setState({
-            showConfirmLDIFReplace: false
-        });
-    }
-
-    showRestoreSpinningModal () {
-        this.setState({
-            showRestoreSpinningModal: true
-        });
-    }
-
-    closeRestoreSpinningModal () {
-        this.setState({
-            showRestoreSpinningModal: false
+            showConfirmLDIFReplace: false,
+            exportCompleted: false,
         });
     }
 
     handleShowBackupModal () {
         this.setState({
             showBackupModal: true,
-            backupSpinning: false,
-            backupName: ""
+            modalSpinning: false,
+            backupName: "",
+            backupCompleted: false,
         });
     }
 
     closeBackupModal () {
         this.setState({
             showBackupModal: false,
+            backupBuffer: "",
+            backupCompleted: false,
         });
     }
 
@@ -153,7 +151,9 @@ export class Backups extends React.Component {
             ldifName: name,
             ldifSuffix: suffix,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            importBuffer: "",
+            importCompleted: false,
         });
     }
 
@@ -162,7 +162,9 @@ export class Backups extends React.Component {
         this.setState({
             showConfirmLDIFImport: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            importBuffer: "",
+            importCompleted: false,
         });
     }
 
@@ -191,7 +193,9 @@ export class Backups extends React.Component {
             showConfirmBackup: true,
             backupName: name,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            backupBuffer: "",
+            backupCompleted: false,
         });
     }
 
@@ -200,7 +204,9 @@ export class Backups extends React.Component {
         this.setState({
             showConfirmBackup: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            backupBuffer: "",
+            backupCompleted: false,
         });
     }
 
@@ -209,7 +215,9 @@ export class Backups extends React.Component {
             showConfirmRestore: true,
             backupName: name,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            restoreBuffer: "",
+            restoreCompleted: false,
         });
     }
 
@@ -218,7 +226,9 @@ export class Backups extends React.Component {
         this.setState({
             showConfirmRestore: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            restoreBuffer: "",
+            restoreCompleted: false,
         });
     }
 
@@ -228,7 +238,8 @@ export class Backups extends React.Component {
             showConfirmBackupDelete: true,
             backupName: name,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            backupCompleted: false,
         });
     }
 
@@ -237,7 +248,8 @@ export class Backups extends React.Component {
         this.setState({
             showConfirmBackupDelete: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            backupCompleted: false,
         });
     }
 
@@ -245,7 +257,9 @@ export class Backups extends React.Component {
         this.setState({
             showConfirmRestoreReplace: false,
             modalSpinning: false,
-            modalChecked: false
+            modalChecked: false,
+            backupBuffer: "",
+            restoreCompleted: false,
         });
     }
 
@@ -257,30 +271,45 @@ export class Backups extends React.Component {
 
     importLDIF() {
         this.setState({
-            modalSpinning: true
+            modalSpinning: true,
+            importBuffer: "",
         });
 
+        let importBuffer = "";
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "import", this.state.ldifSuffix, this.state.ldifName, "--encrypted"
+            "backend", "import", this.state.ldifSuffix, this.state.ldifName, "--encrypted",
+            "--watch"
         ];
         log_cmd("importLDIF", "Importing LDIF", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
-                    this.closeConfirmLDIFImport();
+                    this.setState({
+                        modalSpinning: false,
+                        importCompleted: true,
+                    });
                     this.props.addNotification(
                         "success",
                         _("LDIF was successfully imported")
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.closeConfirmLDIFImport();
+                    const errMsg = getApiErrorMessage(err);
+                    this.setState({
+                        modalSpinning: false,
+                        importCompleted: true,
+                    });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure importing LDIF - $0"), errMsg.desc)
+                        cockpit.format(_("Failure importing LDIF - $0"), errMsg)
                     );
+                })
+                .stream(data => {
+                    importBuffer += data;
+                    this.setState({
+                        importBuffer: importBuffer
+                    });
                 });
     }
 
@@ -294,7 +323,7 @@ export class Backups extends React.Component {
         ];
         log_cmd("deleteLDIF", "Deleting LDIF", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.handleReload();
                     this.closeConfirmLDIFDelete();
@@ -304,12 +333,12 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.handleReload();
                     this.closeConfirmLDIFDelete();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure deleting LDIF file - $0"), errMsg.desc)
+                        cockpit.format(_("Failure deleting LDIF file - $0"), errMsg)
                     );
                 });
     }
@@ -341,24 +370,30 @@ export class Backups extends React.Component {
             }
             cmd.push(this.state.backupName);
         }
+        cmd.push("--watch");
 
+        let backupBuffer = "";
         this.setState({
-            backupSpinning: true
+            modalSpinning: true,
+            backupBuffer: "",
         });
 
         log_cmd("doBackup", "Add backup task", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
                     this.props.handleReload();
-                    this.closeBackupModal();
+                    this.setState({
+                        modalSpinning: false,
+                        backupCompleted: true,
+                    });
                     const cmd = [
                         "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                         "config", "get", "nsslapd-bakdir"
                     ];
                     log_cmd("doBackup", "Get the backup directory", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" })
+                            .spawn(cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const config = JSON.parse(content);
                                 const attrs = config.attrs;
@@ -368,25 +403,33 @@ export class Backups extends React.Component {
                                 );
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "success",
                                     _("Server has been backed up.")
                                 );
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error while trying to get the server's backup directory- $0"), errMsg.desc)
+                                    cockpit.format(_("Error while trying to get the server's backup directory- $0"), errMsg)
                                 );
                             });
-                }
-                )
+                })
+                .stream(data => {
+                    backupBuffer += data;
+                    this.setState({
+                        backupBuffer: backupBuffer
+                    });
+                })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.handleReload();
-                    this.closeBackupModal();
+                    this.setState({
+                        modalSpinning: false,
+                        backupCompleted: true,
+                    });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure backing up server - $0"), errMsg.desc)
+                        cockpit.format(_("Failure backing up server - $0"), errMsg)
                     );
                 });
     }
@@ -401,29 +444,43 @@ export class Backups extends React.Component {
         }
 
         this.setState({
-            modalSpinning: true
+            modalSpinning: true,
+            restoreBuffer: "",
         });
+        let restoreBuffer = "";
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backup", "restore", this.state.backupName
+            "backup", "restore", this.state.backupName, "--watch"
         ];
         log_cmd("restoreBackup", "Restoring server", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
-                    this.closeConfirmRestore();
+                    this.setState({
+                        modalSpinning: false,
+                        restoreCompleted: true,
+                    });
                     this.props.addNotification(
                         "success",
                         _("Server has been restored")
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.closeRestoreSpinningModal();
+                    const errMsg = getApiErrorMessage(err);
+                    this.setState({
+                        modalSpinning: false,
+                        restoreCompleted: true,
+                    });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure restoring up server - $0"), errMsg.desc)
+                        cockpit.format(_("Failure restoring up server - $0"), errMsg)
                     );
+                })
+                .stream(data => {
+                    restoreBuffer += data;
+                    this.setState({
+                        restoreBuffer: restoreBuffer
+                    });
                 });
     }
 
@@ -436,7 +493,7 @@ export class Backups extends React.Component {
         ];
         log_cmd("deleteBackup", "Deleting backup", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.handleReload();
                     this.closeConfirmBackupDelete();
@@ -446,12 +503,12 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.handleReload();
                     this.closeConfirmBackupDelete();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure deleting backup - $0"), errMsg.desc)
+                        cockpit.format(_("Failure deleting backup - $0"), errMsg)
                     );
                 });
     }
@@ -517,7 +574,8 @@ export class Backups extends React.Component {
         // Do import
         const export_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "export", this.state.ldifSuffix, "--encrypted", "--ldif=" + this.state.ldifName
+            "backend", "export", this.state.ldifSuffix, "--encrypted", "--ldif=" + this.state.ldifName,
+            "--watch"
         ];
 
         if (this.state.includeReplData) {
@@ -525,17 +583,19 @@ export class Backups extends React.Component {
         }
 
         this.setState({
-            exportSpinner: true,
+            modalSpinning: true,
+            exportBuffer: "",
         });
 
+        let exportBuffer = "";
         log_cmd("doExport", "Do online export", export_cmd);
         cockpit
-                .spawn(export_cmd, { superuser: true, err: "message" })
+                .spawn(export_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.handleReload();
-                    this.closeExportModal();
                     this.setState({
-                        showExportModal: false,
+                        modalSpinning: false,
+                        exportCompleted: true,
                     });
                     const cmd = [
                         "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -543,7 +603,7 @@ export class Backups extends React.Component {
                     ];
                     log_cmd("doExport", "Get the backup directory", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" })
+                            .spawn(cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const config = JSON.parse(content);
                                 const attrs = config.attrs;
@@ -553,27 +613,33 @@ export class Backups extends React.Component {
                                 );
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "success",
                                     _("Database export complete.")
                                 );
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error while trying to get the server's LDIF directory- $0"), errMsg.desc)
+                                    cockpit.format(_("Error while trying to get the server's LDIF directory- $0"), errMsg)
                                 );
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.handleReload();
-                    this.closeExportModal();
+                    this.setState({
+                        modalSpinning: false,
+                        exportCompleted: true,
+                    });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error exporting database - $0"), errMsg.desc)
+                        cockpit.format(_("Error exporting database - $0"), errMsg)
                     );
+                })
+                .stream(data => {
+                    exportBuffer += data;
                     this.setState({
-                        showExportModal: false,
+                        exportBuffer: exportBuffer
                     });
                 });
     }
@@ -586,10 +652,52 @@ export class Backups extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Refreshing");
         }
 
+        let restoreBufferItem = null;
+        if (this.state.restoreBuffer !== "") {
+            restoreBufferItem = <LogViewer
+                data={this.state.restoreBuffer}
+                isTextWrapped={false}
+                hasLineNumbers={false}
+                scrollToRow={this.state.restoreBuffer.length}
+                height="200px"
+            />;
+        }
+
+        let exportBufferItem = null;
+        if (this.state.exportBuffer !== "") {
+            exportBufferItem = <LogViewer
+                data={this.state.exportBuffer}
+                isTextWrapped={false}
+                hasLineNumbers={false}
+                scrollToRow={this.state.exportBuffer.length}
+                height="200px"
+            />;
+        }
+        let importBufferItem = null;
+        if (this.state.importBuffer !== "") {
+            importBufferItem = <LogViewer
+                data={this.state.importBuffer}
+                isTextWrapped={false}
+                hasLineNumbers={false}
+                scrollToRow={this.state.importBuffer.length}
+                height="200px"
+            />;
+        }
+        let backupBufferItem = null;
+        if (this.state.backupBuffer !== "") {
+            backupBufferItem = <LogViewer
+                data={this.state.backupBuffer}
+                isTextWrapped={false}
+                hasLineNumbers={false}
+                scrollToRow={this.state.backupBuffer.length}
+                height="200px"
+            />;
+        }
+
         return (
             <div>
                 <TextContent>
-                    <Text className="ds-config-header" component={TextVariants.h2}>
+                    <Text component={TextVariants.h3}>
                         {_("Database Backups & LDIFs")}
                     </Text>
                 </TextContent>
@@ -647,7 +755,7 @@ export class Backups extends React.Component {
                                 </Button>
                                 <Button
                                     variant="secondary"
-                                    onClick={this.props.handleReload}
+                                    onClick={this.props.handleLDIFReload}
                                     className="ds-left-margin ds-margin-top"
                                     isLoading={this.props.refreshing}
                                     spinnerAriaValueText={this.props.refreshing ? _("Refreshing") : undefined}
@@ -665,25 +773,24 @@ export class Backups extends React.Component {
                     closeHandler={this.closeExportModal}
                     handleChange={this.onChange}
                     saveHandler={this.validateLDIF}
-                    spinning={this.state.exportSpinner}
+                    spinning={this.state.modalSpinning}
                     error={this.state.errObj}
                     suffixes={this.props.suffixes}
                     includeReplData={this.state.includeReplData}
                     ldifSuffix={this.state.ldifSuffix}
                     ldifName={this.state.ldifName}
+                    watchBuffer={exportBufferItem}
+                    exportCompleted={this.state.exportCompleted}
                 />
                 <BackupModal
                     showModal={this.state.showBackupModal}
                     closeHandler={this.closeBackupModal}
                     handleChange={this.onChange}
                     saveHandler={this.validateBackup}
-                    spinning={this.state.backupSpinning}
+                    spinning={this.state.modalSpinning}
+                    watchBuffer={backupBufferItem}
                     error={this.state.errObj}
-                />
-                <ImportingModal
-                    showModal={this.state.showLDIFSpinningModal}
-                    closeHandler={this.closeLDIFSpinningModal}
-                    msg={this.state.ldifName}
+                    backupCompleted={this.state.backupCompleted}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmLDIFDelete}
@@ -704,12 +811,12 @@ export class Backups extends React.Component {
                     handleChange={this.onConfirmChange}
                     actionHandler={this.importLDIF}
                     spinning={this.state.modalSpinning}
-                    item={this.state.ldifName}
+                    item={importBufferItem ? importBufferItem : this.state.ldifName}
                     checked={this.state.modalChecked}
                     mTitle={_("Import LDIF File")}
                     mMsg={_("Are you sure you want to import this LDIF?")}
                     mSpinningMsg={_("Importing LDIF ...")}
-                    mBtnName={_("Import LDIF")}
+                    mBtnName={this.state.importCompleted ? null : _("Import LDIF")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmRestore}
@@ -717,12 +824,12 @@ export class Backups extends React.Component {
                     handleChange={this.onConfirmChange}
                     actionHandler={this.restoreBackup}
                     spinning={this.state.modalSpinning}
-                    item={this.state.backupName}
+                    item={restoreBufferItem ? restoreBufferItem : this.state.backupName}
                     checked={this.state.modalChecked}
                     mTitle={_("Restore Database")}
                     mMsg={_("Are you sure you want to restore from this backup?")}
                     mSpinningMsg={_("Restoring ...")}
-                    mBtnName={_("Restore")}
+                    mBtnName={this.state.restoreCompleted ? null : _("Restore")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmBackupDelete}
@@ -756,7 +863,7 @@ export class Backups extends React.Component {
                     handleChange={this.onConfirmChange}
                     actionHandler={this.doExport}
                     spinning={this.state.modalSpinning}
-                    item={this.state.ldifName}
+                    item={exportBufferItem ? exportBufferItem : this.state.ldifName}
                     checked={this.state.modalChecked}
                     mTitle={_("Replace Existing LDIF File")}
                     mMsg={_("A LDIF file already exists with the same name, do you want to replace it?")}
@@ -780,13 +887,16 @@ class ExportModal extends React.Component {
             error,
             ldifSuffix,
             ldifName,
+            includeReplData,
+            watchBuffer,
+            exportCompleted,
         } = this.props;
         let createBtnName = _("Create LDIF");
         const extraPrimaryProps = {};
         let exportMsg = "";
         if (spinning) {
-            createBtnName = _("Creating ...");
-            extraPrimaryProps.spinnerAriaValueText = _("Creating");
+            createBtnName = _("Creating LDIF ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating LDIF");
         }
         if (spinning) {
             exportMsg = (
@@ -800,6 +910,26 @@ class ExportModal extends React.Component {
             <FormSelectOption key={suffix} value={suffix} label={suffix} />
         ));
 
+        const actions = [];
+        if (!exportCompleted) {
+            actions.push(
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={saveHandler}
+                    isLoading={spinning}
+                    isDisabled={spinning || ldifName === ""}
+                    {...extraPrimaryProps}
+                >
+                    {createBtnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="close" variant="link" onClick={closeHandler}>
+                {_("Close")}
+            </Button>
+        );
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -807,22 +937,7 @@ class ExportModal extends React.Component {
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
-                actions={[
-                    <Button
-                        key="confirm"
-                        variant="primary"
-                        onClick={saveHandler}
-                        isLoading={spinning}
-                        spinnerAriaValueText={spinning ? _("Creating ...") : undefined}
-                        isDisabled={spinning || ldifName === ""}
-                        {...extraPrimaryProps}
-                    >
-                        {createBtnName}
-                    </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
-                    </Button>
-                ]}
+                actions={actions}
             >
                 <Form isHorizontal autoComplete="off">
                     <Grid className="ds-margin-top">
@@ -860,13 +975,16 @@ class ExportModal extends React.Component {
                             <Checkbox
                                 id="includeReplData"
                                 className="ds-indent ds-margin-top"
-                                isChecked={this.props.includeReplData}
+                                isChecked={includeReplData}
                                 onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 title={_("Include the replication metadata needed to restore or initialize another replica.")}
                                 label={_("Include Replication Data")}
                             />
+                        </GridItem>
+                        <GridItem span={12} className="ds-margin-top-lg">
+                            {watchBuffer}
                         </GridItem>
                     </Grid>
                     {exportMsg}
@@ -884,7 +1002,9 @@ export class BackupModal extends React.Component {
             handleChange,
             saveHandler,
             spinning,
-            error
+            watchBuffer,
+            error,
+            backupCompleted,
         } = this.props;
         let createBtnName = _("Create Backup");
         const extraPrimaryProps = {};
@@ -901,6 +1021,26 @@ export class BackupModal extends React.Component {
             );
         }
 
+        const actions = [];
+        if (!backupCompleted) {
+            actions.push(
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={saveHandler}
+                    isLoading={spinning}
+                    isDisabled={spinning}
+                    {...extraPrimaryProps}
+                >
+                    {createBtnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="close" variant="link" onClick={closeHandler}>
+                {_("Close")}
+            </Button>
+        );
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -908,22 +1048,7 @@ export class BackupModal extends React.Component {
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
-                actions={[
-                    <Button
-                        key="confirm"
-                        variant="primary"
-                        onClick={saveHandler}
-                        isLoading={spinning}
-                        isDisabled={spinning}
-                        spinnerAriaValueText={spinning ? _("Creating ...") : undefined}
-                        {...extraPrimaryProps}
-                    >
-                        {createBtnName}
-                    </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
-                    </Button>
-                ]}
+                actions={actions}
             >
                 <Form isHorizontal autoComplete="off">
                     <Grid
@@ -938,45 +1063,16 @@ export class BackupModal extends React.Component {
                                 type="text"
                                 id="backupName"
                                 aria-describedby="horizontal-form-name-helper"
-                                name="ldifName"
+                                name="backupName"
                                 onChange={(event, value) => { handleChange(event) }}
                                 validated={error.backupName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
+                        <GridItem span={12} className="ds-margin-top-lg">
+                            {watchBuffer}
+                        </GridItem>
                     </Grid>
                     {exportMsg}
-                </Form>
-            </Modal>
-        );
-    }
-}
-
-export class ImportingModal extends React.Component {
-    render() {
-        const {
-            showModal,
-            closeHandler,
-            msg
-        } = this.props;
-
-        return (
-            <Modal
-                variant={ModalVariant.small}
-                title={_("Import LDIF File")}
-                isOpen={showModal}
-                aria-labelledby="ds-modal"
-                onClose={closeHandler}
-                actions={[
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Close")}
-                    </Button>
-                ]}
-            >
-                <Form horizontal autoComplete="off">
-                    <div className="ds-modal-spinner">
-                        <Spinner size="md" />{_("Importing LDIF ")}<b>{msg}</b> ...
-                        <p className="ds-margin-top"><font size="2">{_("(You can safely close this window)")})</font></p>
-                    </div>
                 </Form>
             </Modal>
         );
@@ -992,7 +1088,12 @@ ExportModal.propTypes = {
     saveHandler: PropTypes.func,
     spinning: PropTypes.bool,
     error: PropTypes.object,
-    suffixes: PropTypes.array
+    suffixes: PropTypes.array,
+    includeReplData: PropTypes.bool,
+    ldifSuffix: PropTypes.string,
+    ldifName: PropTypes.string,
+    watchBuffer: PropTypes.node,
+    exportCompleted: PropTypes.bool,
 };
 
 BackupModal.propTypes = {
@@ -1002,12 +1103,8 @@ BackupModal.propTypes = {
     saveHandler: PropTypes.func,
     spinning: PropTypes.bool,
     error: PropTypes.object,
-};
-
-ImportingModal.propTypes = {
-    showModal: PropTypes.bool,
-    closeHandler: PropTypes.func,
-    msg: PropTypes.string
+    watchBuffer: PropTypes.node,
+    backupCompleted: PropTypes.bool,
 };
 
 Backups.propTypes = {

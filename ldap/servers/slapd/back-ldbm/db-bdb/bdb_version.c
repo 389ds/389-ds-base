@@ -53,7 +53,12 @@ bdb_version_write(struct ldbminfo *li, const char *directory, const char *datave
     /* Open the file */
     if ((prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
                         SLAPD_DEFAULT_FILE_MODE)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "bdb_version_write",
+        int sev_level = SLAPI_LOG_ERR;
+        if (PR_GetError() == -5950 /* not found */ && strstr("/dev/shm/", filename)) {
+            /* After a server reboot it is expected for this file to not be present */
+            sev_level = SLAPI_LOG_DEBUG;
+        }
+        slapi_log_err(sev_level, "bdb_version_write",
                       "Could not open file \"%s\" for writing " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                       filename, PR_GetError(), slapd_pr_strerror(PR_GetError()));
         rc = -1;
@@ -72,12 +77,12 @@ bdb_version_write(struct ldbminfo *li, const char *directory, const char *datave
             len = strlen(buf);
             ptr = buf + len;
         }
-        if (entryrdn_get_switch() && (flags & DBVERSION_RDNFORMAT)) {
-            PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s",
-                        BDB_RDNFORMAT, BDB_RDNFORMAT_VERSION);
-            len = strlen(buf);
-            ptr = buf + len;
-        }
+
+        PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s",
+                    BDB_RDNFORMAT, BDB_RDNFORMAT_VERSION);
+        len = strlen(buf);
+        ptr = buf + len;
+
         if (flags & DBVERSION_DNFORMAT) {
             PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s",
                         BDB_DNFORMAT, BDB_DNFORMAT_VERSION);

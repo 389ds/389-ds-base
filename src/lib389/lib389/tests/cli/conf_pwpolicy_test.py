@@ -17,7 +17,7 @@ from lib389.cli_conf.pwpolicy import (create_user_policy, create_subtree_policy,
 
 from lib389.cli_base import LogCapture, FakeArgs
 from lib389.tests.cli import check_output
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import (DEFAULT_SUFFIX)

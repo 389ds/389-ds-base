@@ -16,7 +16,7 @@ int
 syntax_register_matching_rule_plugins(
     struct mr_plugin_def mr_plugin_table[],
     size_t mr_plugin_table_size,
-    IFP matching_rule_plugin_init)
+    int32_t (*matching_rule_plugin_init)(Slapi_PBlock *))
 {
     int rc = -1;
     size_t ii;

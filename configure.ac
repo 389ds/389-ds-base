@@ -7,6 +7,31 @@ AC_CONFIG_HEADERS([config.h])
 # include the version information
 . $srcdir/VERSION.sh
 AC_MSG_NOTICE(This is configure for $PACKAGE_TARNAME $PACKAGE_VERSION)
+
+# Validate lib389 version matches main project version
+AC_MSG_CHECKING([lib389 version sync])
+lib389_pyproject="$srcdir/src/lib389/pyproject.toml"
+if test -f "$lib389_pyproject"; then
+    lib389_version=$(grep -E '^version\s*=' "$lib389_pyproject" | sed 's/.*"\(.*\)".*/\1/')
+    if test "x$lib389_version" != "x$RPM_VERSION"; then
+        AC_MSG_RESULT([MISMATCH])
+        AC_MSG_ERROR([
+lib389 version mismatch detected!
+  Main project version (VERSION.sh): $RPM_VERSION
+  lib389 version (pyproject.toml):   $lib389_version
+
+To fix this, run:
+  cd $srcdir/src/lib389 && python3 validate_version.py --update
+
+lib389 version MUST match the main project version before release.
+])
+    else
+        AC_MSG_RESULT([ok ($lib389_version)])
+    fi
+else
+    AC_MSG_RESULT([MISSING])
+    AC_MSG_ERROR([lib389 pyproject.toml not found at $lib389_pyproject - source tree is incomplete])
+fi
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects dist-bzip2 no-dist-gzip no-define tar-pax])
 AC_SUBST([RPM_VERSION])
 AC_SUBST([RPM_RELEASE])
@@ -33,7 +58,7 @@ LT_INIT
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h mntent.h sys/sysinfo.h sys/endian.h endian.h])
+AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h mntent.h sys/sysinfo.h sys/endian.h endian.h sys/epoll.h sys/timerfd.h])
 # These are *required* headers without option.
 AC_CHECK_HEADERS([inttypes.h], [], AC_MSG_ERROR([unable to locate required header inttypes.h]))
 AC_CHECK_HEADERS([crack.h], [], AC_MSG_ERROR([unable to locate required header crack.h]))
@@ -124,8 +149,8 @@ AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (de
 AC_MSG_RESULT($enable_debug)
 if test "$enable_debug" = yes ; then
   debug_defs="-DDEBUG -DMCC_DEBUG"
-  debug_cflags="-g3 -ggdb -gdwarf-5  -O0"
-  debug_cxxflags="-g3 -ggdb -gdwarf-5  -O0"
+  debug_cflags="-g3 -ggdb -gdwarf-4 -O0"
+  debug_cxxflags="-g3 -ggdb -gdwarf-4 -O0"
   debug_rust_defs="-C debuginfo=2 -Z macro-backtrace"
   cargo_defs=""
   rust_target_dir="debug"
@@ -252,7 +277,7 @@ AC_ARG_ENABLE(profiling, AS_HELP_STRING([--enable-profiling], [Enable gcov profi
               [], [ enable_profiling=no ])
 AC_MSG_RESULT($enable_profiling)
 if test "$enable_profiling" = yes ; then
-  profiling_defs="-fprofile-arcs -ftest-coverage -g3 -ggdb -gdwarf-5  -O0"
+  profiling_defs="-fprofile-arcs -ftest-coverage -g3 -ggdb -gdwarf-4  -O0"
   profiling_links="-lgcov --coverage"
 else
   profiling_defs=""
@@ -261,16 +286,19 @@ fi
 AC_SUBST([profiling_defs])
 AC_SUBST([profiling_links])
 
-AC_MSG_CHECKING(for --enable-systemtap)
-AC_ARG_ENABLE(systemtap, AS_HELP_STRING([--enable-systemtap], [Enable systemtap probe features (default: no)]),
-              [], [ enable_systemtap=no ])
-AC_MSG_RESULT($enable_systemtap)
-if test "$enable_systemtap" = yes ; then
-  systemtap_defs="-DSYSTEMTAP"
+AC_MSG_CHECKING(for --enable-usdt)
+AC_ARG_ENABLE(usdt, AS_HELP_STRING([--enable-usdt], [Enable USDT (User-level Statically Defined Tracing) probes, consumed by bpftrace, SystemTap, dtrace, perf (default: no)]),
+              [], [ enable_usdt=no ])
+AC_MSG_RESULT($enable_usdt)
+if test "$enable_usdt" = yes ; then
+  AC_CHECK_HEADER([sys/sdt.h], [],
+    [AC_MSG_ERROR([USDT support requires <sys/sdt.h>. Install systemtap-sdt-devel (Fedora/RHEL) or systemtap-sdt-dev (Debian/Ubuntu).])])
+  usdt_defs="-DUSDT"
 else
-  systemtap_defs=""
+  usdt_defs=""
 fi
-AC_SUBST([systemtap_defs])
+AC_SUBST([usdt_defs])
+AM_CONDITIONAL([USDT], [test "$enable_usdt" = yes])
 
 
 # these enables are for optional or experimental features
@@ -395,6 +423,23 @@ else
 fi
 AM_CONDITIONAL(enable_posix_winsync,test "$enable_posix_winsync" = "yes")
 
+if test -z "$enable_epoll" ; then
+  enable_epoll=no
+fi
+
+AC_MSG_CHECKING(for --enable-epoll)
+AC_ARG_ENABLE(epoll,
+  AS_HELP_STRING([--enable-epoll],
+                 [enable support for epoll (default: yes)]))
+if test "$enable_epoll" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_EPOLL], [1], [enable support for epoll])
+else
+  AC_MSG_RESULT(no)
+fi
+
+AM_CONDITIONAL(enable_epoll, test "$enable_epoll" = "yes")
+
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
@@ -496,6 +541,12 @@ fi
 if test X"$mandir" = X'${prefix}/man' ; then
    mandir='$(datadir)/man'
 fi
+
+# put libexec scripts under dirsrv subdir
+case "$libexecdir" in
+  */$PACKAGE_NAME|*/$PACKAGE_NAME/) ;;
+  *) libexecdir="$libexecdir/$PACKAGE_NAME" ;;
+esac
 
 # Shared paths for all layouts
 # relative to sysconfdir
@@ -839,6 +890,18 @@ fi
 AC_SUBST(nss_libdir)
 
 PKG_CHECK_MODULES([OPENSSL], [openssl])
+
+AC_MSG_CHECKING(whether to enable HIBP password breach checking)
+AC_ARG_ENABLE(hibp, AS_HELP_STRING([--enable-hibp], [Enable HIBP password breach checking (default: no)]),
+              [], [enable_hibp=no])
+if test "x$enable_hibp" = "xyes"; then
+    AC_MSG_RESULT(yes)
+    PKG_CHECK_MODULES([CURL], [libcurl >= 7.61])
+    AC_DEFINE([ENABLE_HIBP], [1], [Enable HIBP password breach checking])
+else
+    AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL([ENABLE_HIBP], [test "x$enable_hibp" = "xyes"])
 
 m4_include(m4/openldap.m4)
 if test $with_bundle_libdb = no; then

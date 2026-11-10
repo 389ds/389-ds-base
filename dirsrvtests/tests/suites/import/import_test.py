@@ -14,20 +14,22 @@ import os
 import pytest
 import time
 import glob
+import re
 import logging
 import subprocess
 from datetime import datetime
-from lib389.topologies import topology_st as topo
-from lib389._constants import DEFAULT_SUFFIX, TaskWarning
+from test389.topologies import topology_st as topo
+from test389.topologies import topology_m2 as topo_m2
+from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, TaskWarning
 from lib389.dbgen import dbgen_users
 from lib389.tasks import ImportTask
 from lib389.index import Indexes
 from lib389.monitor import Monitor
 from lib389.backend import Backends
 from lib389.config import LDBMConfig
-from lib389.config import LMDB_LDBMConfig
+from lib389.config import LMDB_LDBMConfig, BDB_LDBMConfig
 from lib389.utils import ds_is_newer, get_default_db_lib
-from lib389.idm.user import UserAccount
+from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.account import Accounts
 from lib389.cli_ctl.dbtasks import dbtasks_ldif2db
 from lib389.cli_base import FakeArgs
@@ -366,7 +368,6 @@ def test_ldif2db_syntax_check(topo, _import_clean):
     topo.standalone.start()
 
 
-@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not cache size over mdb")
 def test_issue_a_warning_if_the_cache_size_is_smaller(topo, _import_clean):
     """Report during startup if nsslapd-cachememsize is too small
 
@@ -385,7 +386,10 @@ def test_issue_a_warning_if_the_cache_size_is_smaller(topo, _import_clean):
         4. Operation successful
         5. Operation successful
     """
-    config = LDBMConfig(topo.standalone)
+    if get_default_db_lib() == "bdb":
+        config = BDB_LDBMConfig(topo.standalone)
+    else:
+        config = LMDB_LDBMConfig(topo.standalone)
     backend = Backends(topo.standalone).list()[0]
     # Set nsslapd-cache-autosize to 0
     config.replace('nsslapd-cache-autosize', '0')
@@ -398,6 +402,106 @@ def test_issue_a_warning_if_the_cache_size_is_smaller(topo, _import_clean):
     # warning message should look like
     assert topo.standalone.searchErrorsLog('INFO - ldbm_instance_config_cachememsize_set - '
                                            'force a minimal value 512000')
+
+
+def test_realloc_on_offline_import_export(topo):
+    """Verify offline export/import succeeds with huge entry data and minimal cache settings.
+
+    :id: 2857cfca-0f29-4ea1-b6c3-89d63a0c32f9
+    :setup: Standalone Instance
+    :steps:
+        1. Increase nsslapd-maxbersize and restart
+        2. Create a user with a very large sn value
+        3. Add extensibleObject and a multivalued padding attribute to that user
+        4. Set nsslapd-cache-autosize to 0 and nsslapd-cachememsize to 1
+        5. Stop server, run db2ldif, then run ldif2db on the exported file
+        6. Start server and verify the user still exists
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    inst = topo.standalone
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    if get_default_db_lib() == "bdb":
+        config = BDB_LDBMConfig(topo.standalone)
+    else:
+        config = LMDB_LDBMConfig(topo.standalone)
+
+    backend = Backends(inst).get(DEFAULT_BENAME)
+
+    uid = 'user1'
+    ldif_path = os.path.join(inst.get_ldif_dir(), f'{inst.serverid}.ldif')
+
+    orig_maxbersize = inst.config.get_attr_val_utf8('nsslapd-maxbersize')
+    orig_cachememsize = backend.get_attr_val_utf8('nsslapd-cachememsize')
+    orig_cacheautosize = config.get_attr_val_utf8('nsslapd-cache-autosize')
+
+    large_sn = 'A' * 10000000
+    padding_vals = [str(n) for n in range(400)]
+
+    try:
+        inst.config.set('nsslapd-maxbersize', '200000000')
+        inst.restart()
+
+        user1 = users.create(properties={
+            'uid': uid,
+            'cn': uid,
+            'sn': large_sn,
+            'uidNumber': '1001',
+            'gidNumber': '1001',
+            'homeDirectory': f'/home/{uid}',
+            'description': 'large entry user',
+        })
+        user1.add('objectClass', 'extensibleObject')
+        user1.add('padding', padding_vals)
+
+        config.replace('nsslapd-cache-autosize', '0')
+        backend.replace('nsslapd-cachememsize', '1')
+
+        inst.stop()
+        assert inst.db2ldif(
+            bename=DEFAULT_BENAME,
+            suffixes=[DEFAULT_SUFFIX],
+            excludeSuffixes=[],
+            encrypt=False,
+            repl_data=True,
+            outputfile=ldif_path,
+        )
+        assert inst.ldif2db(DEFAULT_BENAME, None, None, False, ldif_path)
+        inst.start()
+
+        users._objectclasses.append('extensibleObject')
+        users.get(uid)
+
+    finally:
+        try:
+            users.get(uid).delete()
+        except Exception:
+            pass
+
+        if orig_cachememsize:
+            backend.replace('nsslapd-cachememsize', orig_cachememsize)
+        else:
+            backend.replace('nsslapd-cachememsize', '0')
+
+        if orig_maxbersize is not None:
+            inst.config.set('nsslapd-maxbersize', orig_maxbersize)
+        else:
+            inst.config.set('nsslapd-maxbersize', '0')
+        
+        if orig_cacheautosize:
+            config.replace('nsslapd-cache-autosize', orig_cacheautosize)
+        else:
+            config.replace('nsslapd-cache-autosize', '0')
+
+        if os.path.exists(ldif_path):
+            os.remove(ldif_path)
+
+        inst.restart()
 
 
 @pytest.fixture(scope="function")
@@ -510,7 +614,7 @@ def test_entry_with_escaped_characters_fails_to_import_and_index(topo, _import_c
             count += 1
     # Now re-index the database
     topo.standalone.stop()
-    topo.standalone.db2index()
+    topo.standalone.db2index(bename="userroot")
     topo.standalone.start()
     # Should not return error.
     assert not topo.standalone.searchErrorsLog('error')
@@ -689,6 +793,81 @@ def test_online_import_under_load(topo):
     import_task.wait()
     assert import_task.get_exit_code() == 0
 
+
+def test_duplicate_nsuniqueid(topo_m2, request):
+    """Test that after an offline import all
+    nsuniqueid are different
+
+    :id: a2541677-a288-4633-bacf-4050cc56016d
+    :setup: MMR with 2 suppliers
+    :steps:
+        1. stop the instance to do offline operations
+        2. Generate a 5K users LDIF file
+        3. Check that no uniqueid are present in the generated file
+        4. import the generated LDIF
+        5. export the database
+        6. Check that that exported LDIF contains more than 5K nsuniqueid
+        7. Check that there is no duplicate nsuniqued in exported LDIF
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should succeeds
+        4. Should succeeds
+        5. Should succeeds
+        6. Should succeeds
+        7. Should succeeds
+    """
+    m1 = topo_m2.ms["supplier1"]
+
+    # Stop the instance
+    m1.stop()
+
+    # Generate a test ldif (5k entries)
+    log.info("Generating LDIF...")
+    ldif_dir = m1.get_ldif_dir()
+    import_ldif = ldif_dir + '/5k_users_import.ldif'
+    dbgen_users(m1, 5000, import_ldif, DEFAULT_SUFFIX)
+
+    # Check that the generated LDIF does not contain nsuniqueid
+    all_nsuniqueid = []
+    with open(import_ldif, 'r') as file:
+        for line in file:
+            if line.lower().startswith("nsuniqueid: "):
+                all_nsuniqueid.append(line.split(': ')[1])
+    log.info("import file contains " + str(len(all_nsuniqueid)) + " nsuniqueid")
+    assert len(all_nsuniqueid) == 0
+
+    # Import the "nsuniquied free" LDIF file
+    if not m1.ldif2db('userRoot', None, None, None, import_ldif):
+        assert False
+
+    # Export the DB that now should contain nsuniqueid
+    export_ldif = ldif_dir + '/5k_user_export.ldif'
+    log.info("export to file " + export_ldif)
+    m1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
+               excludeSuffixes=None, repl_data=False,
+               outputfile=export_ldif, encrypt=False)
+
+    # Check that the export LDIF contain nsuniqueid
+    all_nsuniqueid = []
+    with open(export_ldif, 'r') as file:
+        for line in file:
+            if line.lower().startswith("nsuniqueid: "):
+                all_nsuniqueid.append(line.split(': ')[1])
+    log.info("export file " + export_ldif + " contains " + str(len(all_nsuniqueid)) + " nsuniqueid")
+    assert len(all_nsuniqueid) >= 5000
+
+    # Check that the nsuniqueid are unique
+    assert len(set(all_nsuniqueid)) == len(all_nsuniqueid)
+
+    def fin():
+        if os.path.exists(import_ldif):
+            os.remove(import_ldif)
+        if os.path.exists(export_ldif):
+            os.remove(export_ldif)
+        m1.start
+
+    request.addfinalizer(fin)
 
 if __name__ == '__main__':
     # Run isolated

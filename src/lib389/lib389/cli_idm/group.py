@@ -1,13 +1,14 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.idm.group import Group, Groups, MUST_ATTRIBUTES
+import json
+from lib389.idm.group import Group, Groups, MAY_ATTRIBUTES, MUST_ATTRIBUTES
 from lib389.cli_base import populate_attr_arguments, _generic_modify, CustomHelpFormatter
 from lib389.cli_idm import (
     _generic_list,
@@ -43,7 +44,7 @@ def get_dn(inst, basedn, log, args):
 
 
 def create(inst, basedn, log, args):
-    kwargs = _get_attributes(args, MUST_ATTRIBUTES)
+    kwargs = _get_attributes(args, MUST_ATTRIBUTES, MAY_ATTRIBUTES)
     _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs, args)
 
 
@@ -71,14 +72,22 @@ def members(inst, basedn, log, args):
     # Display members?
     member_list = group.list_members()
     if len(member_list) == 0:
-        log.info('No members to display')
+        if args is not None and args.json:
+            json_result = {"type": "list", "members": []}
+            log.info(json.dumps(json_result, indent=4))
+        else:
+            log.info('No members to display')
     else:
-        for m in member_list:
-            log.info('dn: %s' % m)
+        if args is not None and args.json:
+            json_result = {"type": "list", "members": member_list}
+            log.info(json.dumps(json_result, indent=4))
+        else:
+            for m in member_list:
+                log.info('dn: %s' % m)
 
 
 def add_member(inst, basedn, log, args):
-    cn = _get_arg( args.cn, msg="Enter %s of group to add member too" % RDN)
+    cn = _get_arg( args.cn, msg="Enter %s of group to add member to" % RDN)
     dn = _get_arg( args.dn, msg="Enter dn to add as member")
     groups = MANY(inst, basedn)
     group = groups.get(cn)
@@ -105,6 +114,8 @@ def create_parser(subparsers):
 
     list_parser = subcommands.add_parser('list', help='list', formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=list)
+    list_parser.add_argument('--full-dn', action='store_true',
+                             help="Return the full DN of the entry instead of the RDN value")
 
     get_parser = subcommands.add_parser('get', help='get', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=get)
@@ -114,9 +125,10 @@ def create_parser(subparsers):
     get_dn_parser.set_defaults(func=get_dn)
     get_dn_parser.add_argument('dn', nargs='?', help='The dn to get')
 
-    create_parser = subcommands.add_parser('create', help='create', formatter_class=CustomHelpFormatter)
-    create_parser.set_defaults(func=create)
-    populate_attr_arguments(create_parser, MUST_ATTRIBUTES)
+    create_group_parser = subcommands.add_parser('create', help='create',
+                                                 formatter_class=CustomHelpFormatter)
+    create_group_parser.set_defaults(func=create)
+    populate_attr_arguments(create_group_parser, MUST_ATTRIBUTES + MAY_ATTRIBUTES)
 
     delete_parser = subcommands.add_parser('delete', help='deletes the object', formatter_class=CustomHelpFormatter)
     delete_parser.set_defaults(func=delete)

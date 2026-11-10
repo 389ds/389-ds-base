@@ -216,11 +216,76 @@ format_localTime_log(time_t t, int initsize __attribute__((unused)), char *buf, 
 int
 format_localTime_hr_log(time_t t, long nsec, int initsize __attribute__((unused)), char *buf, int *bufsize)
 {
-
+    /*
+     * localtime_r() takes the glibc time zone lock, and this is called for
+     * every log line. Each thread keeps the date and offset it converted for
+     * the last second and only converts again when the second changes, so a
+     * time zone change is seen from the next second on.
+     */
+    static __thread time_t last_t = 0;
+    static __thread long last_tz = 0;
+    static __thread char last_tbuf[64] = "";
     long tz;
+    struct tm *tmsp, tms = {0};
+    char sign;
+    /* make sure our buffer will be big enough. Need at least 39 */
+    if (*bufsize < 39) {
+        /* Should this set the buffer to be something? */
+        return 1;
+    }
+    if (t != last_t || last_tbuf[0] == '\0') {
+        (void)localtime_r(&t, &tms);
+        tmsp = &tms;
+
+#ifdef BSD_TIME
+        tz = tmsp->tm_gmtoff;
+#else  /* BSD_TIME */
+        tz = -timezone;
+        if (tmsp->tm_isdst) {
+            tz += 3600;
+        }
+#endif /* BSD_TIME */
+        if (strftime(last_tbuf, sizeof(last_tbuf), "%d/%b/%Y:%H:%M:%S", tmsp) == 0) {
+            last_tbuf[0] = '\0';
+            return 1;
+        }
+        last_t = t;
+        last_tz = tz;
+    }
+    tz = last_tz;
+    sign = (tz >= 0 ? '+' : '-');
+    if (tz < 0) {
+        tz = -tz;
+    }
+    if (PR_snprintf(buf, *bufsize, "[%s.%09ld %c%02d%02d] ", last_tbuf, nsec, sign,
+                    (int)(tz / 3600), (int)(tz % 3600 / 60)) == (PRUint32)-1) {
+        return 1;
+    }
+    *bufsize = strlen(buf);
+    return 0;
+}
+
+/*
+ * format_localTime_hr_json_log will take a time value, and prepare it for
+ * json log printing.
+ *
+ * \param struct timespec ts - the time to convert
+ * \param char *buf - The destitation string
+ * \param int *bufsize - The size of the resulting buffer
+ * \param char *format - custom strftime format to use
+ *
+ * \return int success - 0 on correct format, >= 1 on error.
+ */
+int
+format_localTime_hr_json_log(struct timespec *ts, char *buf, int *bufsize, char *format)
+{
+    int64_t nsec = ts->tv_nsec;
+    time_t t = ts->tv_sec;
+    int64_t tz;
     struct tm *tmsp, tms = {0};
     char tbuf[*bufsize];
     char sign;
+
     /* make sure our buffer will be big enough. Need at least 39 */
     if (*bufsize < 39) {
         /* Should this set the buffer to be something? */
@@ -241,10 +306,10 @@ format_localTime_hr_log(time_t t, long nsec, int initsize __attribute__((unused)
     if (tz < 0) {
         tz = -tz;
     }
-    if (strftime(tbuf, (size_t)*bufsize, "%d/%b/%Y:%H:%M:%S", tmsp) == 0) {
+    if (strftime(tbuf, (size_t)*bufsize, format, tmsp) == 0) {
         return 1;
     }
-    if (PR_snprintf(buf, *bufsize, "[%s.%09ld %c%02d%02d] ", tbuf, nsec, sign,
+    if (PR_snprintf(buf, *bufsize, "%s.%09ld %c%02d%02d", tbuf, nsec, sign,
                     (int)(tz / 3600), (int)(tz % 3600 / 60)) == (PRUint32)-1) {
         return 1;
     }
@@ -270,6 +335,19 @@ slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *dif
 
     diff->tv_sec = sec;
     diff->tv_nsec = nsec;
+}
+
+void
+slapi_timespec_add(struct timespec *cumul, struct timespec *new)
+{
+    /* Now add the two */
+    time_t sec = cumul->tv_sec + new->tv_sec;
+    long nsec = cumul->tv_nsec + new->tv_nsec;
+
+    sec += nsec / 1000000000;
+    nsec = nsec % 1000000000;
+    cumul->tv_sec = sec;
+    cumul->tv_nsec = nsec;
 }
 
 void
@@ -683,6 +761,44 @@ slapi_is_duration_valid(const char *value)
     } else {
         rc = 0;
     }
+
+bail:
+    return rc;
+}
+
+/*
+ * The duration MUST contain a "unit" as the last character,
+ * and the first digit can not be a zero
+ */
+int
+slapi_is_duration_valid_strict(const char *value)
+{
+    int rc = 1; /* valid */
+    const char *p = value;
+    const char *last = NULL;
+
+    if (!(p && *p && isdigit(*p)) || *p == '0') {
+        rc = 0;
+        goto bail;
+    }
+
+    while (*p) {
+        last = p;
+        p++;
+    }
+
+    if (last == value || !is_valid_duration_unit(*last)) {
+        rc = 0;
+        goto bail;
+    }
+
+    for (p = value; p < last; p++) {
+        if (!isdigit(*p)) {
+            rc = 0;
+            goto bail;
+        }
+    }
+
 bail:
     return rc;
 }

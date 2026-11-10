@@ -13,7 +13,7 @@ import pytest
 from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from .. import setup_page, check_frame_assignment, setup_login
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
@@ -86,12 +86,10 @@ def test_tuning_and_limits_availability(topology_st, page, browser_name):
     :setup: Standalone instance
     :steps:
          1. Click on Tuning & Limits button on the side panel and check if Number Of Worker Threads is visible.
-         2. Click on Show Advanced Settings button.
-         3. Check if Outbound IO Timeout label is visible.
+         2. Check if Outbound IO Timeout label is visible.
     :expectedresults:
          1. Element is visible
-         2. Success
-         3. Element is visible
+         2. Element is visible
     """
     setup_login(page)
     time.sleep(1)
@@ -102,8 +100,7 @@ def test_tuning_and_limits_availability(topology_st, page, browser_name):
     frame.get_by_text("Number Of Worker Threads").wait_for()
     assert frame.get_by_text("Number Of Worker Threads").is_visible()
 
-    log.info('Open expandable section and check if element is loaded.')
-    frame.get_by_role('button', name='Show Advanced Settings').click()
+    log.info('Check if Outbound IO Timeout is visible.')
     frame.get_by_text('Outbound IO Timeout').wait_for()
     assert frame.get_by_text('Outbound IO Timeout').is_visible()
 
@@ -342,6 +339,39 @@ def test_security_log_availability(topology_st, page, browser_name):
     log.info('Click on Deletion Policy tab and check if element is loaded.')
     frame.get_by_role('tab', name='Deletion Policy').click()
     assert frame.get_by_text('Log Archive Exceeds (in MB)').is_visible()
+
+
+def test_security_encryption_modules_availability(topology_st, page, browser_name):
+    """ Test Encryption Modules tab visibility and controls
+
+    :id: b8a36f2e-381a-49ce-bf3a-4fe25a83f02a
+    :setup: Standalone instance
+    :steps:
+         1. Click on Security button on the side panel and check if Security Configuration tab is visible.
+         2. Click on Encryption Modules tab and check if Add Encryption Module button is visible.
+         3. Check if table headers Module Name and Server Certificate Name are visible.
+    :expectedresults:
+         1. Element is visible.
+         2. Element is visible.
+         3. Elements are visible.
+    """
+    setup_login(page)
+    time.sleep(1)
+    frame = check_frame_assignment(page, browser_name)
+
+    log.info('Click on Security button and check if element is loaded.')
+    frame.locator('#security-config').click()
+    frame.get_by_role('tab', name='Security Configuration').wait_for()
+    assert frame.get_by_role('tab', name='Security Configuration').is_visible()
+
+    log.info('Click on Encryption Modules tab and check if Add Encryption Module button is visible.')
+    frame.get_by_role('tab', name='Encryption Modules').click()
+    frame.get_by_role('button', name='Add Encryption Module').wait_for()
+    assert frame.get_by_role('button', name='Add Encryption Module').is_visible()
+
+    log.info('Check if encryption modules table headers are visible.')
+    assert frame.get_by_role('columnheader', name='Module Name').is_visible()
+    assert frame.get_by_role('columnheader', name='Server Certificate Name').is_visible()
 
 
 if __name__ == '__main__':

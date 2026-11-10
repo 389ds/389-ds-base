@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,9 +8,12 @@
 
 from collections import OrderedDict, namedtuple
 import json
+import ldap
 import os
-from lib389.config import Config, Encryption, RSA
-from lib389.nss_ssl import NssSsl, CERT_NAME, CA_NAME
+import sys
+from lib389.config import Config, Encryption, RSA, EncryptionModules
+from lib389.nss_ssl import NssSsl
+from lib389.cert_manager import CertManager
 from lib389.cli_base import _warn, CustomHelpFormatter
 
 
@@ -40,6 +43,9 @@ SECURITY_ATTRS_MAP = OrderedDict([
     ('check-hostname', Props(Config, 'nsslapd-ssl-check-hostname',
                              'Checks the subject of remote certificate against the hostname',
                              onoff)),
+    ('extract-pemfiles', Props(Config, 'nsslapd-extract-pemfiles',
+                               'At server shutdown extract the server\'s certificates and keys to PEM files',
+                               onoff)),
     ('verify-cert-chain-on-startup', Props(Config, 'nsslapd-validate-cert',
                                            'Validates the server certificate during startup',
                                            ('warn', *onoff))),
@@ -84,9 +90,9 @@ def _security_generic_get(inst, basedn, log, args, attrs_map):
             val = ""
         result[props.attr.lower()] = val
     if args.json:
-        print(json.dumps({'type': 'list', 'items': result}, indent=4))
+        log.info(json.dumps({'type': 'list', 'items': result}, indent=4))
     else:
-        print('\n'.join([f'{attr}: {value or ""}' for attr, value in result.items()]))
+        log.info('\n'.join([f'{attr}: {value or ""}' for attr, value in result.items()]))
 
 
 def _security_generic_set(inst, basedn, log, args, attrs_map):
@@ -99,7 +105,7 @@ def _security_generic_set(inst, basedn, log, args, attrs_map):
             dsobj.replace(props.attr, arg)
         else:
             dsobj.remove_all(props.attr)
-    log.info(f"Successfully updated security configuration ({props.attr})")
+    log.info("Successfully updated security configuration")
 
 
 def _security_generic_get_parser(parent, attrs_map, help):
@@ -119,9 +125,8 @@ def _security_generic_set_parser(parent, attrs_map, help, description):
 def _security_ciphers_change(mode, ciphers, inst, log):
     log = log.getChild('_security_ciphers_change')
     if ('default' in ciphers) or ('all' in ciphers):
-        log.error(('Use ciphers\' names only. Keywords "default" and "all" are ignored. '
-                   'Please, instead specify them manually using \'set\' command.'))
-        return
+        raise ValueError("Use ciphers' names only. Keywords 'default' and 'all' are "
+                         "ignored. Please, instead specify them manually using 'set' command.")
     enc = Encryption(inst)
     if enc.change_ciphers(mode, ciphers) is False:
         log.error('Setting new ciphers failed.')
@@ -140,6 +145,52 @@ def _security_generic_toggle_parsers(parent, cls, attr, help_pattern):
     return list(map(add_parser, ('Enable', 'Disable'), ('on', 'off')))
 
 
+def _resolve_pkcs12_password(args):
+    if args.pkcs12_pin_text:
+        return args.pkcs12_pin_text
+
+    if args.pkcs12_pin_stdin:
+        return sys.stdin.readline().rstrip("\n")
+
+    if args.pkcs12_pin_path:
+        with open(args.pkcs12_pin_path) as f:
+            return f.read().rstrip("\n")
+
+    return None
+
+def _dump_cert(cert, json_output: bool = False, log = None):
+    """
+    Print or return a certificate's details in text or JSON format.
+
+    :param cert: dict describing a certificate
+    :param json_output: If True print JSON else print text
+    :param log: Optional logger to output text
+    """
+    if not isinstance(cert, dict):
+        raise TypeError(f"Expected dict, got {type(cert)}")
+
+    if json_output:
+        return {
+            "type": "certificate",
+            "attrs": {
+                "nickname": cert["cn"],
+                "subject": cert["subject"],
+                "issuer": cert["issuer"],
+                "expires": cert["expires"],
+                "flags": cert["trust_flags"],
+            }
+        }
+    else:
+        msg = (
+            f"Certificate Name: {cert['cn']}\n"
+            f"Subject DN: {cert['subject']}\n"
+            f"Issuer DN: {cert['issuer']}\n"
+            f"Expires: {cert['expires']}\n"
+            f"Trust Flags: {cert['trust_flags']}\n"
+        )
+        if log:
+            log.info(msg)
+
 def security_enable(inst, basedn, log, args):
     dbpath = inst.get_cert_dir()
     tlsdb = NssSsl(dbpath=dbpath)
@@ -150,7 +201,7 @@ def security_enable(inst, basedn, log, args):
 
     if len(certs) == 1:
         # If there is only cert make sure it is set as the server certificate
-        RSA(inst).set('nsSSLPersonalitySSL', certs[0][0])
+        RSA(inst).set('nsSSLPersonalitySSL', certs[0]['cn'])
     elif args.cert_name is not None:
         # A certificate nickname was provided, set it as the server certificate
         RSA(inst).set('nsSSLPersonalitySSL', args.cert_name)
@@ -180,10 +231,10 @@ def security_ciphers_set(inst, basedn, log, args):
 def security_ciphers_get(inst, basedn, log, args):
     enc = Encryption(inst)
     if args.json:
-        print({'type': 'list', 'items': enc.ciphers})
+        log.info({'type': 'list', 'items': enc.ciphers})
     else:
         val = ','.join(enc.ciphers)
-        print(val if val != '' else '<undefined>')
+        log.info(val if val != '' else '<undefined>')
 
 
 def security_ciphers_list(inst, basedn, log, args):
@@ -199,12 +250,13 @@ def security_ciphers_list(inst, basedn, log, args):
         lst = enc.ciphers
 
     if args.json:
-        print(json.dumps({'type': 'list', 'items': lst}, indent=4))
+        log.info(json.dumps({'type': 'list', 'items': lst}, indent=4))
     else:
         if lst == []:
             log.getChild('security').warn('List of ciphers is empty')
         else:
-            print(*lst, sep='\n')
+            for item in lst:
+                log.info(item)
 
 
 def security_disable_plaintext_port(inst, basedn, log, args, warn=True):
@@ -222,25 +274,25 @@ def cert_add(inst, basedn, log, args):
     if not os.path.isfile(args.file):
         raise ValueError(f'Certificate file "{args.file}" does not exist')
 
-    tlsdb = NssSsl(dirsrv=inst)
-    if not tlsdb._db_exists(even_partial=True):  # we want to be very careful
-        log.info('Security database does not exist. Creating a new one in {}.'.format(inst.get_cert_dir()))
-        tlsdb.reinit()
-    try:
-        tlsdb.get_cert_details(args.name)
-        raise ValueError("Certificate already exists with the same name")
-    except ValueError:
-        pass
+    pkcs12_password = None
+    pkcs12_file = args.file.lower().endswith((".p12", ".pfx"))
+    if pkcs12_file:
+        pkcs12_password = _resolve_pkcs12_password(args)
 
-    if args.primary_cert:
-        # This is the server's primary certificate, update RSA entry
-        RSA(inst).set('nsSSLPersonalitySSL', args.name)
+    certmgr = CertManager(instance=inst)
+    cert = certmgr.get_cert(args.name)
+    if cert:
+        raise ValueError(f"Certificate '{args.name}' already exists")
 
-    # Add the cert
-    tlsdb.add_cert(args.name, args.file)
-
+    certmgr.add_cert(
+        args.file,
+        args.name,
+        pkcs12_password=pkcs12_password,
+        primary=args.primary_cert,
+        ca=False,
+        force=args.force
+    )
     log.info("Successfully added certificate")
-
 
 def cacert_add(inst, basedn, log, args):
     """Add CA certificate, or CA certificate bundle
@@ -249,100 +301,85 @@ def cacert_add(inst, basedn, log, args):
     if not os.path.isfile(args.file):
         raise ValueError(f'Certificate file "{args.file}" does not exist')
 
-    tls = NssSsl(dirsrv=inst)
-    if not tls._db_exists(even_partial=True):  # we want to be very careful
-        log.info('Security database does not exist. Creating a new one in {}.'.format(inst.get_cert_dir()))
-        tls.reinit()
+    # Does it make sense to add a CA cert from p12 container ?
+    if args.file.lower().endswith((".p12", ".pfx")):
+        raise ValueError("PKCS#12 CA certificates not supported. Use PEM or DER file")
 
-    tls.add_ca_cert_bundle(args.file, args.name)
-
+    certmgr = CertManager(instance=inst)
+    certmgr.add_ca_cert(args.file, args.name, force=args.force)
+    log.info("Successfully added CA certificate")
 
 def cert_list(inst, basedn, log, args):
     """List all the server certificates
     """
-    cert_list = []
-    tlsdb = NssSsl(dirsrv=inst)
-    certs = tlsdb.list_certs()
-    for cert in certs:
+    certmgr = CertManager(instance=inst)
+    certs = certmgr.list_certs()
+    if not certs:
         if args.json:
-            cert_list.append(
-                {
-                    "type": "certificate",
-                    "attrs": {
-                                'nickname': cert[0],
-                                'subject': cert[1],
-                                'issuer': cert[2],
-                                'expires': cert[3],
-                                'flags': cert[4],
-                            }
-                }
-            )
+            log.info(json.dumps([], indent=4))
         else:
-            log.info('Certificate Name: {}'.format(cert[0]))
-            log.info('Subject DN: {}'.format(cert[1]))
-            log.info('Issuer DN: {}'.format(cert[2]))
-            log.info('Expires: {}'.format(cert[3]))
-            log.info('Trust Flags: {}\n'.format(cert[4]))
-    if args.json:
-        log.info(json.dumps(cert_list, indent=4))
+            log.info("No certificates found.")
+        return
 
+    if args.json:
+        output = [_dump_cert(cert, json_output=True) for cert in certs]
+        log.info(json.dumps(output, indent=4))
+    else:
+        for cert in certs:
+            _dump_cert(cert, json_output=False, log=log)
 
 def cacert_list(inst, basedn, log, args):
     """List all CA certs
     """
-    cert_list = []
-    tlsdb = NssSsl(dirsrv=inst)
-    certs = tlsdb.list_certs(ca=True)
-    for cert in certs:
+    certmgr = CertManager(instance=inst)
+    ca_certs = certmgr.list_ca_certs()
+    if not ca_certs:
         if args.json:
-            cert_list.append(
-                {
-                    "type": "certificate",
-                    "attrs": {
-                                'nickname': cert[0],
-                                'subject': cert[1],
-                                'issuer': cert[2],
-                                'expires': cert[3],
-                                'flags': cert[4],
-                            }
-                }
-            )
+            log.info(json.dumps([], indent=4))
         else:
-            log.info('Certificate Name: {}'.format(cert[0]))
-            log.info('Subject DN: {}'.format(cert[1]))
-            log.info('Issuer DN: {}'.format(cert[2]))
-            log.info('Expires: {}'.format(cert[3]))
-            log.info('Trust Flags: {}\n'.format(cert[4]))
-    if args.json:
-        log.info(json.dumps(cert_list, indent=4))
+            log.info("No CA certificates found.")
+        return
 
+    if args.json:
+        output = [_dump_cert(cert, json_output=True) for cert in ca_certs]
+        log.info(json.dumps(output, indent=4))
+    else:
+        for cert in ca_certs:
+            _dump_cert(cert, json_output=False, log=log)
 
 def cert_get(inst, basedn, log, args):
     """Get the details about a server certificate
     """
-    tlsdb = NssSsl(dirsrv=inst)
-    details = tlsdb.get_cert_details(args.name)
-    if args.json:
-        log.info(json.dumps(
-                {
-                    "type": "certificate",
-                    "attrs": {
-                                'nickname': details[0],
-                                'subject': details[1],
-                                'issuer': details[2],
-                                'expires': details[3],
-                                'flags': details[4],
-                            }
-                }, indent=4
-            )
-        )
-    else:
-        log.info('Certificate Name: {}'.format(details[0]))
-        log.info('Subject DN: {}'.format(details[1]))
-        log.info('Issuer DN: {}'.format(details[2]))
-        log.info('Expires: {}'.format(details[3]))
-        log.info('Trust Flags: {}'.format(details[4]))
+    certmgr = CertManager(instance=inst)
+    cert = certmgr.get_cert(args.name)
+    if not cert:
+        raise ValueError(f"Certificate '{args.name}' not found.")
 
+    if "C" in cert.get("trust_flags", ""):
+        return
+
+    if args.json:
+        output = _dump_cert(cert, json_output=args.json)
+        log.info(json.dumps(output, indent=4))
+    else:
+        _dump_cert(cert, json_output=args.json, log=log)
+
+def cacert_get(inst, basedn, log, args):
+    """Get the details about a CA certificate
+    """
+    certmgr = CertManager(instance=inst)
+    cert = certmgr.get_cert(args.name)
+    if not cert:
+        raise ValueError(f"Certificate '{args.name}' not found.")
+
+    if "C" not in cert.get("trust_flags", ""):
+        return
+
+    if args.json:
+        output = _dump_cert(cert, json_output=args.json)
+        log.info(json.dumps(output, indent=4))
+    else:
+        _dump_cert(cert, json_output=args.json, log=log)
 
 def csr_list(inst, basedn, log, args):
     """
@@ -412,18 +449,20 @@ def csr_del(inst, basedn, log, args):
 def cert_edit(inst, basedn, log, args):
     """Edit cert
     """
-    tlsdb = NssSsl(dirsrv=inst)
-    tlsdb.edit_cert_trust(args.name, args.flags)
+    certmgr = CertManager(instance=inst)
+    certmgr.edit_cert_trust(args.name, args.flags)
     log.info("Successfully edited certificate trust flags")
 
 
 def cert_del(inst, basedn, log, args):
     """Delete cert
     """
-    tlsdb = NssSsl(dirsrv=inst)
-    tlsdb.del_cert(args.name)
-    log.info(f"Successfully deleted certificate")
-
+    certmgr = CertManager(instance=inst)
+    try:
+        certmgr.del_cert(args.name)
+        log.info(f"Successfully deleted certificate")
+    except ValueError as e:
+        log.error(f"Failed to delete certificate '{args.name}': {e}")
 
 def key_list(inst, basedn, log, args):
     """
@@ -475,6 +514,117 @@ def export_cert(inst, basedn, log, args):
     tls.export_cert(nickname, output_file, der_format)
 
 
+def encryption_module_add(inst, basedn, log, args):
+    """Add an encryption module
+    """
+    properties = {
+        'cn': args.name,
+        'nsSSLActivation': "on" if args.activated else "off",
+        'nsSSLPersonalitySSL': args.cert_nickname,
+        'nsSSLToken': args.token
+    }
+    if args.server_key_extract_file is not None:
+        properties['ServerKeyExtractFile'] = args.server_key_extract_file
+    if args.server_cert_extract_file is not None:
+        properties['ServerCertExtractFile'] = args.server_cert_extract_file
+    encryption_modules = EncryptionModules(instance=inst)
+    encryption_modules.create(properties=properties)
+    log.info("Successfully added encryption module")
+
+
+def encryption_module_delete(inst, basedn, log, args):
+    """Delete an encryption module
+    """
+    if args.name.lower() == "rsa":
+        # Currently RSA is hardcoded into attribute encryption so it can not
+        # be deleted at this time
+        raise ValueError("Deletion of RSA encryption module is not allowed")
+
+    try:
+        encryption_module = EncryptionModules(instance=inst).get(args.name)
+    except ldap.NO_SUCH_OBJECT as e:
+        raise ValueError(f"Encryption module '{args.name}' not found")
+
+    encryption_module.delete()
+    log.info("Successfully deleted encryption module")
+
+
+def encryption_module_edit(inst, basedn, log, args):
+    """Edit an encryption module
+    """
+    try:
+        encryption_module = EncryptionModules(instance=inst).get(args.name)
+    except ldap.NO_SUCH_OBJECT as e:
+        raise ValueError(f"Encryption module '{args.name}' not found")
+
+    if args.activate and args.deactivate:
+        raise ValueError("Cannot activate and deactivate an encryption module at the same time")
+
+    replace_list = []
+    if args.cert_nickname is not None:
+        replace_list.append(['nsSSLPersonalitySSL', args.cert_nickname])
+    if args.activate:
+        replace_list.append(['nsSSLActivation', 'on'])
+    if args.deactivate:
+        replace_list.append(['nsSSLActivation', 'off'])
+    if args.token is not None:
+        replace_list.append(['nsSSLToken', args.token])
+    if args.server_key_extract_file is not None:
+        replace_list.append(['ServerKeyExtractFile', args.server_key_extract_file])
+    if args.server_cert_extract_file is not None:
+        replace_list.append(['ServerCertExtractFile', args.server_cert_extract_file])
+
+    if len(replace_list) > 0:
+        encryption_module.replace_many(*replace_list)
+    else:
+        raise ValueError("There are no changes to set for this encryption module")
+
+    log.info("Successfully updated encryption module")
+
+
+def encryption_module_list(inst, basedn, log, args):
+    """List encryption module names
+    """
+    encryption_modules = EncryptionModules(instance=inst)
+    encryption_modules_list = encryption_modules.list()
+
+    if args.json:
+        entry_list = []
+        for encryption_module in encryption_modules_list:
+            if args.just_names:
+                entry_list.append(encryption_module.get_attr_val_utf8('cn'))
+            else:
+                entry_list.append(json.loads(encryption_module.get_all_attrs_json()))
+
+        log.info(json.dumps({"type": "list", "items": entry_list}, indent=4))
+    else:
+        for encryption_module in encryption_modules_list:
+            if args.just_names:
+                log.info(encryption_module.get_attr_val_utf8('cn'))
+            else:
+                entry = encryption_module.display()
+                updated_entry = entry[:-1]  # remove \n
+                log.info(updated_entry)
+
+
+def encryption_module_get(inst, basedn, log, args):
+    """Get an encryption module
+    """
+    try:
+        encryption_module = EncryptionModules(instance=inst).get(args.name)
+    except ldap.NO_SUCH_OBJECT as e:
+        raise ValueError(f"Encryption module '{args.name}' not found")
+
+    if args.json:
+        entry = encryption_module.get_all_attrs_json()
+        entry_dict = json.loads(entry)
+        log.info(json.dumps(entry_dict, indent=4))
+    else:
+        entry = encryption_module.display()
+        updated_entry = entry[:-1]  # remove \n
+        log.info(updated_entry)
+
+
 def create_parser(subparsers):
     security = subparsers.add_parser('security', help='Manage security settings', formatter_class=CustomHelpFormatter)
     security_sub = security.add_subparsers(help='security')
@@ -509,6 +659,11 @@ def create_parser(subparsers):
         help='Sets the name/nickname of the certificate')
     cert_add_parser.add_argument('--primary-cert', action='store_true',
                                  help="Sets this certificate as the server's certificate")
+    cert_add_parser.add_argument('--pkcs12-pin-text', help='The PKCS#12 password as plain text. WARNING: Password may appear' \
+        ' in process list or shell history. Use --pkcs12-pin-stdin or --pkcs12-pin-path to prevent password exposure.')
+    cert_add_parser.add_argument('--pkcs12-pin-stdin', help='Read the PKCS#12 password from stdin', action='store_true')
+    cert_add_parser.add_argument('--pkcs12-pin-path',  help='Path to a file containing the PKCS#12 password')
+    cert_add_parser.add_argument('--do-it', dest="force", help="Force the addition of a certificate that cannot be verified",action='store_true', default=False)
     cert_add_parser.set_defaults(func=cert_add)
 
     cert_edit_parser = certs_sub.add_parser('set-trust-flags', help='Set the Trust flags',
@@ -519,7 +674,7 @@ def create_parser(subparsers):
     cert_edit_parser.set_defaults(func=cert_edit)
 
     cert_del_parser = certs_sub.add_parser('del', help='Delete a certificate',
-        description=('Delete a certificate from the NSS database'))
+        description=('Delete a server certificate from the NSS database or DynamicCerts backend.'))
     cert_del_parser.add_argument('name', help='The name/nickname of the certificate')
     cert_del_parser.set_defaults(func=cert_del)
 
@@ -529,19 +684,20 @@ def create_parser(subparsers):
     cert_get_parser.set_defaults(func=cert_get)
 
     cert_list_parser = certs_sub.add_parser('list', help='List the server certificates',
-        description=('Lists the server certificates in the NSS database'))
+        description=('List all server certificates in the NSS database or DynamicCerts backend.'))
     cert_list_parser.set_defaults(func=cert_list)
 
     # CA certificate management
     cacerts = security_sub.add_parser('ca-certificate', help='Manage TLS certificate authorities', formatter_class=CustomHelpFormatter)
     cacerts_sub = cacerts.add_subparsers(help='ca-certificate')
     cacert_add_parser = cacerts_sub.add_parser('add', help='Add a Certificate Authority', description=(
-        'Add a Certificate Authority to the NSS database'))
+        'Add a CA certificate (PEM or DER only) to the NSS database or DynamicCerts backend.'))
     cacert_add_parser.add_argument('--file', required=True,
-        help='Sets the file name of the CA certificate')
-    cacert_add_parser.add_argument('--name', nargs='+', required=True,
-        help='Sets the name/nickname of the CA certificate, if adding a PEM bundle then specify multiple names one for '
+        help='Path to the CA certificate file (PEM or DER). If adding a PEM bundle then specify multiple names one for '
              'each certificate, otherwise a number increment will be added to the previous name.')
+    cacert_add_parser.add_argument('--name', nargs='+', required=True,
+        help='Sets the name/nickname of the CA certificate')
+    cacert_add_parser.add_argument('--do-it', dest="force", help="Force the addition of a certificate that cannot be verified",action='store_true', default=False)
     cacert_add_parser.set_defaults(func=cacert_add)
 
     cacert_edit_parser = cacerts_sub.add_parser('set-trust-flags', help='Set the Trust flags',
@@ -559,7 +715,7 @@ def create_parser(subparsers):
     cacert_get_parser = cacerts_sub.add_parser('get', help="Displays a Certificate Authority's information",
         description=('Get detailed information about a CA certificate, like trust attributes, expiration dates, Subject and Issuer DN'))
     cacert_get_parser.add_argument('name', help='The name/nickname of the CA certificate')
-    cacert_get_parser.set_defaults(func=cert_get)
+    cacert_get_parser.set_defaults(func=cacert_get)
 
     cacert_list_parser = cacerts_sub.add_parser('list', help='List the Certificate Authorities',
         description=('List the CA certificates in the NSS database'))
@@ -573,6 +729,51 @@ def create_parser(subparsers):
          '\n\nTo enable/disable RSA you can use enable and disable commands instead.'))
     _security_generic_get_parser(rsa_sub, RSA_ATTRS_MAP, 'Get RSA security options')
     _security_generic_toggle_parsers(rsa_sub, RSA, 'nsSSLActivation', '{} RSA')
+
+    # Encryption module management (Should replace RSA at some point)
+    encryption_module = security_sub.add_parser('encryption-module', help='Manage encryption modules',
+                                                formatter_class=CustomHelpFormatter)
+    encryption_module_sub = encryption_module.add_subparsers(help='encryption-module')
+    # Add an encryption module
+    encryption_module_add_parser = encryption_module_sub.add_parser('add', help='Add an encryption module',
+            description=('Add a new encryption module to the encryption module list.'))
+    encryption_module_add_parser.add_argument('name', help='The name of the encryption module')
+    encryption_module_add_parser.add_argument('--cert-nickname', help='The personality or nickname of the server certificate',
+                                              required=True)
+    encryption_module_add_parser.add_argument('--activated', action='store_true',
+                                              help='Activate the encryption module.')
+    encryption_module_add_parser.add_argument('--token', help='The token of the encryption module. Default is "internal (software)".',
+                                              default='internal (software)')
+    encryption_module_add_parser.add_argument('--server-key-extract-file', help='The file name of the server key extract file')
+    encryption_module_add_parser.add_argument('--server-cert-extract-file', help='The file name of the server cert extract file')
+    encryption_module_add_parser.set_defaults(func=encryption_module_add)
+    # delete an encryption module
+    encryption_module_delete_parser = encryption_module_sub.add_parser('delete', help='Delete an encryption module',
+        description=('Delete an encryption module from the encryption module list.'))
+    encryption_module_delete_parser.add_argument('name', help='The name of the encryption module')
+    encryption_module_delete_parser.set_defaults(func=encryption_module_delete)
+    # edit an encryption module
+    encryption_module_edit_parser = encryption_module_sub.add_parser('edit', help='Edit an encryption module',
+        description=('Edit an encryption module in the encryption module list.'))
+    encryption_module_edit_parser.add_argument('name', help='The name of the encryption module')
+    encryption_module_edit_parser.add_argument('--cert-nickname', help='The personality or nickname of the server certificate')
+    encryption_module_edit_parser.add_argument('--activate', action='store_true', help='Activate the encryption module')
+    encryption_module_edit_parser.add_argument('--deactivate', action='store_true', help='Deactivate the encryption module')
+    encryption_module_edit_parser.add_argument('--token', help='The token of the encryption module.')
+    encryption_module_edit_parser.add_argument('--server-key-extract-file', help='The file name of the server key extract file')
+    encryption_module_edit_parser.add_argument('--server-cert-extract-file', help='The file name of the server cert extract file')
+    encryption_module_edit_parser.set_defaults(func=encryption_module_edit)
+    # list encryption modules
+    encryption_module_list_parser = encryption_module_sub.add_parser('list', help='List encryption modules',
+        description=('List all encryption modules in the encryption module list.'))
+    encryption_module_list_parser.add_argument('--just-names', action='store_true',
+                                               help='Just list the modules by its name and not the full entry')
+    encryption_module_list_parser.set_defaults(func=encryption_module_list)
+    # Get an encryption module
+    encryption_module_get_parser = encryption_module_sub.add_parser('get', help='Get an encryption module',
+        description=('Get an encryption module from the encryption module list.'))
+    encryption_module_get_parser.add_argument('name', help='The name of the encryption module')
+    encryption_module_get_parser.set_defaults(func=encryption_module_get)
 
     # Cipher management
     ciphers = security_sub.add_parser('ciphers', help='Manage secure ciphers', formatter_class=CustomHelpFormatter)

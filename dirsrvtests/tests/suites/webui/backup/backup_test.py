@@ -13,7 +13,7 @@ import pytest
 from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from .. import setup_page, check_frame_assignment, setup_login
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
@@ -22,7 +22,6 @@ pytest.importorskip('playwright')
 SERVER_ID = 'standalone1'
 
 
-@pytest.mark.xfail(reason="Will fail because of bz2189181")
 def test_no_backup_dir(topology_st, page, browser_name):
     """ Test that instance is able to load when backup directory doesn't exist.
 

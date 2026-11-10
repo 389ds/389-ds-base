@@ -1,6 +1,6 @@
 import React from "react";
 import cockpit from "cockpit";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     ReportCredentialsTable,
@@ -92,7 +92,7 @@ export class ReplMonitor extends React.Component {
             credsPort: 389,
             credsBinddn: "cn=Directory Manager",
             credsBindpw: "",
-            pwInputInterractive: false,
+            pwInputInteractive: false,
 
             aliasHostname: "",
             aliasPort: 389,
@@ -202,7 +202,7 @@ export class ReplMonitor extends React.Component {
         const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "display"];
         log_cmd("loadDSRC", "Check for replication monitor configurations in the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(dsrc_content => {
                     const content = JSON.parse(dsrc_content);
                     const credRows = [];
@@ -232,8 +232,8 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg.desc}`);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg}`);
                     this.setState({
                         loadingDSRC: false,
                     });
@@ -246,7 +246,7 @@ export class ReplMonitor extends React.Component {
                 "config", "get", "nsslapd-port", "nsslapd-localhost", "nsslapd-rootdn"];
             log_cmd("ReplMonitor", "add credentials during componentDidMount", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         const config = JSON.parse(content);
                         this.setState(prevState => ({
@@ -256,7 +256,7 @@ export class ReplMonitor extends React.Component {
                                     connData: `${config.attrs["nsslapd-localhost"][0]}:${config.attrs["nsslapd-port"][0]}`,
                                     credsBinddn: config.attrs["nsslapd-rootdn"][0],
                                     credsBindpw: "",
-                                    pwInputInterractive: true
+                                    pwInputInteractive: true
                                 }
                             ],
                             credRows: [...this.props.credRows],
@@ -271,7 +271,7 @@ export class ReplMonitor extends React.Component {
                                             connData: `${agmt.replica}`,
                                             credsBinddn: config.attrs["nsslapd-rootdn"][0],
                                             credsBindpw: "",
-                                            pwInputInterractive: true
+                                            pwInputInteractive: true
                                         }
                                     ],
                                     initCreds: false
@@ -280,10 +280,10 @@ export class ReplMonitor extends React.Component {
                         }
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Failed to get config nsslapd-port, nsslapd-localhost and nasslapd-rootdn: $0"), errMsg.desc)
+                            cockpit.format(_("Failed to get config nsslapd-port, nsslapd-localhost and nasslapd-rootdn: $0"), errMsg)
                         );
                     });
         }
@@ -420,13 +420,13 @@ export class ReplMonitor extends React.Component {
     changeCreds(action) {
         const {
             credentialsList, oldCredsHostname, oldCredsPort, credsHostname,
-            credsPort, credsBinddn, credsBindpw, pwInputInterractive
+            credsPort, credsBinddn, credsBindpw, pwInputInteractive
         } = this.state;
 
         if (credsHostname === "" || credsPort === "" || credsBinddn === "") {
             this.props.addNotification("warning", _("Host, Port, and Bind DN are required."));
-        } else if (credsBindpw === "" && !pwInputInterractive) {
-            this.props.addNotification("warning", _("Password field can't be empty, if Interractive Input is not selected"));
+        } else if (credsBindpw === "" && !pwInputInteractive) {
+            this.props.addNotification("warning", _("Password field can't be empty, if Interactive Input is not selected"));
         } else {
             let credsExist = false;
             if ((action === "add") && (credentialsList.some(row => row.connData === `${credsHostname}:${credsPort}`))) {
@@ -448,7 +448,7 @@ export class ReplMonitor extends React.Component {
                             connData: `${credsHostname}:${credsPort}`,
                             credsBinddn,
                             credsBindpw,
-                            pwInputInterractive
+                            pwInputInteractive
                         }
                     ]
                 }));
@@ -494,7 +494,7 @@ export class ReplMonitor extends React.Component {
             credsPort: 389,
             credsBinddn: "cn=Directory Manager",
             credsBindpw: "",
-            pwInputInterractive: false
+            pwInputInteractive: false
         });
     }
 
@@ -508,7 +508,7 @@ export class ReplMonitor extends React.Component {
             credsPort: parseInt(connData.split(':')[1]),
             credsBinddn: bindDN,
             credsBindpw: bindPW,
-            pwInputInterractive: pwInteractive
+            pwInputInteractive: pwInteractive
         });
     }
 
@@ -528,7 +528,7 @@ export class ReplMonitor extends React.Component {
                 1: row.connData,
                 2: row.credsBinddn,
                 3: row.credsBindpw,
-                4: row.pwInputInterractive,
+                4: row.pwInputInteractive,
             });
         }
 
@@ -542,7 +542,7 @@ export class ReplMonitor extends React.Component {
                 connData: cred['1'],
                 credsBinddn: cred['2'],
                 credsBindpw: cred['3'],
-                pwInputInterractive: cred['4']
+                pwInputInteractive: cred['4']
             });
         }
 
@@ -677,7 +677,7 @@ export class ReplMonitor extends React.Component {
         const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "display"];
         log_cmd("overwriteDSRC", "gather conns and aliases from .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(dsrc_content => {
                     const content = JSON.parse(dsrc_content);
                     const dsrcCreds = [];
@@ -724,7 +724,7 @@ export class ReplMonitor extends React.Component {
                         for (const rowIdx in this.state.credentialsList) {
                             const row = this.state.credentialsList[rowIdx];
                             let password = row.credsBindpw;
-                            if (row.pwInputInterractive) {
+                            if (row.pwInputInteractive) {
                                 password = "*";
                             }
                             const idx = parseInt(rowIdx) + 1;
@@ -741,11 +741,11 @@ export class ReplMonitor extends React.Component {
                     }
                     log_cmd("overwriteDSRC", "delete conns and aliases in the .dsrc file", deleteCmd);
                     cockpit
-                            .spawn(deleteCmd, { superuser: true, err: "message" })
+                            .spawn(deleteCmd, { superuser: "require", err: "message" })
                             .done(() => {
                                 log_cmd("overwriteDSRC", "add conns and aliases in the .dsrc file", addCmd);
                                 cockpit
-                                        .spawn(addCmd, { superuser: true, err: "message" })
+                                        .spawn(addCmd, { superuser: "require", err: "message" })
                                         .done(() => {
                                             this.setState({
                                                 showConfirmOverwriteDSRC: false
@@ -756,21 +756,21 @@ export class ReplMonitor extends React.Component {
                                             );
                                         })
                                         .fail(err => {
-                                            const errMsg = JSON.parse(err);
+                                            const errMsg = getApiErrorMessage(err);
                                             this.setState({
                                                 showConfirmOverwriteDSRC: false
                                             });
                                             this.props.addNotification(
                                                 "error",
-                                                cockpit.format(_("Failed to delete from .dsrc file: $0"), errMsg.desc)
+                                                cockpit.format(_("Failed to delete from .dsrc file: $0"), errMsg)
                                             );
                                         });
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Failed to add to .dsrc content: $0"), errMsg.desc)
+                                    cockpit.format(_("Failed to add to .dsrc content: $0"), errMsg)
                                 );
                                 this.setState({
                                     showConfirmOverwriteDSRC: false
@@ -778,10 +778,10 @@ export class ReplMonitor extends React.Component {
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to get .dsrc content: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to get .dsrc content: $0"), errMsg)
                     );
                     this.setState({
                         showConfirmOverwriteDSRC: false
@@ -818,7 +818,7 @@ export class ReplMonitor extends React.Component {
             }
         } else {
             for (const row of this.state.credentialsList) {
-                if (row.pwInputInterractive) {
+                if (row.pwInputInteractive) {
                     password = "*";
                 } else {
                     password = `${row.credsBindpw}`;
@@ -863,7 +863,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("handleFullReport", "Get the report for the current instance topology", printCmd);
         // We need to set it here because 'input' will be run from inside
-        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message", directory: self.path });
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message", directory: self.path });
         // We use it in processCredsInput
         this.setState({
             fullReportProcess: proc
@@ -918,10 +918,10 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(() => {
-                    const errMsg = JSON.parse(buffer);
+                    const errMsg = getApiErrorMessage(buffer);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Sync report has failed - $0"), errMsg.desc)
+                        cockpit.format(_("Sync report has failed - $0"), errMsg)
                     );
                     this.setState({
                         dynamicCredentialsList: [],
@@ -936,7 +936,7 @@ export class ReplMonitor extends React.Component {
                     const lines = buffer.split("\n");
                     const last_line = lines[lines.length - 1];
                     let found_creds = false;
-                    // Interractive Input is required
+                    // Interactive Input is required
                     // Check for Bind DN first
                     if (last_line.startsWith("Enter a bind DN") && last_line.endsWith(": ")) {
                         buffer = "";
@@ -1134,7 +1134,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("deleteDSRCCred", "Delete a replica connection from the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.loadDSRC();
                     this.setState({
@@ -1142,10 +1142,10 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg)
                     );
                     this.loadDSRC();
                 });
@@ -1160,7 +1160,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("deleteDSRCCred", "Delete a replication monitor alias from the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.loadDSRC();
                     this.setState({
@@ -1168,10 +1168,10 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg)
                     );
                     this.loadDSRC();
                 });
@@ -1194,7 +1194,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("addDSRCCred", "Add a replica connection to the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.setState({
                         showAddDSRCCredModal: false,
@@ -1206,10 +1206,10 @@ export class ReplMonitor extends React.Component {
                     this.loadDSRC();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg)
                     );
                     this.loadDSRC();
                 });
@@ -1225,7 +1225,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("addDSRCAlias", "Add an alias to the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.setState({
                         showAddDSRCAliasModal: false,
@@ -1237,10 +1237,10 @@ export class ReplMonitor extends React.Component {
                     this.loadDSRC();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg)
                     );
                     this.loadDSRC();
                 });
@@ -1285,7 +1285,7 @@ export class ReplMonitor extends React.Component {
                     port={this.state.credsPort}
                     binddn={this.state.credsBinddn}
                     bindpw={this.state.credsBindpw}
-                    pwInputInterractive={this.state.pwInputInterractive}
+                    pwInputInteractive={this.state.pwInputInteractive}
                     addConfig={this.addCreds}
                     editConfig={this.editCreds}
                 />
@@ -1515,7 +1515,7 @@ export class ReplMonitor extends React.Component {
                     <TextContent>
                         <Text component={TextVariants.h3}>
                             {_("Synchronization Report")}
-                            <Button 
+                            <Button
                                 variant="plain"
                                 aria-label={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
@@ -1598,7 +1598,7 @@ export class ReplMonitor extends React.Component {
                     port={this.state.connPort}
                     binddn={this.state.connBindDN}
                     bindpw={this.state.connCred}
-                    pwInputInterractive={this.state.pwInputInterractive}
+                    pwInputInteractive={this.state.pwInputInteractive}
                     addConn={this.addDSRCCred}
                 />
             </div>

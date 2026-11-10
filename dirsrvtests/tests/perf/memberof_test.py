@@ -16,7 +16,7 @@ from lib389.properties import TASK_WAIT
 from lib389.utils import ldap, os, time, logging, ds_is_older
 from lib389._constants import SUFFIX, DN_SCHEMA, DN_DM, DEFAULT_SUFFIX, PASSWORD, PLUGIN_MEMBER_OF, \
     PLUGIN_MANAGED_ENTRY, PLUGIN_AUTOMEMBER, DN_CONFIG_LDBM, HOST_STANDALONE, PORT_STANDALONE
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 pytestmark = pytest.mark.tier3
 

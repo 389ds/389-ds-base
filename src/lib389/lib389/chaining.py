@@ -134,7 +134,7 @@ class ChainingLink(DSLdapObject):
         """
 
         # Create chaining entry
-        super(ChainingLink, self).create(rdn, properties, basedn)
+        link = super(ChainingLink, self).create(rdn, properties, basedn)
 
         # Create mapping tree entry
         dn_comps = ldap.explode_dn(properties['nsslapd-suffix'][0])
@@ -149,6 +149,7 @@ class ChainingLink(DSLdapObject):
             self._mts.ensure_state(properties=mt_properties)
         except ldap.ALREADY_EXISTS:
             pass
+        return link
 
 
 class ChainingLinks(DSLdapObjects):

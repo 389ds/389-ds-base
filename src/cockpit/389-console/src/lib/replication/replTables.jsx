@@ -14,9 +14,8 @@ import {
     Tbody,
     Td,
     ActionsColumn,
-    SortByDirection
+    SortByDirection,
 } from '@patternfly/react-table';
-import { TrashAltIcon } from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -126,7 +125,7 @@ class ReplAgmtTable extends React.Component {
                     onChange={this.props.handleSearch}
                     onClear={(evt) => this.props.search(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top-lg"
                     aria-label="agmt table"
                     variant="compact"
@@ -134,7 +133,7 @@ class ReplAgmtTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.props.sortBy,
@@ -162,7 +161,7 @@ class ReplAgmtTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -193,37 +192,25 @@ class ManagerTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { 
-                    title: 'Manager Name', 
-                    sortable: true 
-                },
-                { 
-                    title: 'Actions',
-                    screenReaderText: 'Manager actions'
+                {
+                    title: 'Manager Name',
+                    sortable: true
                 }
             ],
         };
 
         this.handleSort = this.handleSort.bind(this);
-        this.getDeleteButton = this.getDeleteButton.bind(this);
     }
 
     componentDidMount() {
-        let rows = [];
+        let rows = [...this.props.rows];
         let columns = this.state.columns;
-        
-        for (const managerRow of this.props.rows) {
-            rows.push([
-                managerRow,
-                this.getDeleteButton(managerRow)
-            ]);
-        }
-        
-        if (rows.length === 0) {
+
+        if (this.props.rows.length === 0) {
             rows = [[_("No Replication Managers")]];
             columns = [{ title: '' }];
         }
-        
+
         this.setState({
             rows,
             columns
@@ -231,7 +218,7 @@ class ManagerTable extends React.Component {
     }
 
     handleSort(_event, columnIndex, sortDirection) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)
         );
 
@@ -244,19 +231,19 @@ class ManagerTable extends React.Component {
         });
     }
 
-    getDeleteButton(name) {
-        return (
-            <a>
-                <TrashAltIcon
-                    className="ds-center"
-                    onClick={() => {
-                        this.props.confirmDelete(name);
-                    }}
-                    title={_("Delete Replication Manager")}
-                />
-            </a>
-        );
-    }
+    getRowActions = (row) => [
+        {
+            title: 'Change password',
+            onClick: () => this.props.showEditManager(row)
+        },
+        {
+            isSeparator: true
+        },
+        {
+            title: 'Delete manager',
+            onClick: () => this.props.confirmDelete(row)
+        },
+    ];
 
     render() {
         return (
@@ -275,6 +262,7 @@ class ManagerTable extends React.Component {
                                     columnIndex
                                 } : undefined}
                                 screenReaderText={column.screenReaderText}
+                                textCenter={columnIndex === 1}
                             >
                                 {column.title}
                             </Th>
@@ -284,14 +272,16 @@ class ManagerTable extends React.Component {
                 <Tbody>
                     {this.state.rows.map((row, rowIndex) => (
                         <Tr key={rowIndex}>
-                            {row.map((cell, cellIndex) => (
-                                <Td 
-                                    key={cellIndex}
-                                    textCenter={cellIndex === 1}
-                                >
-                                    {cell}
+                            <Td key={row}>
+                                {row}
+                            </Td>
+                            {this.props.rows.length !== 0 &&
+                                <Td isActionCell textCenter key={row +"action"}>
+                                    <ActionsColumn
+                                        items={this.getRowActions(row)}
+                                    />
                                 </Td>
-                            ))}
+                            }
                         </Tr>
                     ))}
                 </Tbody>
@@ -341,7 +331,7 @@ class RUVTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
         this.setState({
@@ -399,7 +389,7 @@ class RUVTable extends React.Component {
                         {tableRows.map((row, rowIndex) => (
                             <Tr key={rowIndex}>
                                 {row.cells.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={cellIndex}
                                         textCenter={cellIndex === row.cells.length - 1}
                                     >
@@ -462,7 +452,7 @@ class ReplicaLDIFTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
 
@@ -487,7 +477,7 @@ class ReplicaLDIFTable extends React.Component {
                 <Thead>
                     <Tr>
                         {columns.map((column, idx) => (
-                            <Th 
+                            <Th
                                 key={idx}
                                 sort={column.sortable ? {
                                     sortBy: sortBy,

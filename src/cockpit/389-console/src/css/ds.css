@@ -24,7 +24,7 @@
     filter: progid:dximagetransform.microsoft.gradient(startColorstr="#ff39a5dc", endColorstr="#ff0088ce", GradientType=0);
     border-color: #00659c;
     color: #fff;
-    padding: 3px;
+    padding: 1px;
     box-shadow: 0 3px 3px rgb(3 3 3 / 10%);
     border-radius: 50%;
     border: 1px solid transparent;
@@ -48,7 +48,7 @@
 
 td {
     white-space: normal;
-    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
     max-width: 200px !important;
 }
 
@@ -62,7 +62,6 @@ td {
 
 .ds-tree {
     border: 1px solid #909090;
-    background-color: #f8f8f8;
     width: 300px;
     min-width: 300px;
     min-height: 350px;
@@ -75,7 +74,6 @@ td {
 
 .pf-theme-dark .ds-tree {
     border: 1px solid #909090;
-    background-color: rgb(54 55 58);
     width: 300px;
     min-width: 300px;
     min-height: 350px;
@@ -222,7 +220,7 @@ textarea {
     vertical-align: top;
     width: 315px;
     height: 80px;
-    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
     line-height: 1;
 }
 
@@ -231,6 +229,7 @@ textarea {
     min-height: 250px;
     font-size: 14px !important;
     font-family: monospace !important;
+
 }
 
 .ds-logarea {
@@ -239,7 +238,7 @@ textarea {
     vertical-align: top;
     width: 100% !important;
     min-height: 500px !important;
-    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
     line-height: 1;
     font-family: monospace !important;
     overflow-y: scroll;
@@ -270,11 +269,6 @@ textarea {
     float: left !important;
 }
 
-.ds-config-header {
-    margin-bottom: 30px;
-    text-align: center;
-}
-
 .ds-sub-header {
     margin-top: 10px !important;
     margin-bottom: 10px;
@@ -282,6 +276,10 @@ textarea {
 
 .ds-margin-top {
     margin-top: 10px !important;
+}
+
+.ds-margin-top-sm {
+    margin-top: 5px !important;
 }
 
 .ds-margin-top-med {
@@ -358,6 +356,10 @@ textarea {
 .ds-left-margin-md {
     /* same as ds-tree - used by create suffix button */
     margin-left: 15px !important;
+}
+
+.ds-right-margin {
+    margin-right: 10px !important;
 }
 
 .ds-radio-indent {
@@ -490,7 +492,7 @@ textarea {
 }
 
 .ds-word-wrap {
-    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .ds-suffix-header {
@@ -527,8 +529,8 @@ hr {
 
 pre {
     white-space: pre-wrap;       /* Since CSS 2.1 */
-    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
-    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+    white-space: pre-wrap;  /* Mozilla, since 1999 */
+    overflow-wrap: break-word;       /* Internet Explorer 5.5+ */
 }
 
 .pf-c-alert-group {

@@ -1,22 +1,24 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 import PropTypes from "prop-types";
 import ServerMonitor from "./lib/monitor/serverMonitor.jsx";
-import DatabaseMonitor from "./lib/monitor/dbMonitor.jsx";
-import SuffixMonitor from "./lib/monitor/suffixMonitor.jsx";
+import { DatabaseMonitor, DatabaseMonitorMDB } from "./lib/monitor/dbMonitor.jsx";
+import { SuffixMonitor, SuffixMonitorMDB } from "./lib/monitor/suffixMonitor.jsx";
 import ChainingMonitor from "./lib/monitor/chainingMonitor.jsx";
 import AccessLogMonitor from "./lib/monitor/accesslog.jsx";
 import AuditLogMonitor from "./lib/monitor/auditlog.jsx";
 import AuditFailLogMonitor from "./lib/monitor/auditfaillog.jsx";
 import ErrorLogMonitor from "./lib/monitor/errorlog.jsx";
 import SecurityLogMonitor from "./lib/monitor/securitylog.jsx";
+import ReplLogAnalysis from "./lib/monitor/replLogAnalysis.jsx";
 import ReplMonitor from "./lib/monitor/replMonitor.jsx";
 import ReplAgmtMonitor from "./lib/monitor/replMonAgmts.jsx";
 import ReplAgmtWinsync from "./lib/monitor/replMonWinsync.jsx";
 import ReplMonTasks from "./lib/monitor/replMonTasks.jsx";
 import ReplMonConflict from "./lib/monitor/replMonConflict.jsx";
 import {
+    Card,
     Spinner,
     TreeView,
     Text,
@@ -34,6 +36,8 @@ import {
 
 const _ = cockpit.gettext;
 
+const BE_IMPL_MDB = "mdb";
+
 export class Monitor extends React.Component {
     constructor(props) {
         super(props);
@@ -48,6 +52,7 @@ export class Monitor extends React.Component {
             snmpData: {},
             ldbmData: {},
             serverData: {},
+            serverTab: 0,
             disks: [],
             loadingMsg: "",
             disableTree: false,
@@ -64,6 +69,7 @@ export class Monitor extends React.Component {
             serverLoading: false,
             ldbmLoading: false,
             chainingLoading: false,
+            diskReloadSpinning: false,
             // replication
             replLoading: false,
             replInitLoaded: false,
@@ -79,6 +85,8 @@ export class Monitor extends React.Component {
             auditlogLocation: "",
             auditfaillogLocation: "",
             securitylogLocation: "",
+            // DB engine, bdb or mdb (default)
+            dbEngine: BE_IMPL_MDB,
         };
 
         // Bindings
@@ -95,6 +103,7 @@ export class Monitor extends React.Component {
         this.loadMonitorChaining = this.loadMonitorChaining.bind(this);
         this.loadDiskSpace = this.loadDiskSpace.bind(this);
         this.reloadDisks = this.reloadDisks.bind(this);
+        this.getDBEngine = this.getDBEngine.bind(this);
         // Replication
         this.onHandleLoadMonitorReplication = this.onHandleLoadMonitorReplication.bind(this);
         this.loadCleanTasks = this.loadCleanTasks.bind(this);
@@ -111,6 +120,10 @@ export class Monitor extends React.Component {
         this.loadMonitor = this.loadMonitor.bind(this);
     }
 
+    componentDidMount() {
+        this.getDBEngine();
+    }
+
     componentDidUpdate(prevProps) {
         if (this.props.wasActiveList.includes(6)) {
             if (this.state.firstLoad) {
@@ -118,6 +131,7 @@ export class Monitor extends React.Component {
             } else {
                 if (this.props.serverId !== prevProps.serverId) {
                     this.loadSuffixTree(false);
+                    this.getDBEngine();
                 }
             }
         }
@@ -187,86 +201,95 @@ export class Monitor extends React.Component {
     }
 
     loadSuffixTree(fullReset) {
+        const basicData = [
+            {
+                name: _("Server Statistics"),
+                icon: <ClusterIcon />,
+                id: "server-monitor",
+                type: "server",
+            },
+            {
+                name: _("Replication"),
+                icon: <TopologyIcon />,
+                id: "replication-monitor",
+                type: "replication",
+                defaultExpanded: true,
+                children: [
+                    {
+                        name: _("Synchronization Report"),
+                        icon: <MonitoringIcon />,
+                        id: "sync-report",
+                        item: "sync-report",
+                        type: "repl-mon",
+                    },
+                    {
+                        name: _("Log Analysis"),
+                        icon: <MonitoringIcon />,
+                        id: "log-analysis",
+                        item: "log-analysis",
+                        type: "repl-mon",
+                    }
+                ],
+            },
+            {
+                name: _("Database"),
+                icon: <DatabaseIcon />,
+                id: "database-monitor",
+                type: "database",
+                children: [], // Will be populated with treeData on success
+                defaultExpanded: true,
+            },
+            {
+                name: _("Logging"),
+                icon: <CatalogIcon />,
+                id: "log-monitor",
+                defaultExpanded: true,
+                children: [
+                    {
+                        name: _("Access Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "access-log-monitor",
+                        type: "log",
+                    },
+                    {
+                        name: _("Audit Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "audit-log-monitor",
+                        type: "log",
+                    },
+                    {
+                        name: _("Audit Failure Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "auditfail-log-monitor",
+                        type: "log",
+                    },
+                    {
+                        name: _("Errors Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "error-log-monitor",
+                        type: "log",
+                    },
+                    {
+                        name: _("Security Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "security-log-monitor",
+                        type: "log",
+                    },
+                ]
+            },
+        ];
+
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "get-tree",
         ];
         log_cmd("getTree", "Start building the suffix tree", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const treeData = JSON.parse(content);
                     this.processTree(treeData);
-                    const basicData = [
-                        {
-                            name: _("Server Statistics"),
-                            icon: <ClusterIcon />,
-                            id: "server-monitor",
-                            type: "server",
-                        },
-                        {
-                            name: _("Replication"),
-                            icon: <TopologyIcon />,
-                            id: "replication-monitor",
-                            type: "replication",
-                            defaultExpanded: true,
-                            children: [
-                                {
-                                    name: _("Synchronization Report"),
-                                    icon: <MonitoringIcon />,
-                                    id: "sync-report",
-                                    item: "sync-report",
-                                    type: "repl-mon",
-                                },
-                            ],
-                        },
-                        {
-                            name: _("Database"),
-                            icon: <DatabaseIcon />,
-                            id: "database-monitor",
-                            type: "database",
-                            children: [],
-                            defaultExpanded: true,
-                        },
-                        {
-                            name: _("Logging"),
-                            icon: <CatalogIcon />,
-                            id: "log-monitor",
-                            defaultExpanded: true,
-                            children: [
-                                {
-                                    name: _("Access Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "access-log-monitor",
-                                    type: "log",
-                                },
-                                {
-                                    name: _("Audit Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "audit-log-monitor",
-                                    type: "log",
-                                },
-                                {
-                                    name: _("Audit Failure Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "auditfail-log-monitor",
-                                    type: "log",
-                                },
-                                {
-                                    name: _("Errors Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "error-log-monitor",
-                                    type: "log",
-                                },
-                                {
-                                    name: _("Security Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "security-log-monitor",
-                                    type: "log",
-                                },
-                            ]
-                        },
-                    ];
+
                     let current_node = this.state.node_name;
                     let type = this.state.node_type;
                     if (fullReset) {
@@ -274,6 +297,22 @@ export class Monitor extends React.Component {
                         type = "server";
                     }
                     basicData[2].children = treeData; // database node
+                    this.processReplSuffixes(basicData[1].children);
+
+                    this.setState(() => ({
+                        nodes: basicData,
+                        node_name: current_node,
+                        node_type: type,
+                    }), this.update_tree_nodes);
+                })
+                .fail(err => {
+                    // Handle backend get-tree failure gracefully
+                    let current_node = this.state.node_name;
+                    let type = this.state.node_type;
+                    if (fullReset) {
+                        current_node = "server-monitor";
+                        type = "server";
+                    }
                     this.processReplSuffixes(basicData[1].children);
 
                     this.setState(() => ({
@@ -355,6 +394,15 @@ export class Monitor extends React.Component {
             });
         } else if (treeViewItem.id === "sync-report") {
             this.gatherAllReplicaHosts(treeViewItem, parentItem);
+        } else if (treeViewItem.id === "log-analysis") {
+            this.setState({
+                activeItems: [treeViewItem, parentItem],
+                node_name: treeViewItem.id,
+                node_text: treeViewItem.name,
+                node_type: treeViewItem.type,
+                node_item: treeViewItem.item,
+                disableTree: false
+            });
         } else {
             if (treeViewItem.type === "repl-mon") {
                 this.onHandleLoadMonitorReplication(treeViewItem, parentItem);
@@ -430,7 +478,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadLogLocations", "Get log locations", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -451,7 +499,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadReplicatedSuffixes", "Load replication suffixes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let replSuffix = "";
@@ -472,7 +520,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadMonitorLDBM", "Load database monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -483,12 +531,12 @@ export class Monitor extends React.Component {
 
     loadMonitorServer() {
         const cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "dsconf", "-j", this.props.serverId,
             "monitor", "server"
         ];
         log_cmd("loadMonitorServer", "Load server monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -497,22 +545,22 @@ export class Monitor extends React.Component {
                 }, this.loadMonitorSNMP());
     }
 
-    reloadServer() {
+    reloadServer(tab) {
         this.setState({
             serverLoading: true
         });
         const cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "monitor", "server"
+            "dsconf", "-j", this.props.serverId, "monitor", "server"
         ];
         log_cmd("reloadServer", "Load server monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
                         serverLoading: false,
-                        serverData: config.attrs
+                        serverData: config.attrs,
+                        serverTab: tab
                     }, this.reloadDisks());
                 });
     }
@@ -524,7 +572,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadMonitorSNMP", "Load snmp monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -540,7 +588,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadDiskSpace", "Load disk space info", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const disks = JSON.parse(content);
                     const rows = [];
@@ -554,13 +602,16 @@ export class Monitor extends React.Component {
     }
 
     reloadDisks () {
+        this.setState({
+            diskReloadSpinning: true
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "disk"
         ];
         log_cmd("reloadDisks", "Reload disk stats", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const disks = JSON.parse(content);
                     const rows = [];
@@ -569,7 +620,31 @@ export class Monitor extends React.Component {
                     }
                     this.setState({
                         disks: rows,
+                        diskReloadSpinning: false
                     });
+                });
+    }
+
+    getDBEngine () {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "backend", "config", "get"
+        ];
+        log_cmd("getDBEngine", "Get DB Implementation", cmd);
+        cockpit
+                .spawn(cmd, { superuser: "require", err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
+                    if ('nsslapd-backend-implement' in attrs) {
+                        this.setState({
+                            dbEngine: attrs['nsslapd-backend-implement'][0],
+                        });
+                    }
+                })
+                .fail(err => {
+                    const errMsg = getApiErrorMessage(err);
+                    console.log("getDBEngine - Error detecting DB implementation type -", errMsg);
                 });
     }
 
@@ -580,7 +655,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("reloadSNMP", "Load snmp monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -600,7 +675,7 @@ export class Monitor extends React.Component {
         ];
         log_cmd("loadMonitorChaining", "Load suffix monitor", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -630,7 +705,7 @@ export class Monitor extends React.Component {
             "repl-tasks", "list-cleanruv-tasks", "--suffix=" + replSuffix];
         log_cmd("loadCleanTasks", "Load clean tasks", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -653,7 +728,7 @@ export class Monitor extends React.Component {
             "repl-tasks", "list-abortruv-tasks", "--suffix=" + replSuffix];
         log_cmd("loadAbortCleanTasks", "Load abort tasks", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -676,7 +751,7 @@ export class Monitor extends React.Component {
             "repl-conflict", "list", replSuffix];
         log_cmd("loadConflicts", "Load conflict entries", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -700,7 +775,7 @@ export class Monitor extends React.Component {
             "repl-conflict", "list-glue", replSuffix];
         log_cmd("loadGlues", "Load glue entries", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -726,7 +801,7 @@ export class Monitor extends React.Component {
         const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "display"];
         log_cmd("loadDSRC", "Check for replication monitor configurations in the .dsrc file", dsrc_cmd);
         cockpit
-                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .spawn(dsrc_cmd, { superuser: "require", err: "message" })
                 .done(dsrc_content => {
                     const content = JSON.parse(dsrc_content);
                     const credRows = [];
@@ -757,8 +832,8 @@ export class Monitor extends React.Component {
                 })
                 .fail(err => {
                     // No dsrc file, thats ok
-                    const errMsg = JSON.parse(err);
-                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg.desc}`);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg}`);
                     this.setState({
                         replLoading: false,
                     });
@@ -770,7 +845,7 @@ export class Monitor extends React.Component {
             "replication", "winsync-status", "--suffix=" + replSuffix];
         log_cmd("loadWinsyncAgmts", "Load winsync agmt status", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -803,7 +878,7 @@ export class Monitor extends React.Component {
             "replication", "status", "--suffix=" + suffix];
         log_cmd("gatherAllReplicaHosts", "Get replication hosts for repl report", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -852,7 +927,7 @@ export class Monitor extends React.Component {
                 "replication", "status", "--suffix=" + treeViewItem.suffix];
             log_cmd("onHandleLoadMonitorReplication", "Load replication suffix info", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         const config = JSON.parse(content);
                         this.loadDSRC();
@@ -890,7 +965,7 @@ export class Monitor extends React.Component {
             "replication", "status", "--suffix=" + replSuffix];
         log_cmd("reloadReplAgmts", "Load replication agmts", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -907,7 +982,7 @@ export class Monitor extends React.Component {
             "replication", "winsync-status", "--suffix=" + replSuffix];
         log_cmd("reloadReplWinsyncAgmts", "Load winysnc agmts", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
@@ -948,13 +1023,24 @@ export class Monitor extends React.Component {
                         </div>
                     );
                 } else {
-                    monitor_element = (
-                        <DatabaseMonitor
-                            data={this.state.ldbmData}
-                            enableTree={this.enableTree}
-                            serverId={this.props.serverId}
-                        />
-                    );
+                    if (this.state.dbEngine === BE_IMPL_MDB) {
+                        monitor_element = (
+                            <DatabaseMonitorMDB
+                                data={this.state.ldbmData}
+                                enableTree={this.enableTree}
+                                serverId={this.props.serverId}
+                            />
+                        );
+                    } else {
+                        monitor_element = (
+                            <DatabaseMonitor
+                                data={this.state.ldbmData}
+                                enableTree={this.enableTree}
+                                serverId={this.props.serverId}
+                            />
+                        );
+                    }
+
                 }
             } else if (this.state.node_name === "server-monitor") {
                 if (this.state.serverLoading) {
@@ -976,9 +1062,11 @@ export class Monitor extends React.Component {
                             serverId={this.props.serverId}
                             disks={this.state.disks}
                             handleReloadDisks={this.reloadDisks}
+                            diskReloadSpinning={this.state.diskReloadSpinning}
                             snmpData={this.state.snmpData}
                             snmpReload={this.reloadSNMP}
                             enableTree={this.enableTree}
+                            serverTab={this.state.serverTab}
                         />
                     );
                 }
@@ -1041,6 +1129,19 @@ export class Monitor extends React.Component {
                                     addNotification={this.props.addNotification}
                                     enableTree={this.enableTree}
                                     handleReload={this.onHandleLoadMonitorReplication}
+                                    key={this.state.node_name}
+                                />
+                            </div>
+                        );
+                    } else if (this.state.node_name === "log-analysis") {
+                        monitor_element = (
+                            <div>
+                                <ReplLogAnalysis
+                                    serverId={this.props.serverId}
+                                    addNotification={this.props.addNotification}
+                                    enableTree={this.enableTree}
+                                    handleReload={this.onHandleLoadMonitorReplication}
+                                    replicatedSuffixes={this.state.replicatedSuffixes}
                                     key={this.state.node_name}
                                 />
                             </div>
@@ -1113,7 +1214,7 @@ export class Monitor extends React.Component {
                         <div className="ds-margin-top-xlg ds-center">
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    cockpit.format(_("Loading Chaining Monitor Information For <b>$0 ...</b>"), this.state.node_text)
+                                    cockpit.format(_("Loading Chaining Monitor Information for $0 ..."), this.state.node_text)
                                 </Text>
                             </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
@@ -1133,34 +1234,45 @@ export class Monitor extends React.Component {
                         );
                     } else {
                         // Suffix
-                        monitor_element = (
-                            <SuffixMonitor
-                                serverId={this.props.serverId}
-                                suffix={this.state.node_text}
-                                bename={this.state.bename}
-                                enableTree={this.enableTree}
-                                key={this.state.node_text}
-                                addNotification={this.props.addNotification}
-                            />
-                        );
+                        if (this.state.dbEngine === BE_IMPL_MDB) {
+                            monitor_element = (
+                                <SuffixMonitorMDB
+                                    serverId={this.props.serverId}
+                                    suffix={this.state.node_text}
+                                    bename={this.state.bename}
+                                    enableTree={this.enableTree}
+                                    key={this.state.node_text}
+                                    addNotification={this.props.addNotification}
+                                />
+                            );
+                        } else {
+                            monitor_element = (
+                                <SuffixMonitor
+                                    serverId={this.props.serverId}
+                                    suffix={this.state.node_text}
+                                    bename={this.state.bename}
+                                    enableTree={this.enableTree}
+                                    key={this.state.node_text}
+                                    addNotification={this.props.addNotification}
+                                />
+                            );
+                        }
                     }
                 }
             }
             monitorPage = (
                 <div className="container-fluid">
                     <div className="ds-container">
-                        <div>
-                            <div className="ds-tree">
-                                <div className={disabled} id="monitor-tree">
-                                    <TreeView
-                                        hasSelectableNodes
-                                        data={nodes}
-                                        activeItems={this.state.activeItems}
-                                        onSelect={this.handleTreeClick}
-                                    />
-                                </div>
+                        <Card className="ds-tree">
+                            <div className={disabled} id="monitor-tree">
+                                <TreeView
+                                    hasSelectableNodes
+                                    data={nodes}
+                                    activeItems={this.state.activeItems}
+                                    onSelect={this.handleTreeClick}
+                                />
                             </div>
-                        </div>
+                        </Card>
                         <div className="ds-tree-content">
                             {monitor_element}
                         </div>

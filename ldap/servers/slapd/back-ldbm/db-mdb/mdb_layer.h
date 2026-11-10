@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -38,9 +38,11 @@
 
 /* mdb config parameters */
 
-#define CONFIG_MDB_MAX_SIZE       "nsslapd-mdb-max-size"
-#define CONFIG_MDB_MAX_READERS    "nsslapd-mdb-max-readers"
-#define CONFIG_MDB_MAX_DBS        "nsslapd-mdb-max-dbs"
+#define CONFIG_MDB_MAX_SIZE              "nsslapd-mdb-max-size"
+#define CONFIG_MDB_MAX_READERS           "nsslapd-mdb-max-readers"
+#define CONFIG_MDB_MAX_DBS               "nsslapd-mdb-max-dbs"
+#define CONFIG_MDB_IMPORT_STATS          "nsslapd-mdb-import-stats"
+#define CONFIG_MDB_ONLINE_IMPORT_NOSYNC  "nsslapd-mdb-online-import-nosync"
 
 #define DBMDB_DB_MINSIZE             ( 4LL * MEGABYTE )
 #define DBMDB_DISK_RESERVE(disksize) ((disksize)*2ULL/1000ULL)
@@ -76,6 +78,8 @@ typedef struct
     int max_readers;
     int max_dbs;
     uint64_t max_size;
+    int import_stats;
+    int online_import_nosync;
 } dbmdb_cfg_t;
 
 /* config parameters limits */
@@ -311,6 +315,7 @@ int dbmdb_ctx_t_load_dse_info(struct ldbminfo *li);
 int dbmdb_ctx_t_internal_set(struct ldbminfo *li, char *attrname, char *value);
 void dbmdb_public_config_get(struct ldbminfo *li, char *attrname, char *value);
 int dbmdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mod_op, int phase, char *value);
+uint32_t dbmdb_get_inst_page_count(struct ldbminfo *li, ldbm_instance *inst);
 
 /* dbimpl callbacks */
 dblayer_get_db_filename_fn_t dbmdb_public_get_db_filename;
@@ -330,6 +335,7 @@ dblayer_dbi_txn_begin_fn_t dbmdb_dbi_txn_begin;
 dblayer_dbi_txn_commit_fn_t dbmdb_dbi_txn_commit;
 dblayer_dbi_txn_abort_fn_t dbmdb_dbi_txn_abort;
 dblayer_get_entries_count_fn_t dbmdb_get_entries_count;
+dblayer_get_inst_entries_count_fn_t dbmdb_get_inst_entries_count;
 dblayer_cursor_get_count_fn_t dbmdb_public_cursor_get_count;
 dblayer_private_open_fn_t dbmdb_public_private_open;
 dblayer_private_close_fn_t dbmdb_public_private_close;
@@ -378,7 +384,7 @@ int dbmdb_idl_new_compare_dups(dbmdb_dbi_t * db __attribute__((unused)), const M
 
 int dbmdb_delete_indices(ldbm_instance *inst);
 uint32_t dbmdb_get_optimal_block_size(struct ldbminfo *li);
-int dbmdb_copyfile(char *source, char *destination, int overwrite, int mode);
+int dbmdb_copyfile(char *source, char *destination, int overwrite, int mode, Slapi_Task *task);
 int dbmdb_delete_instance_dir(backend *be);
 uint64_t dbmdb_database_size(struct ldbminfo *li);
 
@@ -394,8 +400,6 @@ void dbmdb_restore_file_update(struct ldbminfo *li, const char *directory);
 int dbmdb_import_file_init(ldbm_instance *inst);
 void dbmdb_import_file_update(ldbm_instance *inst);
 int dbmdb_import_file_check(ldbm_instance *inst);
-int dbmdb_import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count);
-int dbmdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id);
 void dbmdb_import_configure_index_buffer_size(size_t size);
 size_t dbmdb_import_get_index_buffer_size(void);
 int dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb);
@@ -497,6 +501,9 @@ void dbmdb_envflags2str(int flags, char *str, int maxlen);
 int dbmdb_dbi_reset(dbmdb_ctx_t *conf, dbi_db_t *db);
 int dbmdb_dbi_remove(dbmdb_ctx_t *conf, dbi_db_t **db);
 int dbmdb_dbi_rmdir(backend *be);
+int dbmdb_import_backup_create(backend *be);
+int dbmdb_import_backup_discard(backend *be);
+int dbmdb_import_backup_restore(backend *be);
 int dbmdb_clear_dirty_flags(backend *be);
 int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx);
 char *dbmdb_recno_cache_get_dbname(const char *vlvdbiname);
@@ -504,6 +511,7 @@ int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2);
 dbmdb_stats_t *dbdmd_gather_stats(dbmdb_ctx_t *conf, backend *be);
 void dbmdb_free_stats(dbmdb_stats_t **stats);
 int dbmdb_reset_vlv_file(backend *be, const char *filename);
+bool dbmdb_is_env_open(void);
 
 /* mdb_txn.c */
 void shutdown_mdbtxn(void);

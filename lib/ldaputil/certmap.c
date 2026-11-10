@@ -1009,8 +1009,15 @@ AddAVAToBuf(char *buf, int size, int *len, const char *tagName, CERTAVA *ava, in
     int lenLen;
     int taglen;
     SECStatus rv;
+    int available_space;
+
+    /* Check if we're already at the buffer limit */
+    if (*len >= size) {
+        return LDAPU_FAILED;
+    }
 
     buf += *len;
+    available_space = size - *len;
 
     /* Copied from ns/lib/libsec ...
      * XXX this code is incorrect in general
@@ -1021,26 +1028,31 @@ AddAVAToBuf(char *buf, int size, int *len, const char *tagName, CERTAVA *ava, in
         lenLen = 3;
 
     taglen = PL_strlen(tagName);
+
+    /* Check if there's enough space for tagName and '=' */
+    if (taglen + 1 > available_space) {
+        return LDAPU_FAILED;
+    }
+
     memcpy(buf, tagName, taglen);
     buf[taglen++] = '=';
 
     if (is_filter != 0) {
         /* values should not be quoted in filter but * must be escaped */
         rv = value2filter(buf + taglen,
-                          size - taglen,
+                          available_space - taglen,
                           (char *)ava->value.data + lenLen,
                           ava->value.len - lenLen);
         *len += strlen(buf);
         return rv;
     } else {
         rv = CERT_RFC1485_EscapeAndQuote(buf + taglen,
-                                         size - taglen,
+                                         available_space - taglen,
                                          (char *)ava->value.data + lenLen,
                                          ava->value.len - lenLen);
         *len += strlen(buf);
         return (rv == SECSuccess ? LDAPU_SUCCESS : LDAPU_FAILED);
-    }
-}
+    } }
 
 static int
 AddToLdapDN(char *ldapdn, int size, int *dnlen, const char *tagName, CERTAVA *ava)
@@ -1048,6 +1060,10 @@ AddToLdapDN(char *ldapdn, int size, int *dnlen, const char *tagName, CERTAVA *av
     char *dn = ldapdn + *dnlen;
 
     if (*dnlen) {
+        /* Check if there's enough space for ", " */
+        if (*dnlen + 2 >= size) {
+            return LDAPU_FAILED;
+        }
         strcat(dn, ", ");
         dn += 2;
         *dnlen += 2;
@@ -1060,6 +1076,11 @@ AddToFilter(char *filter, int size, int *flen, const char *tagName, CERTAVA *ava
 {
     int rv;
 
+    /* Check if there's enough space for " (" */
+    if (*flen + 2 >= size) {
+        return LDAPU_FAILED;
+    }
+
     /* Append opening parenthesis */
     strcat(filter + *flen, " (");
     *flen += 2;
@@ -1067,6 +1088,11 @@ AddToFilter(char *filter, int size, int *flen, const char *tagName, CERTAVA *ava
 
     if (rv != LDAPU_SUCCESS)
         return rv;
+
+    /* Check if there's enough space for ")" */
+    if (*flen + 1 >= size) {
+        return LDAPU_FAILED;
+    }
 
     /* Append closing parenthesis */
     strcat(filter + *flen, ")");

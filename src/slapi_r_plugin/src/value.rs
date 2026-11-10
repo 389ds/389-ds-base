@@ -61,7 +61,7 @@ impl ValueArrayRef {
         ValueArrayRef { raw_slapi_val }
     }
 
-    pub fn iter(&self) -> ValueArrayRefIter {
+    pub fn iter(&self) -> ValueArrayRefIter<'_> {
         ValueArrayRefIter {
             idx: 0,
             va_ref: &self,
@@ -174,7 +174,7 @@ impl Deref for Value {
 impl From<&Uuid> for Value {
     fn from(u: &Uuid) -> Self {
         // turn the uuid to a str
-        let u_str = u.to_hyphenated().to_string();
+        let u_str = u.hyphenated().to_string();
         let len = u_str.len();
         let cstr = CString::new(u_str)
             .expect("Invalid uuid, should never occur!")

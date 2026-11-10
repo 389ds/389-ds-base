@@ -124,6 +124,7 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_dbi_txn_commit_fn = &bdb_dbi_txn_commit;
     priv->dblayer_dbi_txn_abort_fn = &bdb_dbi_txn_abort;
     priv->dblayer_get_entries_count_fn = &bdb_get_entries_count;
+    priv->dblayer_get_inst_entries_count_fn = &bdb_get_inst_entries_count;
     priv->dblayer_cursor_get_count_fn = &bdb_public_cursor_get_count;
     priv->dblayer_private_open_fn = &bdb_public_private_open;
     priv->dblayer_private_close_fn = &bdb_public_private_close;
@@ -284,7 +285,7 @@ bdb_config_db_lock_pause_set(void *arg, void *value, char *errorbuf, int phase _
 
     if (val == 0) {
         slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_pause_set",
-                      "%s was set to '0'. The default value will be used (%s)",
+                      "%s was set to '0'. The default value will be used (%s)\n",
                       CONFIG_DB_LOCKS_PAUSE, DEFAULT_DBLOCK_PAUSE_STR);
         val = DEFAULT_DBLOCK_PAUSE;
     }
@@ -315,7 +316,7 @@ bdb_config_db_lock_threshold_set(void *arg, void *value, char *errorbuf, int pha
                               "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95",
                               CONFIG_DB_LOCKS_THRESHOLD, val);
         slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_lock_threshold_set",
-                      "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95",
+                      "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95\n",
                       CONFIG_DB_LOCKS_THRESHOLD, val);
         retval = LDAP_OPERATIONS_ERROR;
         return retval;
@@ -338,7 +339,6 @@ static void *
 bdb_config_dbcachesize_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
-
     return (void *)((uintptr_t)li->li_new_dbcachesize);
 }
 
@@ -800,6 +800,32 @@ done:
         }
     }
     slapi_ch_free_string(&val);
+
+    return retval;
+}
+
+static void *
+bdb_config_db_compactdb_starttime_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(BDB_CONFIG(li)->bdb_compactdb_starttime));
+}
+
+static int32_t
+bdb_config_db_compactdb_starttime_set(void *arg,
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int32_t retval = LDAP_SUCCESS;
+    uint64_t val = (uint64_t)((uintptr_t)value);
+
+    if (apply) {
+        BDB_CONFIG(li)->bdb_compactdb_starttime = val;
+    }
 
     return retval;
 }
@@ -1600,6 +1626,7 @@ static config_info bdb_config_param[] = {
     {CONFIG_DB_CHECKPOINT_INTERVAL, CONFIG_TYPE_INT, "60", &bdb_config_db_checkpoint_interval_get, &bdb_config_db_checkpoint_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_COMPACTDB_INTERVAL, CONFIG_TYPE_INT, "2592000" /*30days*/, &bdb_config_db_compactdb_interval_get, &bdb_config_db_compactdb_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_COMPACTDB_TIME, CONFIG_TYPE_STRING, "23:59", &bdb_config_db_compactdb_time_get, &bdb_config_db_compactdb_time_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_COMPACTDB_STARTTIME, CONFIG_TYPE_UINT64, "0" , &bdb_config_db_compactdb_starttime_get, &bdb_config_db_compactdb_starttime_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH, CONFIG_TYPE_INT, "0", &bdb_get_batch_transactions, &bdb_set_batch_transactions, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP, CONFIG_TYPE_INT, "50", &bdb_get_batch_txn_min_sleep, &bdb_set_batch_txn_min_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP, CONFIG_TYPE_INT, "50", &bdb_get_batch_txn_max_sleep, &bdb_set_batch_txn_max_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
@@ -2111,8 +2138,10 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
         bdb_config_get(arg, config, buf);
         if (PL_strncmp(buf, bval->bv_val, bval->bv_len)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
-                                  "value [%s] for attribute %s does not match existing value [%s].\n", bval->bv_val, attr_name, buf);
-slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
+                                  "value [%s] for attribute %s does not match existing value [%s].\n",
+                                  bval->bv_val, attr_name, buf);
+            slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__,
+                          "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
             return LDAP_NO_SUCH_ATTRIBUTE;
         }
     }

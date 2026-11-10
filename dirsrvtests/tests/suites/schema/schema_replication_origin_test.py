@@ -13,7 +13,7 @@ import time
 import ldap
 import pytest
 from lib389._constants import SUFFIX, ReplicaRole, DEFAULT_SUFFIX
-from lib389.topologies import create_topology
+from test389.topologies import create_topology
 from lib389.replica import Agreements, ReplicationManager
 from lib389.schema import Schema
 from lib389.idm.user import UserAccounts
@@ -157,6 +157,7 @@ def test_schema_xorigin_repl(topology, schema_replication_init, xorigin):
     schema is pushed and there is a message in the error log
 
     :id: 2b29823b-3e83-4b25-954a-8a081dbc15ee
+    :parametrized: yes
     :setup: Supplier and consumer topology, with one user entry;
             Supplier, hub and consumer topology, with one user entry
     :steps:

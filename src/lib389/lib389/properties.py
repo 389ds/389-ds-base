@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -42,13 +42,14 @@ SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
                             SER_DB_LIB: 'nsslapd-backend-implement',
                             }
 #
-# Those WITHOUT related attribute name
+# Properties that are not associated with an attribute in cn=config entry
 #
 SER_SERVERID_PROP = 'server-id'
 SER_GROUP_ID = 'group-id'
 SER_DEPLOYED_DIR = 'deployed-dir'
 SER_BACKUP_INST_DIR = 'inst-backupdir'
 SER_STRICT_HOSTNAME_CHECKING = 'strict_hostname_checking'
+SER_MDB_MAX_SIZE = 'mdb_max_size'
 
 ####################################
 #
@@ -457,6 +458,7 @@ INDEX_PROPNAME_TO_ATTRNAME = {INDEX_TYPE: 'nsIndexType',
 ####################################
 
 TASK_WAIT = "wait"
+TASK_WATCH = "watch"
 TASK_TOMB_STRIP = "strip-csn"
 EXPORT_REPL_INFO = "repl-info"
 

@@ -1,13 +1,19 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "../tools.jsx";
+import { displayBytes, log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
+    Alert,
     Button,
     Checkbox,
+    FormSelect,
+    FormSelectOption,
     Grid,
     GridItem,
+    HelperText,
+    HelperTextItem,
     NumberInput,
     Spinner,
+    Switch,
     Tab,
     Tabs,
     TabTitleText,
@@ -17,11 +23,130 @@ import {
     TextVariants,
     TimePicker,
     Tooltip,
+    ValidatedOptions,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
+import { SyncAltIcon } from '@patternfly/react-icons';
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
+import { BanIcon } from '@patternfly/react-icons/dist/js/icons/ban-icon';
 
 const _ = cockpit.gettext;
+
+class DynamicLists extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+
+    render() {
+        return (
+            <div className="ds-margin-left">
+                <Grid
+                    className="ds-margin-top-xlg"
+                    title={_("Enable or disable Dynamic Lists feature (nsslapd-dynamic-lists-enabled).")}
+                >
+                    <GridItem span={12}>
+                        <div className="ds-container">
+                            <Switch
+                                id="dynamiclistsenabled"
+                                label={<>Dynamic Lists <i>enabled</i></>}
+                                labelOff={<>Dynamic Lists <i>disabled</i></>}
+                                isChecked={this.props.dynamiclistsenabled}
+                                onChange={this.props.handleChange}
+                                ouiaId="dynamic switch"
+                            />
+                            <Tooltip
+                                id="dynamic_lists"
+                                position="top"
+                                content={
+                                    <div>
+                                        {_("Dynamic Lists is a feature that allows " +
+                                        "the server to dynamically add content to " +
+                                        "database entries during searches. " +
+                                        "This is most useful for creating dynamic " +
+                                        "groups. The content is controlled by using " +
+                                        "LDAP URI's to define the scope and content. " +
+                                        "See the official documentation for more " +
+                                        "information.")}
+                                    </div>
+                                }
+                            >
+                                <OutlinedQuestionCircleIcon
+                                    className="ds-left-margin ds-margin-top-sm"
+                                />
+                            </Tooltip>
+                        </div>
+                    </GridItem>
+                </Grid>
+                <Grid
+                    className="ds-margin-top-lg"
+                    title={_("Objectclass that identifies entries as 'dynamic' (nsslapd-dynamic-lists-oc).")}
+                >
+                    <GridItem className="ds-label" span={3}>
+                        {_("Dynamic List Objectclass")}
+                    </GridItem>
+                    <GridItem span={8}>
+                        <FormSelect
+                            id="dynamicoc"
+                            value={this.props.dynamicoc.toLowerCase()}
+                            onChange={this.props.handleChange}
+                            aria-label="Dynamic List Objectclass"
+                            ouiaId="DynamicListObjectclassSelect"
+                            isDisabled={!this.props.dynamiclistsenabled}
+                        >
+                            {this.props.objectClasses.map((option, index) => (
+                                <FormSelectOption key={index} value={option.toLowerCase()} label={option} />
+                            ))}
+                        </FormSelect>
+                    </GridItem>
+                </Grid>
+                <Grid
+                    className="ds-margin-top-lg"
+                    title={_("Attribute that contains the LDAP URL for the dynamic list (nsslapd-dynamic-lists-url-attr).")}
+                >
+                    <GridItem className="ds-label" span={3}>
+                        {_("Dynamic List URL Attribute")}
+                    </GridItem>
+                    <GridItem span={8}>
+                        <FormSelect
+                            id="dynamicurlattr"
+                            value={this.props.dynamicurlattr.toLowerCase()}
+                            onChange={this.props.handleChange}
+                            aria-label="Dynamic List URL Attribute"
+                            ouiaId="DynamicListURL Attr Select AttributeSelect"
+                            isDisabled={!this.props.dynamiclistsenabled}
+                        >
+                            {this.props.urlAttrs.map((option, index) => (
+                                <FormSelectOption key={index} value={option.name[0].toLowerCase()} label={option.name[0]} />
+                            ))}
+                        </FormSelect>
+                    </GridItem>
+                </Grid>
+                <Grid
+                    className="ds-margin-top-lg"
+                    title={_("Attribute that contains the dynamic list content. This attribute must have a DN syntax (nsslapd-dynamic-lists-attr).")}
+                >
+                    <GridItem className="ds-label" span={3}>
+                        {_("Dynamic List Attribute")}
+                    </GridItem>
+                    <GridItem span={8}>
+                        <FormSelect
+                            id="dynamiclistattr"
+                            value={this.props.dynamiclistattr.toLowerCase()}
+                            onChange={this.props.handleChange}
+                            aria-label="Dynamic List Attribute"
+                            ouiaId="DynamicListAttributeSelect"
+                            isDisabled={!this.props.dynamiclistsenabled}
+                        >
+                            {this.props.dnAttrs.map((option, index) => (
+                                <FormSelectOption key={index} value={option.name[0].toLowerCase()} label={option.name[0]} />
+                            ))}
+                        </FormSelect>
+                    </GridItem>
+                </Grid>
+            </div>
+        );
+    }
+}
 
 export class GlobalDatabaseConfig extends React.Component {
     constructor(props) {
@@ -29,52 +154,61 @@ export class GlobalDatabaseConfig extends React.Component {
         this.state = {
             saving: false,
             saveBtnDisabled: true,
+            error: {},
             activeTabKey:  this.props.data.activeTab,
             db_cache_auto: this.props.data.db_cache_auto,
             import_cache_auto: this.props.data.import_cache_auto,
-            looklimit: this.props.data.looklimit,
-            idscanlimit: this.props.data.idscanlimit,
-            pagelooklimit: this.props.data.pagelooklimit,
-            pagescanlimit: this.props.data.pagescanlimit,
-            rangelooklimit: this.props.data.rangelooklimit,
+            looklimit: parseInt(this.props.data.looklimit),
+            idscanlimit: parseInt(this.props.data.idscanlimit),
+            pagelooklimit: parseInt(this.props.data.pagelooklimit),
+            pagescanlimit: parseInt(this.props.data.pagescanlimit),
+            rangelooklimit: parseInt(this.props.data.rangelooklimit),
             autosize: this.props.data.autosize,
-            autosizesplit: this.props.data.autosizesplit,
-            dbcachesize: this.props.data.dbcachesize,
+            autosizesplit: parseInt(this.props.data.autosizesplit),
+            dbcachesize: parseInt(this.props.data.dbcachesize),
             txnlogdir: this.props.data.txnlogdir,
             dbhomedir: this.props.data.dbhomedir,
-            dblocks: this.props.data.dblocks,
+            dblocks: parseInt(this.props.data.dblocks),
             dblocksMonitoring: this.props.data.dblocksMonitoring,
-            dblocksMonitoringThreshold: this.props.data.dblocksMonitoringThreshold,
-            dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
-            chxpoint: this.props.data.chxpoint,
-            compactinterval: this.props.data.compactinterval,
+            dblocksMonitoringThreshold: parseInt(this.props.data.dblocksMonitoringThreshold),
+            dblocksMonitoringPause: parseInt(this.props.data.dblocksMonitoringPause),
+            chxpoint: parseInt(this.props.data.chxpoint),
+            compactinterval: parseInt(this.props.data.compactinterval),
             compacttime: this.props.data.compacttime,
-            importcachesize: this.props.data.importcachesize,
-            importcacheauto: this.props.data.importcacheauto,
-            ndncachemaxsize: this.props.data.ndncachemaxsize,
+            importcachesize: parseInt(this.props.data.importcachesize),
+            importcacheauto: parseInt(this.props.data.importcacheauto),
+            ndncachemaxsize: parseInt(this.props.data.ndncachemaxsize),
+            dynamiclistsenabled: this.props.data.dynamiclistsenabled,
+            dynamiclistattr: this.props.data.dynamiclistattr,
+            dynamicoc: this.props.data.dynamicoc,
+            dynamicurlattr: this.props.data.dynamicurlattr,
             // These variables store the original value (used for saving config)
-            _looklimit: this.props.data.looklimit,
-            _idscanlimit: this.props.data.idscanlimit,
-            _pagelooklimit: this.props.data.pagelooklimit,
-            _pagescanlimit: this.props.data.pagescanlimit,
-            _rangelooklimit: this.props.data.rangelooklimit,
+            _looklimit: parseInt(this.props.data.looklimit),
+            _idscanlimit: parseInt(this.props.data.idscanlimit),
+            _pagelooklimit: parseInt(this.props.data.pagelooklimit),
+            _pagescanlimit: parseInt(this.props.data.pagescanlimit),
+            _rangelooklimit: parseInt(this.props.data.rangelooklimit),
             _autosize: this.props.data.autosize,
-            _autosizesplit: this.props.data.autosizesplit,
-            _dbcachesize: this.props.data.dbcachesize,
+            _autosizesplit: parseInt(this.props.data.autosizesplit),
+            _dbcachesize: parseInt(this.props.data.dbcachesize),
             _txnlogdir: this.props.data.txnlogdir,
             _dbhomedir: this.props.data.dbhomedir,
-            _dblocks: this.props.data.dblocks,
+            _dblocks: parseInt(this.props.data.dblocks),
             _dblocksMonitoring: this.props.data.dblocksMonitoring,
-            _dblocksMonitoringThreshold: this.props.data.dblocksMonitoringThreshold,
-            _dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
-            _chxpoint: this.props.data.chxpoint,
-            _compactinterval: this.props.data.compactinterval,
+            _dblocksMonitoringThreshold: parseInt(this.props.data.dblocksMonitoringThreshold),
+            _dblocksMonitoringPause: parseInt(this.props.data.dblocksMonitoringPause),
+            _chxpoint: parseInt(this.props.data.chxpoint),
+            _compactinterval: parseInt(this.props.data.compactinterval),
             _compacttime: this.props.data.compacttime,
-            _importcachesize: this.props.data.importcachesize,
-            _importcacheauto: this.props.data.importcacheauto,
+            _importcachesize: parseInt(this.props.data.importcachesize),
+            _importcacheauto: parseInt(this.props.data.importcacheauto),
             _db_cache_auto: this.props.data.db_cache_auto,
             _import_cache_auto: this.props.data.import_cache_auto,
-            _ndncachemaxsize: this.props.data.ndncachemaxsize,
+            _ndncachemaxsize: parseInt(this.props.data.ndncachemaxsize),
+            _dynamiclistsenabled: this.props.data.dynamiclistsenabled,
+            _dynamiclistattr: this.props.data.dynamiclistattr,
+            _dynamicoc: this.props.data.dynamicoc,
+            _dynamicurlattr: this.props.data.dynamicurlattr,
         };
 
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
@@ -83,25 +217,35 @@ export class GlobalDatabaseConfig extends React.Component {
         this.handleSelectDBLocksMonitoring = this.handleSelectDBLocksMonitoring.bind(this);
         this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
 
+        this.dn_syntax_oids = ["1.3.6.1.4.1.1466.115.121.1.34",
+                               "1.3.6.1.4.1.1466.115.121.1.12"];
         this.maxValue = 2147483647;
+
         this.onMinusConfig = (id) => {
             this.setState({
-                [id]: Number(this.state[id]) - 1
+                [id]: Number(this.state[id]) - 1,
             }, () => { this.validateSaveBtn() });
         };
         this.onConfigChange = (event, id, min, max) => {
+            let error = this.state.error;
             let maxValue = this.maxValue;
             if (max !== 0) {
                 maxValue = max;
             }
+            let badValue = false;
             const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            if (newValue > maxValue || newValue < min) {
+                badValue = true;
+            }
+            error[id] = badValue;
             this.setState({
-                [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
+                [id]: newValue,
+                error,
             }, () => { this.validateSaveBtn() });
         };
         this.onPlusConfig = (id) => {
             this.setState({
-                [id]: Number(this.state[id]) + 1
+                [id]: Number(this.state[id]) + 1,
             }, () => { this.validateSaveBtn() });
         };
 
@@ -133,7 +277,8 @@ export class GlobalDatabaseConfig extends React.Component {
             "dblocks", "dblocksMonitoring", "dblocksMonitoringThreshold",
             "dblocksMonitoringPause", "chxpoint", "compactinterval",
             "compacttime", "importcachesize", "importcacheauto",
-            "ndncachemaxsize",
+            "ndncachemaxsize", "dynamiclistsenabled", "dynamiclistattr",
+            "dynamicoc", "dynamicurlattr",
         ];
 
         // Check if a setting was changed, if so enable the save button
@@ -143,6 +288,15 @@ export class GlobalDatabaseConfig extends React.Component {
                 break;
             }
         }
+
+        // Check if have any errors on our attributes
+        for (const config_attr of check_attrs) {
+            if (config_attr in this.state.error && this.state.error[config_attr]) {
+                saveBtnDisabled = true;
+                break;
+            }
+        }
+
         this.setState({
             saveBtnDisabled,
         });
@@ -153,14 +307,21 @@ export class GlobalDatabaseConfig extends React.Component {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
 
+        if (attr === "import_cache_auto" && value) {
+            // We need to set it to -1 if it's already set to 0
+            if (this.state.importcacheauto === "0") {
+                this.setState({ importcacheauto: "-1" });
+            }
+        }
+
         this.setState({
             [attr]: value,
         }, () => { this.validateSaveBtn() });
     }
 
-    handleTimeChange(_event, value) {
+    handleTimeChange = (_event, time, hour, min, seconds, isValid) => {
         this.setState({
-            compacttime: value,
+            compacttime: time,
         }, () => { this.validateSaveBtn() });
     }
 
@@ -174,7 +335,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
             log_cmd("save_ndn_cache", "Applying config change", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
@@ -193,14 +354,14 @@ export class GlobalDatabaseConfig extends React.Component {
                         }
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
                             saving: false
                         });
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                            cockpit.format(_("Error updating configuration - $0"), errMsg)
                         );
                     });
         } else {
@@ -245,12 +406,28 @@ export class GlobalDatabaseConfig extends React.Component {
         if (this.state._rangelooklimit !== this.state.rangelooklimit) {
             cmd.push("--rangelookthroughlimit=" + this.state.rangelooklimit);
         }
+        if (this.state._dynamiclistsenabled !== this.state.dynamiclistsenabled) {
+            if(this.state.dynamiclistsenabled) {
+                cmd.push("--enable-dynamic-lists");
+            } else {
+                cmd.push("--disable-dynamic-lists");
+            }
+        }
+        if (this.state._dynamiclistattr !== this.state.dynamiclistattr) {
+            cmd.push("--dynamic-list-attr=" + this.state.dynamiclistattr);
+        }
+        if (this.state._dynamicoc !== this.state.dynamicoc) {
+            cmd.push("--dynamic-oc=" + this.state.dynamicoc);
+        }
+        if (this.state._dynamicurlattr !== this.state.dynamicurlattr) {
+            cmd.push("--dynamic-url-attr=" + this.state.dynamicurlattr);
+        }
         if (this.state.db_cache_auto) {
             // Auto cache is selected
             if (this.state._db_cache_auto !== this.state.db_cache_auto) {
                 // We just enabled auto cache,
                 if (this.state.autosize === "0") {
-                    cmd.push("--cache-autosize=10");
+                    cmd.push("--cache-autosize=25");
                 } else {
                     cmd.push("--cache-autosize=" + this.state.autosize);
                 }
@@ -344,20 +521,20 @@ export class GlobalDatabaseConfig extends React.Component {
             });
             log_cmd("handleSaveDBConfig", "Applying config change", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.save_ndn_cache(requireRestart);
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
                             saving: false
                         });
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                            cockpit.format(_("Error updating configuration - $0"), errMsg)
                         );
                     });
         } else {
@@ -369,6 +546,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
     render() {
         let db_cache_form;
+        let mdb_cache_form;
         let import_cache_form;
         let db_auto_checked = false;
         let import_auto_checked = false;
@@ -400,6 +578,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 plusBtnAriaLabel="plus"
                                 widthChars={10}
                                 unit="%"
+                                validated={'dblocksMonitoringThreshold' in this.state.error &&
+                                    this.state.error['dblocksMonitoringThreshold']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -423,6 +605,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 minusBtnAriaLabel="minus"
                                 plusBtnAriaLabel="plus"
                                 widthChars={10}
+                                validated={'dblocksMonitoringPause' in this.state.error &&
+                                    this.state.error['dblocksMonitoringPause']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -454,7 +640,16 @@ export class GlobalDatabaseConfig extends React.Component {
                                 plusBtnAriaLabel="plus"
                                 widthChars={4}
                                 unit="%"
+                                validated={'autosize' in this.state.error &&
+                                    this.state.error['autosize']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
+                            <HelperText>
+                                <HelperTextItem variant="indeterminate">
+                                    Set the percentage to zero to manually tune the DB and entry cache
+                                </HelperTextItem>
+                            </HelperText>
                         </GridItem>
                     </Grid>
                     <Grid
@@ -478,6 +673,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 plusBtnAriaLabel="plus"
                                 widthChars={4}
                                 unit="%"
+                                validated={'autosizesplit' in this.state.error &&
+                                    this.state.error['autosizesplit']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -485,28 +684,33 @@ export class GlobalDatabaseConfig extends React.Component {
             );
             db_auto_checked = true;
         } else {
+            const dbcache_pretty = displayBytes(this.state.dbcachesize);
             db_cache_form = (
                 <div className="ds-margin-left">
                     <Grid
-                    title={_("Specifies the database index cache size in bytes (nsslapd-dbcachesize).")}
-                    className="ds-margin-top"
+                        title={_("Specifies the database index cache size in bytes (nsslapd-dbcachesize).")}
+                        className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
                             {_("Database Cache Size")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={9} title={dbcache_pretty}>
                             <NumberInput
-                            value={this.state.dbcachesize}
-                            min={512000}
-                            max={this.maxValue}
-                            onMinus={() => { this.onMinusConfig("dbcachesize") }}
-                            onChange={(e) => { this.onConfigChange(e, "dbcachesize", 512000, 0) }}
-                            onPlus={() => { this.onPlusConfig("dbcachesize") }}
-                            inputName="input"
-                            inputAriaLabel="number input"
-                            minusBtnAriaLabel="minus"
-                            plusBtnAriaLabel="plus"
-                            widthChars={10}
+                                value={this.state.dbcachesize}
+                                min={512000}
+                                max={this.maxValue}
+                                onMinus={() => { this.onMinusConfig("dbcachesize") }}
+                                onChange={(e) => { this.onConfigChange(e, "dbcachesize", 512000, 0) }}
+                                onPlus={() => { this.onPlusConfig("dbcachesize") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={10}
+                                validated={'dbcachesize' in this.state.error &&
+                                    this.state.error['dbcachesize']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -539,6 +743,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 plusBtnAriaLabel="plus"
                                 widthChars={4}
                                 unit={this.state.importcacheauto > 0 ? "%" : ""}
+                                validated={'importcacheauto' in this.state.error &&
+                                    this.state.error['importcacheauto']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -546,6 +754,7 @@ export class GlobalDatabaseConfig extends React.Component {
             );
             import_auto_checked = true;
         } else {
+            const import_pretty = displayBytes(this.state.importcachesize);
             import_cache_form = (
                 <div className="ds-margin-left">
                     <Grid
@@ -555,7 +764,7 @@ export class GlobalDatabaseConfig extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("Import Cache Size")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={9} title={import_pretty}>
                             <NumberInput
                                 value={this.state.importcachesize}
                                 min={512000}
@@ -568,6 +777,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 minusBtnAriaLabel="minus"
                                 plusBtnAriaLabel="plus"
                                 widthChars={10}
+                                validated={'importcachesize' in this.state.error &&
+                                    this.state.error['importcachesize']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -577,7 +790,7 @@ export class GlobalDatabaseConfig extends React.Component {
         }
 
         let spinner = "";
-        if (this.state.loading) {
+        if (this.props.loading) {
             spinner = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
@@ -585,7 +798,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             Loading global database configuration ...
                         </Text>
                     </TextContent>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                    <Spinner className="ds-margin-top" size="md" />
                 </div>
             );
         }
@@ -597,20 +810,39 @@ export class GlobalDatabaseConfig extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
+        const dnAttrs = this.props.attributes.filter(attr =>
+            ((attr.syntax && attr.syntax[0] === this.dn_syntax_oids[0]) ||
+             (attr.syntax && attr.syntax[0] === this.dn_syntax_oids[1])) &&
+            attr.name !== undefined &&
+            attr.name[0].toLowerCase() !== this.state.dynamicurlattr.toLowerCase()
+        );
+        const urlAttrs = this.props.attributes.filter(attr =>
+            attr.name !== undefined &&
+            attr.name[0].toLowerCase() !== this.state.dynamiclistattr.toLowerCase()
+        );
+
         return (
             <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
-                <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
+                <div className={this.props.loading ? 'ds-fadeout' : 'ds-fadein'}>
                     <TextContent>
-                        <Text className="ds-config-header" component={TextVariants.h2}>
+                        <Text component={TextVariants.h3}>
                             {_("Global Database Configuration")}
+                            <Button
+                                variant="plain"
+                                aria-label={_("Refresh config settings")}
+                                onClick={() => {
+                                    this.props.reload(this.state.activeTabKey);
+                                }}
+                            >
+                                <SyncAltIcon />
+                            </Button>
                         </Text>
                     </TextContent>
-
                     <div className="ds-margin-top-lg">
                         <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>{_("Limits")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit).")}
                                         className="ds-margin-top-xlg"
@@ -631,6 +863,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'looklimit' in this.state.error &&
+                                                    this.state.error['looklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -654,6 +890,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'idscanlimit' in this.state.error &&
+                                                    this.state.error['idscanlimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -677,6 +917,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'pagelooklimit' in this.state.error &&
+                                                    this.state.error['pagelooklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -700,6 +944,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'pagescanlimit' in this.state.error &&
+                                                    this.state.error['pagescanlimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -723,6 +971,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'rangelooklimit' in this.state.error &&
+                                                    this.state.error['rangelooklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -730,7 +982,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Tab>
 
                             <Tab eventKey={1} title={<TabTitleText>{_("Database Cache")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid className="ds-margin-top-xlg">
                                         <GridItem span={12}>
                                             <Checkbox
@@ -749,7 +1001,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Tab>
 
                             <Tab eventKey={2} title={<TabTitleText>{_("Import Cache")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid className="ds-margin-top-xlg">
                                         <GridItem span={12}>
                                             <Checkbox
@@ -769,13 +1021,30 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Tab>
 
                             <Tab eventKey={3} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
+                                    <Grid
+                                        title={_("Warning: Normalized DN Cache is disabled")}
+                                        className="ds-margin-top-xlg"
+                                    >
+                                        {this.props.data.ndn_cache_enabled === false && (
+                                            <GridItem span={8}>
+                                                <Alert
+                                                    variant="warning"
+                                                    isInline
+                                                    title={_("Normalized DN Cache is disabled")}
+                                                    className="ds-margin-bottom"
+                                                >
+                                                    {_("The Normalized DN Cache is currently disabled. To enable it, go to Server Settings → Tuning & Limits and enable 'Normalized DN Cache', then restart the server for the changes to take effect.")}
+                                                </Alert>
+                                            </GridItem>
+                                        )}
+                                    </Grid>
                                     <Grid
                                         title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            {_("Normalized DN Cache Max Size")}
+                                            {_("Normalized DN Cache Max Size") }
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -790,6 +1059,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'ndncachemaxsize' in this.state.error &&
+                                                           this.state.error['ndncachemaxsize']
+                                                            ? ValidatedOptions.error
+                                                            : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -797,7 +1070,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Tab>
 
                             <Tab eventKey={4} title={<TabTitleText>{_("Database Locks")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("The number of database locks (nsslapd-db-locks).")}
                                         className="ds-margin-top-xlg"
@@ -818,6 +1091,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'dblocks' in this.state.error &&
+                                                    this.state.error['dblocks']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -855,8 +1132,21 @@ export class GlobalDatabaseConfig extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={5} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                            <Tab eventKey={5} title={<TabTitleText>{_("Dynamic Lists")}</TabTitleText>}>
+                                <DynamicLists
+                                    dynamiclistsenabled={this.state.dynamiclistsenabled}
+                                    handleChange={this.handleChange}
+                                    objectClasses={this.props.objectClasses}
+                                    dynamicoc={this.state.dynamicoc}
+                                    dynamicurlattr={this.state.dynamicurlattr}
+                                    dynamiclistattr={this.state.dynamiclistattr}
+                                    dnAttrs={dnAttrs}
+                                    urlAttrs={urlAttrs}
+                                />
+                            </Tab>
+
+                            <Tab eventKey={6} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("Database Transaction Log Location (nsslapd-db-logdirectory).")}
                                         className="ds-margin-top-xlg"
@@ -928,6 +1218,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'compactinterval' in this.state.error &&
+                                                    this.state.error['compactinterval']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -951,6 +1245,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'chxpoint' in this.state.error &&
+                                                    this.state.error['chxpoint']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -960,7 +1258,7 @@ export class GlobalDatabaseConfig extends React.Component {
                     </div>
 
                     <Button
-                        className="ds-margin-top-lg"
+                        className="ds-margin-top-lg ds-margin-left"
                         onClick={this.handleSaveDBConfig}
                         variant="primary"
                         isLoading={this.state.saving}
@@ -999,121 +1297,174 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             saving: false,
             saveBtnDisabled: true,
             availDbSizeBytes: 0,
+            error: {},
             activeTabKey:  this.props.data.activeTab,
-            db_cache_auto: this.props.data.db_cache_auto,
-            import_cache_auto: this.props.data.import_cache_auto,
-            looklimit: this.props.data.looklimit,
-            idscanlimit: this.props.data.idscanlimit,
-            pagelooklimit: this.props.data.pagelooklimit,
-            pagescanlimit: this.props.data.pagescanlimit,
-            rangelooklimit: this.props.data.rangelooklimit,
+            urlAttrs: [],
+            dnAttrs: [],
+            autosize: parseInt(this.props.data.autosize),
+            looklimit: parseInt(this.props.data.looklimit),
+            idscanlimit: parseInt(this.props.data.idscanlimit),
+            pagelooklimit: parseInt(this.props.data.pagelooklimit),
+            pagescanlimit: parseInt(this.props.data.pagescanlimit),
+            rangelooklimit: parseInt(this.props.data.rangelooklimit),
             dbhomedir: this.props.data.dbhomedir,
-            mdbmaxsize: this.props.data.mdbmaxsize,
-            mdbmaxreaders: this.props.data.mdbmaxreaders,
-            mdbmaxdbs: this.props.data.mdbmaxdbs,
-            ndncachemaxsize: this.props.data.ndncachemaxsize,
+            mdbmaxsize: parseInt(this.props.data.mdbmaxsize),
+            mdbmaxreaders: parseInt(this.props.data.mdbmaxreaders),
+            mdbmaxdbs: parseInt(this.props.data.mdbmaxdbs),
+            ndncachemaxsize: parseInt(this.props.data.ndncachemaxsize),
+            dynamiclistsenabled: this.props.data.dynamiclistsenabled,
+            dynamiclistattr: this.props.data.dynamiclistattr,
+            dynamicoc: this.props.data.dynamicoc,
+            dynamicurlattr: this.props.data.dynamicurlattr,
             // These variables store the original value (used for saving config)
-            _looklimit: this.props.data.looklimit,
-            _idscanlimit: this.props.data.idscanlimit,
-            _pagelooklimit: this.props.data.pagelooklimit,
-            _pagescanlimit: this.props.data.pagescanlimit,
-            _rangelooklimit: this.props.data.rangelooklimit,
+            _autosize: parseInt(this.props.data.autosize),
+            _looklimit: parseInt(this.props.data.looklimit),
+            _idscanlimit: parseInt(this.props.data.idscanlimit),
+            _pagelooklimit: parseInt(this.props.data.pagelooklimit),
+            _pagescanlimit: parseInt(this.props.data.pagescanlimit),
+            _rangelooklimit: parseInt(this.props.data.rangelooklimit),
             _dbhomedir: this.props.data.dbhomedir,
-            _mdbmaxsize: this.props.data.mdbmaxsize,
-            _mdbmaxreaders: this.props.data.mdbmaxreaders,
-            _mdbmaxdbs: this.props.data.mdbmaxdbs,
-            _ndncachemaxsize: this.props.data.ndncachemaxsize,
+            _mdbmaxsize: parseInt(this.props.data.mdbmaxsize),
+            _mdbmaxreaders: parseInt(this.props.data.mdbmaxreaders),
+            _mdbmaxdbs: parseInt(this.props.data.mdbmaxdbs),
+            _ndncachemaxsize: parseInt(this.props.data.ndncachemaxsize),
+            _dynamiclistsenabled: this.props.data.dynamiclistsenabled,
+            _dynamiclistattr: this.props.data.dynamiclistattr,
+            _dynamicoc: this.props.data.dynamicoc,
+            _dynamicurlattr: this.props.data.dynamicurlattr,
         };
 
+        this.isFieldValid = this.isFieldValid.bind(this);
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
         this.loadAvailableDiskSpace = this.loadAvailableDiskSpace.bind(this);
 
-        this.maxValue = 2147483647;
-        this.onMinusConfig = (id) => {
-            if (id === "mdbmaxsize") {
-                this.setState({
-                    [id]: Number(this.state[id]) - (1024 * 1024)
-                }, () => { this.validateSaveBtn() });
-            } else {
-                this.setState({
-                    [id]: Number(this.state[id]) - 1
-                }, () => { this.validateSaveBtn() });
+        this.dn_syntax_oids = ["1.3.6.1.4.1.1466.115.121.1.34",
+                               "1.3.6.1.4.1.1466.115.121.1.12"];
+
+        // All fields that participate in change tracking
+        this.validationFields = [
+            "looklimit", "idscanlimit", "pagelooklimit",
+            "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
+            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs", "autosize",
+            "dynamiclistsenabled", "dynamiclistattr", "dynamicoc",
+            "dynamicurlattr",
+        ];
+
+        // Field validation rules configuration
+        this.fieldValidationRules = (fieldId) => {
+            switch(fieldId) {
+                case 'mdbmaxsize':
+                    return {
+                        min: 100,
+                        max: Math.floor(this.state.availDbSizeBytes / (1024 * 1024)),
+                        special: null
+                    };
+                case 'mdbmaxreaders':
+                    return { min: 26, max: 200, special: 0 };  // 0 = auto-tune
+                case 'mdbmaxdbs':
+                    return { min: 131, max: 5000, special: 0 };  // 0 = auto-tune
+                case 'autosize':
+                    return { min: 1, max: 100, special: 0 };  // 0 = auto-tune
+                case 'looklimit':
+                    return { min: 0, max: this.maxValue, special: -1 };  // -1 = unlimited
+                case 'ndncachemaxsize':
+                    return { min: 1024000, max: this.maxValue, special: null };
+                case 'idscanlimit':
+                    return { min: 100, max: this.maxValue, special: null };
+                case 'pagelooklimit':
+                    return { min: 0, max: this.maxValue, special: -1 };  // -1 = unlimited
+                case 'pagescanlimit':
+                    return { min: 100, max: this.maxValue, special: 0 };
+                case 'rangelooklimit':
+                    return { min: 0, max: this.maxValue, special: -1 };  // -1 = unlimited
+                default:
+                    return { min: 0, max: this.maxValue, special: null };
             }
         };
 
-        this.onRangeConfigMinus = (id, special, lower) => {
+        this.onConfigMinus = (id) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === lower) {
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules(id);
+            const { min, special } = rules;
+
+            if (special !== null && value === special) {
+                // at special, cant go any lower
+                return;
+            } else if (value === min && special !== null && special < min) {
+                // min to special
                 value = special;
+            } else if (value <= min) {
+                // at min or below, cant go any lower
+                return;
             } else {
                 value -= 1;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
-            }, () => { this.validateSaveBtn() });
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
-        this.onRangeConfigChange = (event, id) => {
+        this.onConfigChange = (event, id) => {
             const value = isNaN(event.target.value) ? 0 : Number(event.target.value);
-            this.setState({ [id]: value });
-        };
+            let error = { ...this.state.error };
 
-        this.onRangeConfigChangeBlur = (id, special, lower, upper) => {
-            let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === special) {
-                // nothing to do
-            } else if (value < lower) {
-                value = lower;
-            } else if (value > upper) {
-                value = upper;
-            }
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
-            }, () => { this.validateSaveBtn() });
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
-        this.onConfigChange = (event, id, min, max) => {
-            let maxValue = this.maxValue;
-            if (max !== 0) {
-                maxValue = max;
-            }
-            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
-            if (id === "mdbmaxsize") {
-                const newValueBytes = newValue * (1024 * 1024);
-                this.setState({
-                    [id]: (newValueBytes > max ? max : newValueBytes < min ? min : newValueBytes)
-                }, () => { this.validateSaveBtn() });
-            } else {
-                this.setState({
-                    [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
-                }, () => { this.validateSaveBtn() });
-            }
-        };
-
-        this.onPlusConfig = (id) => {
-            if (id === "mdbmaxsize") {
-                this.setState({
-                    [id]: Number(this.state[id]) + (1024 * 1024)
-                }, () => { this.validateSaveBtn() });
-            } else {
-                this.setState({
-                    [id]: Number(this.state[id]) + 1
-                }, () => { this.validateSaveBtn() });
-            }
-        };
-
-        this.onRangeConfigPlus = (id, special, lower) => {
+        this.onConfigChangeBlur = (id) => {
             let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
-            if (value === special) {
-                value = lower;
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules(id);
+            const { min, max, special } = rules;
+
+            if (special !== null && value === special) {
+                // at special, nothing to do
+            } else if (value < min) {
+                // below min, clamp to min
+                value = min;
+            } else if (value > max) {
+                // above max, clamp to max
+                value = max;
+            }
+
+            error[id] = !this.isFieldValid(id, value);
+            this.setState({
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
+        };
+
+        this.onConfigPlus = (id) => {
+            let value = isNaN(this.state[id]) ? 0 : Number(this.state[id]);
+            let error = { ...this.state.error };
+            const rules = this.fieldValidationRules(id);
+            const { min, max, special } = rules;
+
+            if (special !== null && value === special) {
+                // special to min
+                value = min;
+            } else if (value >= max) {
+                // at max, cant go any higher
+                return;
             } else {
                 value += 1;
             }
+
+            error[id] = !this.isFieldValid(id, value);
             this.setState({
-                [id]: value
-            }, () => { this.validateSaveBtn() });
+                [id]: value,
+                error
+            }, () => { this.validateSaveBtn(id) });
         };
 
         // Toggle currently active tab
@@ -1122,6 +1473,45 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                 activeTabKey: tabIndex
             });
         };
+    }
+
+    // Helper method to determine if a field has specific validation rules (NumberInput) or uses defaults (text field)
+    hasValidationRules(fieldId) {
+        const rules = this.fieldValidationRules(fieldId);
+        return !(rules.min === 0 && rules.max === this.maxValue && rules.special === null);
+    }
+
+    isFieldValid(fieldId, value) {
+        const rules = this.fieldValidationRules(fieldId);
+        const numValue = Number(value);
+
+        if (rules.special !== null && rules.special === numValue) {
+            return true;
+        }
+
+        const { min, max } = rules;
+        return numValue >= min && numValue <= max;
+    }
+
+    getFieldMinValue(fieldId) {
+        const rules = this.fieldValidationRules(fieldId);
+        const { min, special } = rules;
+
+        if (special !== null && special < min) {
+            return special;
+        }
+
+        return min;
+    }
+
+    getFieldMaxValue(fieldId) {
+        const rules = this.fieldValidationRules(fieldId);
+        return rules.max;
+    }
+
+    // int32 max
+    get maxValue() {
+        return 2147483647;
     }
 
     componentDidMount() {
@@ -1134,36 +1524,54 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         this.ismounted = false;
     }
 
-    validateSaveBtn() {
-        let saveBtnDisabled = true;
-        const check_attrs = [
-            "looklimit", "idscanlimit", "pagelooklimit",
-            "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
-            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs",
-        ];
+    validateSaveBtn(fieldId) {
+        let hasChanges = false;
+        let hasErrors = false;
+        let hasValidationErrors = false;
 
-        // Check if a setting was changed, if so enable the save button
-        for (const config_attr of check_attrs) {
-            if (this.state[config_attr] !== this.state['_' + config_attr]) {
-                // jc console.log(config_attr);
-                saveBtnDisabled = false;
+        // Single loop to check all conditions efficiently
+        for (const fieldName of this.validationFields) {
+            // Check for changes
+            if (!hasChanges && this.state[fieldName].toString() !== this.state['_' + fieldName].toString()) {
+                hasChanges = true;
+            }
+
+            // Check for existing errors
+            if (!hasErrors && this.state.error[fieldName]) {
+                hasErrors = true;
+            }
+
+            // Check for NumberInput validation errors (only if we have changes and no existing errors)
+            if (!hasValidationErrors && hasChanges && !hasErrors) {
+                if (this.hasValidationRules(fieldName) && !this.isFieldValid(fieldName, this.state[fieldName])) {
+                    hasValidationErrors = true;
+                }
+            }
+
+            // Early exit if we already know the button should be disabled
+            if (hasErrors || (hasChanges && hasValidationErrors)) {
                 break;
             }
         }
-        // jc console.log(saveBtnDisabled);
-        this.setState({
-            saveBtnDisabled
-        });
+
+        const saveBtnDisabled = !hasChanges || hasErrors || hasValidationErrors;
+        this.setState({ saveBtnDisabled });
     }
 
     handleChange(e, str) {
         // Generic
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
+        const error = { ...this.state.error };
+
+        error[attr] = this.hasValidationRules(attr) ? !this.isFieldValid(attr, value) : false;
 
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn() });
+            error
+        }, () => {
+            this.validateSaveBtn(attr);
+        });
     }
 
     save_ndn_cache(requireRestart) {
@@ -1176,7 +1584,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
             log_cmd("save_ndn_cache", "Applying config change", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
@@ -1195,14 +1603,14 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                         }
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
                             saving: false
                         });
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                            cockpit.format(_("Error updating configuration - $0"), errMsg)
                         );
                     });
         } else {
@@ -1248,7 +1656,8 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             cmd.push("--rangelookthroughlimit=" + this.state.rangelooklimit);
         }
         if (this.state._mdbmaxsize !== this.state.mdbmaxsize) {
-            cmd.push("--mdb-max-size=" + this.state.mdbmaxsize);
+            const mdbmaxsizeMB = this.state.mdbmaxsize * 1024 * 1024;
+            cmd.push("--mdb-max-size=" + mdbmaxsizeMB);
             requireRestart = true;
         }
         if (this.state._mdbmaxreaders !== this.state.mdbmaxreaders) {
@@ -1259,26 +1668,47 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             cmd.push("--mdb-max-dbs=" + this.state.mdbmaxdbs);
             requireRestart = true;
         }
+        if (this.state._autosize !== this.state.autosize) {
+            cmd.push("--cache-autosize=" + this.state.autosize);
+            requireRestart = true;
+        }
+        if (this.state._dynamiclistsenabled !== this.state.dynamiclistsenabled) {
+            if(this.state.dynamiclistsenabled) {
+                cmd.push("--enable-dynamic-lists");
+            } else {
+                cmd.push("--disable-dynamic-lists");
+            }
+        }
+        if (this.state._dynamiclistattr !== this.state.dynamiclistattr) {
+            cmd.push("--dynamic-list-attr=" + this.state.dynamiclistattr);
+        }
+        if (this.state._dynamicoc !== this.state.dynamicoc) {
+            cmd.push("--dynamic-oc=" + this.state.dynamicoc);
+        }
+        if (this.state._dynamicurlattr !== this.state.dynamicurlattr) {
+            cmd.push("--dynamic-url-attr=" + this.state.dynamicurlattr);
+        }
+
         if (cmd.length > 6) {
             this.setState({
                 saving: true
             });
             log_cmd("handleSaveDBConfig", "Applying config change", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.save_ndn_cache(requireRestart);
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.state.activeTabKey);
                         this.setState({
                             saving: false
                         });
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                            cockpit.format(_("Error updating configuration - $0"), errMsg)
                         );
                     });
         } else {
@@ -1293,7 +1723,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         const cmd = "df -B1 " + this.state.dbhomedir + " | awk '{print $4}'";
         // log_cmd("loadAvailableDiskSpace", "Load available disk space", cmd);
         cockpit
-                .script(cmd, [], { superuser: true, err: "message" })
+                .script(cmd, [], { superuser: "require", err: "message" })
                 .done(output => {
                     available = output.split(/\s+/)[1];
                     if (this.ismounted) {
@@ -1311,7 +1741,9 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
     render() {
         let spinner = "";
-        if (this.state.loading) {
+        let db_cache_form;
+        let db_auto_checked = false;
+        if (this.props.loading) {
             spinner = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
@@ -1319,7 +1751,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                             Loading global database configuration ...
                         </Text>
                     </TextContent>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                    <Spinner className="ds-margin-top" size="md" />
                 </div>
             );
         }
@@ -1331,68 +1763,137 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
+        if (this.state.db_cache_auto) {
+            db_cache_form = (
+                <div className="ds-margin-left">
+                    <Grid
+                        title={_("Enable entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize). If 0 is set, the default value is used instead.")}
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            {_("Memory Percentage")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <NumberInput
+                                value={Number(this.state.autosize)}
+                                min={this.getFieldMinValue("autosize")}
+                                max={this.getFieldMaxValue("autosize")}
+                                onMinus={() => { this.onConfigMinus("autosize") }}
+                                onChange={(e) => { this.onConfigChange(e, "autosize") }}
+                                onBlur={() => { this.onConfigChangeBlur("autosize") }}
+                                onPlus={() => { this.onConfigPlus("autosize") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={4}
+                                unit="%"
+                                validated={'autosize' in this.state.error &&
+                                    this.state.error['autosize']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                </div>
+            );
+            db_auto_checked = true;
+        }
+
+        const dnAttrs = this.props.attributes.filter(attr =>
+            ((attr.syntax && attr.syntax[0] === this.dn_syntax_oids[0]) ||
+             (attr.syntax && attr.syntax[0] === this.dn_syntax_oids[1])) &&
+            attr.name !== undefined &&
+            attr.name[0].toLowerCase() !== this.state.dynamicurlattr.toLowerCase()
+        );
+        const urlAttrs = this.props.attributes.filter(attr =>
+            attr.name !== undefined &&
+            attr.name[0].toLowerCase() !== this.state.dynamiclistattr.toLowerCase()
+        );
+
+        const mdbmaxsizeMB = Math.floor(this.state.availDbSizeBytes / (1024 * 1024));
         return (
             <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
-                <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
+                <div className={this.props.loading ? 'ds-fadeout' : 'ds-fadein'}>
                     <TextContent>
-                        <Text className="ds-config-header" component={TextVariants.h2}>
+                        <Text component={TextVariants.h3}>
                             {_("Global Database Configuration")}
+                            <Button
+                                variant="plain"
+                                aria-label={_("Refresh config settings")}
+                                onClick={() => {
+                                    this.props.reload(this.state.activeTabKey);
+                                }}
+                            >
+                                <SyncAltIcon />
+                            </Button>
                         </Text>
                     </TextContent>
 
                     <div className="ds-margin-top-lg">
                         <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>{_("Database Size")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
-                                        title={_("Database maximum size in megabytes. The practical maximum size of an LMDB database is limited by the system’s addressable memory (nsslapd-mdb-max-size).")}
+                                        title={_("Database maximum size in megabytes. The practical maximum size of an LMDB database is limited by the system's addressable memory (nsslapd-mdb-max-size).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Maximum Size")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={Math.floor(this.state.mdbmaxsize / (1024 * 1024))}
-                                                min={104857600 / (1024 * 1024)}
-                                                max={Math.floor(this.state.availDbSizeBytes / (1024 * 1024))}
-                                                onMinus={() => { this.onMinusConfig("mdbmaxsize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize", 104857600, this.state.availDbSizeBytes) }}
-                                                onPlus={() => { this.onPlusConfig("mdbmaxsize") }}
+                                                value={Number(this.state.mdbmaxsize)}
+                                                min={this.getFieldMinValue("mdbmaxsize")}
+                                                max={this.getFieldMaxValue("mdbmaxsize")}
+                                                onMinus={() => { this.onConfigMinus("mdbmaxsize") }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize") }}
+                                                onBlur={() => { this.onConfigChangeBlur("mdbmaxsize") }}
+                                                onPlus={() => { this.onConfigPlus("mdbmaxsize") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 unit="MB"
                                                 widthChars={10}
+                                                validated={'mdbmaxsize' in this.state.error &&
+                                                    this.state.error['mdbmaxsize']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
                                 </div>
                             </Tab>
+
                             <Tab eventKey={1} title={<TabTitleText>{_("Limits")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Look Through Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.looklimit}
-                                                min={-1}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("looklimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "looklimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("looklimit") }}
+                                                value={Number(this.state.looklimit)}
+                                                min={this.getFieldMinValue("looklimit")}
+                                                max={this.getFieldMaxValue("looklimit")}
+                                                onMinus={() => { this.onConfigMinus("looklimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "looklimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("looklimit") }}
+                                                onPlus={() => { this.onConfigPlus("looklimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'looklimit' in this.state.error &&
+                                                    this.state.error['looklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1400,22 +1901,27 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("ID List Scan Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.idscanlimit}
-                                                min={100}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("idscanlimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "idscanlimit", 100, 0) }}
-                                                onPlus={() => { this.onPlusConfig("idscanlimit") }}
+                                                value={Number(this.state.idscanlimit)}
+                                                min={this.getFieldMinValue("idscanlimit")}
+                                                max={this.getFieldMaxValue("idscanlimit")}
+                                                onMinus={() => { this.onConfigMinus("idscanlimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "idscanlimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("idscanlimit") }}
+                                                onPlus={() => { this.onConfigPlus("idscanlimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'idscanlimit' in this.state.error &&
+                                                    this.state.error['idscanlimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1423,22 +1929,27 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Paged Search Look Through Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.pagelooklimit}
-                                                min={-1}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("pagelooklimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "pagelooklimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("pagelooklimit") }}
+                                                value={Number(this.state.pagelooklimit)}
+                                                min={this.getFieldMinValue("pagelooklimit")}
+                                                max={this.getFieldMaxValue("pagelooklimit")}
+                                                onMinus={() => { this.onConfigMinus("pagelooklimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "pagelooklimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("pagelooklimit") }}
+                                                onPlus={() => { this.onConfigPlus("pagelooklimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'pagelooklimit' in this.state.error &&
+                                                    this.state.error['pagelooklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1446,22 +1957,27 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Paged Search ID List Scan Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.pagescanlimit}
-                                                min={-1}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("pagescanlimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "pagescanlimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("pagescanlimit") }}
+                                                value={Number(this.state.pagescanlimit)}
+                                                min={this.getFieldMinValue("pagescanlimit")}
+                                                max={this.getFieldMaxValue("pagescanlimit")}
+                                                onMinus={() => { this.onConfigMinus("pagescanlimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "pagescanlimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("pagescanlimit") }}
+                                                onPlus={() => { this.onConfigPlus("pagescanlimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'pagescanlimit' in this.state.error &&
+                                                    this.state.error['pagescanlimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1469,63 +1985,103 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Range Search Look Through Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.rangelooklimit}
-                                                min={-1}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("rangelooklimit") }}
-                                                onChange={(e) => { this.onConfigChange(e, "rangelooklimit", -1, 0) }}
-                                                onPlus={() => { this.onPlusConfig("rangelooklimit") }}
+                                                value={Number(this.state.rangelooklimit)}
+                                                min={this.getFieldMinValue("rangelooklimit")}
+                                                max={this.getFieldMaxValue("rangelooklimit")}
+                                                onMinus={() => { this.onConfigMinus("rangelooklimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "rangelooklimit") }}
+                                                onBlur={() => { this.onConfigChangeBlur("rangelooklimit") }}
+                                                onPlus={() => { this.onConfigPlus("rangelooklimit") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'rangelooklimit' in this.state.error &&
+                                                    this.state.error['rangelooklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={4} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                            <Tab eventKey={2} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
+                                <div className="ds-margin-left">
+                                    <Grid
+                                        title={_("Warning: Normalized DN Cache is disabled")}
+                                        className="ds-margin-top-xlg"
+                                    >
+                                        {this.props.data.ndn_cache_enabled === false && (
+                                            <GridItem span={8}>
+                                                <Alert
+                                                    variant="warning"
+                                                    isInline
+                                                    title={_("Normalized DN Cache is disabled")}
+                                                    className="ds-margin-bottom"
+                                                >
+                                                    {_("The Normalized DN Cache is currently disabled. To enable it, go to Server Settings → Tuning & Limits and enable 'Normalized DN Cache', then restart the server for the changes to take effect.")}
+                                                </Alert>
+                                            </GridItem>
+                                        )}
+                                    </Grid>
                                     <Grid
                                         title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
-                                            {_("Normalized DN Cache Max Size")}
+                                        <GridItem className="ds-label" span={3}>
+                                            {_("Normalized DN Cache Max Size") }
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.ndncachemaxsize}
-                                                min={1000000}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("ndncachemaxsize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "ndncachemaxsize", 1000000, 0) }}
-                                                onPlus={() => { this.onPlusConfig("ndncachemaxsize") }}
+                                                value={Number(this.state.ndncachemaxsize)}
+                                                min={this.getFieldMinValue("ndncachemaxsize")}
+                                                max={this.getFieldMaxValue("ndncachemaxsize")}
+                                                onMinus={() => { this.onConfigMinus("ndncachemaxsize") }}
+                                                onChange={(e) => { this.onConfigChange(e, "ndncachemaxsize") }}
+                                                onBlur={() => { this.onConfigChangeBlur("ndncachemaxsize") }}
+                                                onPlus={() => { this.onConfigPlus("ndncachemaxsize") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'ndncachemaxsize' in this.state.error &&
+                                                           this.state.error['ndncachemaxsize']
+                                                            ? ValidatedOptions.error
+                                                            : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={5} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
+                            <Tab eventKey={3} title={<TabTitleText>{_("Dynamic Lists")}</TabTitleText>}>
+                                <DynamicLists
+                                    dynamiclistsenabled={this.state.dynamiclistsenabled}
+                                    handleChange={this.handleChange}
+                                    objectClasses={this.props.objectClasses}
+                                    dynamicoc={this.state.dynamicoc}
+                                    dynamicurlattr={this.state.dynamicurlattr}
+                                    dynamiclistattr={this.state.dynamiclistattr}
+                                    dnAttrs={dnAttrs}
+                                    urlAttrs={urlAttrs}
+                                />
+                            </Tab>
+
+                            <Tab eventKey={4} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
+                                <div className="ds-margin-left">
                                     <Grid
                                         title={_("Location for database memory mapped files, this element is read only.")}
-                                            className="ds-margin-top"
+                                            className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Home Directory")}
                                         </GridItem>
                                         <GridItem span={8}>
@@ -1543,23 +2099,27 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The maximum number of read transactions that can be opened simultaneously. A value of 0 means this value is computed by the server (nsslapd-mdb-max-readers).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Max Readers")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.mdbmaxreaders}
-                                                min={0}
-                                                max={200}
-                                                onMinus={() => { this.onRangeConfigMinus("mdbmaxreaders", 0, 26) }}
-                                                onChange={(e) => { this.onRangeConfigChange(e, "mdbmaxreaders") }}
-                                                onBlur={() => { this.onRangeConfigChangeBlur("mdbmaxreaders", 0, 26, 200) }}
-                                                onPlus={() => { this.onRangeConfigPlus("mdbmaxreaders", 0, 26) }}
+                                                value={Number(this.state.mdbmaxreaders)}
+                                                min={this.getFieldMinValue("mdbmaxreaders")}
+                                                max={this.getFieldMaxValue("mdbmaxreaders")}
+                                                onMinus={() => { this.onConfigMinus("mdbmaxreaders") }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxreaders") }}
+                                                onBlur={() => { this.onConfigChangeBlur("mdbmaxreaders") }}
+                                                onPlus={() => { this.onConfigPlus("mdbmaxreaders") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'mdbmaxreaders' in this.state.error &&
+                                                    this.state.error['mdbmaxreaders']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1567,24 +2127,78 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         title={_("The maximum number of named database instances that can be included within the memory mapped database file. A value of 0 means this value is computed by the server (nsslapd-mdb-max-dbs).")}
                                         className="ds-margin-top-xlg"
                                     >
-                                        <GridItem className="ds-label" span={4}>
+                                        <GridItem className="ds-label" span={3}>
                                             {_("Database Max DBs")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.mdbmaxdbs}
-                                                min={0}
-                                                max={5000}
-                                                onMinus={() => { this.onRangeConfigMinus("mdbmaxdbs", 0, 131) }}
-                                                onChange={(e) => { this.onRangeConfigChange(e, "mdbmaxdbs") }}
-                                                onBlur={() => { this.onRangeConfigChangeBlur("mdbmaxdbs", 0, 131, 5000) }}
-                                                onPlus={() => { this.onRangeConfigPlus("mdbmaxdbs", 0, 131) }}
+                                                value={Number(this.state.mdbmaxdbs)}
+                                                min={this.getFieldMinValue("mdbmaxdbs")}
+                                                max={this.getFieldMaxValue("mdbmaxdbs")}
+                                                onMinus={() => { this.onConfigMinus("mdbmaxdbs") }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxdbs") }}
+                                                onBlur={() => { this.onConfigChangeBlur("mdbmaxdbs") }}
+                                                onPlus={() => { this.onConfigPlus("mdbmaxdbs") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'mdbmaxdbs' in this.state.error &&
+                                                    this.state.error['mdbmaxdbs']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title={_("Enable entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize). If 0 is set, the default value is used instead.")}
+                                        className="ds-margin-top-xlg"
+                                    >
+                                        <GridItem className="ds-label" span={3}>
+                                            Cache {_("Memory Percentage")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <div className="ds-inline">
+                                                <NumberInput
+                                                    value={Number(this.state.autosize)}
+                                                    min={this.getFieldMinValue("autosize")}
+                                                    max={this.getFieldMaxValue("autosize")}
+                                                    onMinus={() => { this.onConfigMinus("autosize") }}
+                                                    onChange={(e) => { this.onConfigChange(e, "autosize") }}
+                                                    onBlur={() => { this.onConfigChangeBlur("autosize") }}
+                                                    onPlus={() => { this.onConfigPlus("autosize") }}
+                                                    inputName="input"
+                                                    inputAriaLabel="number input"
+                                                    minusBtnAriaLabel="minus"
+                                                    plusBtnAriaLabel="plus"
+                                                    widthChars={10}
+                                                    unit="%"
+                                                    validated={'autosize' in this.state.error &&
+                                                        this.state.error['autosize']
+                                                        ? ValidatedOptions.error
+                                                        : ValidatedOptions.default}
+                                                />
+                                            </div>
+                                            <div className="ds-inline ds-left-margin-md ds-lower-field">
+                                                <Button
+                                                    variant="secondary"
+                                                    isDisabled={this.state.autosize === 0}
+                                                    size="sm"
+                                                    icon={<BanIcon />}
+                                                    onClick={() => {
+                                                        this.setState({ autosize: 0 }, () => { this.validateSaveBtn() } )}
+                                                    }
+                                                    title="Sets the memory percentage to zero to disable auto-tuning"
+                                                >
+                                                    {_("Disable auto-tuning")}
+                                                </Button>
+                                            </div>
+                                            <HelperText>
+                                                <HelperTextItem variant="indeterminate">
+                                                    Set the percentage to zero to manually tune entry cache
+                                                </HelperTextItem>
+                                            </HelperText>
                                         </GridItem>
                                     </Grid>
                                 </div>
@@ -1592,7 +2206,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                         </Tabs>
                     </div>
                     <Button
-                        className="ds-margin-top-lg"
+                        className="ds-margin-top-lg ds-margin-left"
                         onClick={this.handleSaveDBConfig}
                         variant="primary"
                         isLoading={this.state.saving}
@@ -1616,9 +2230,13 @@ GlobalDatabaseConfigMDB.propTypes = {
     data: PropTypes.object,
     reload: PropTypes.func,
     enableTree: PropTypes.func,
+    attributes: PropTypes.array,
+    objectClasses: PropTypes.array,
 };
 
 GlobalDatabaseConfigMDB.defaultProps = {
     serverId: "",
     data: {},
+    attributes: [],
+    objectClasses: [],
 };

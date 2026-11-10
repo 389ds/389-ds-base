@@ -302,6 +302,7 @@ eq_call_all(void)
 static void
 eq_loop(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("event-q-old");
     while (eq_running) {
         time_t curtime = slapi_current_utc_time();
         PRIntervalTime timeout;

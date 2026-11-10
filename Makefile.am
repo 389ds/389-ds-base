@@ -23,7 +23,6 @@ NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 DEBUG_CFLAGS = @debug_cflags@
 DEBUG_CXXFLAGS = @debug_cxxflags@
-GCCSEC_CFLAGS = @gccsec_cflags@
 if CLANG_ENABLE
 ASAN_CFLAGS = @asan_cflags@
 else
@@ -32,6 +31,7 @@ ASAN_CFLAGS = @asan_cflags@ -lasan
 else
 ASAN_CFLAGS = @asan_cflags@
 endif
+GCCSEC_CFLAGS = @gccsec_cflags@
 endif
 MSAN_CFLAGS = @msan_cflags@
 TSAN_CFLAGS = @tsan_cflags@
@@ -52,7 +52,7 @@ SYSTEMD_DEFINES = @systemd_defs@
 CMOCKA_INCLUDES = $(CMOCKA_CFLAGS)
 
 PROFILING_DEFINES = @profiling_defs@
-SYSTEMTAP_DEFINES = @systemtap_defs@
+USDT_DEFINES = @usdt_defs@
 NSPR_INCLUDES = $(NSPR_CFLAGS)
 
 # Rust inclusions.
@@ -60,11 +60,11 @@ CARGO_FLAGS = @cargo_defs@
 
 if CLANG_ENABLE
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
-RUSTC_LINK_FLAGS = -C link-arg=-fuse-ld=lld
+RUSTC_LINK_FLAGS = -Clink-arg=-fuse-ld=lld
 RUST_LDFLAGS = -ldl -lpthread -lc -lm -lrt -lutil
 else
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
-RUSTC_LINK_FLAGS =
+RUSTC_LINK_FLAGS = -Clink-arg=-fuse-ld=ld
 # This avoids issues with stderr being double provided with clang + asan.
 RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
 endif
@@ -77,11 +77,11 @@ endif
 
 if CLANG_ENABLE
 CLANG_ON = 1
-CLANG_LDFLAGS = -latomic -fuse-ld=lld
+CLANG_LDFLAGS = -latomic -fuse-ld=lld -Wl,--build-id=sha1
 EXPORT_LDFLAGS =
 else
 CLANG_ON = 0
-CLANG_LDFLAGS =
+CLANG_LDFLAGS = -flto
 if DEBUG
 EXPORT_LDFLAGS = -rdynamic
 endif
@@ -98,6 +98,9 @@ else
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
+endif
+if WITH_LIBBDB_RO
+DS_DEFINES += -DWITH_LIBBDB_RO=1
 endif
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
 
@@ -155,7 +158,7 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 # Now that we have all our defines in place, setup the CPPFLAGS
 
 # These flags are the "must have" for all components
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(PROFILING_DEFINES) $(SYSTEMTAP_DEFINES) $(RUST_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(PROFILING_DEFINES) $(USDT_DEFINES) $(RUST_DEFINES)
 AM_CFLAGS = $(DEBUG_CFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 # Flags for Directory Server
@@ -184,10 +187,14 @@ endif
 ldaplib = @ldaplib@
 ldaplib_defs = @ldaplib_defs@
 
+if WITH_LIBBDB_RO
+DB_LINK =  @db_lib@ -llmdb
+else
 if BUNDLE_LIBDB
 DB_LINK = -llmdb
 else
 DB_LINK = @db_lib@ -ldb-@db_libver@ -llmdb
+endif
 endif
 DB_INC = @db_inc@
 DB_IMPL = libback-ldbm.la
@@ -302,10 +309,15 @@ gdbautoloaddir = $(prefixdir)/share/gdb/auto-load$(sbindir)
 cockpitdir = $(prefixdir)/share/cockpit@cockpitdir@
 metainfodir = $(prefixdir)/share/metainfo/389-console
 tmpfiles_d = @tmpfiles_d@
+tmpfiles_ddir = @tmpfiles_d@
+runtime_tmpfiles_d = @runtime_tmpfiles_d@
 
-# This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
-# sysctl.d is always in /lib.
-sysctldir = @prefixdir@/lib/sysctl.d
+sysctldir = @sysctl_d@
+sysusersdir = @sysusers_d@
+
+if INSTALL_TMPFILES
+dist_tmpfiles_d_DATA = ldap/admin/src/dirsrv.conf
+endif
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
@@ -326,6 +338,9 @@ bin_PROGRAMS = dbscan \
 # ----------------------------------------------------------------------------------------
 
 server_LTLIBRARIES = libslapd.la libldaputil.la libns-dshttpd.la librewriters.la
+if WITH_LIBBDB_RO
+server_LTLIBRARIES += librobdb.la
+endif
 
 lib_LTLIBRARIES = libsvrcore.la
 
@@ -503,6 +518,7 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/snmp_collator.h \
 	ldap/servers/slapd/sslerrstrs.h \
 	ldap/servers/slapd/statechange.h \
+	ldap/servers/slapd/threadpool_stats.h \
 	ldap/servers/slapd/uuid.h \
 	ldap/servers/slapd/vattr_spi.h \
 	ldap/servers/slapd/views.h \
@@ -562,6 +578,7 @@ dist_noinst_DATA = \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
 	$(srcdir)/ldap/servers/snmp/ldap-agent.conf \
 	$(srcdir)/ldap/servers/snmp/redhat-directory.mib \
+	$(srcdir)/ldap/admin/src/389-ds-base.sysusers \
 	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py \
 	$(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/m4 \
@@ -573,7 +590,7 @@ dist_noinst_DATA = \
 	$(srcdir)/VERSION.sh \
 	$(srcdir)/wrappers/*.in \
 	$(srcdir)/dirsrvtests \
-	$(srcdir)/src/lib389/setup.py.in \
+	$(srcdir)/src/lib389/pyproject.toml \
 	$(srcdir)/src/lib389
 
 
@@ -673,14 +690,18 @@ if SYSTEMD
 libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl wrappers/ds_selinux_restorecon.sh
 endif
 
-if ENABLE_COCKPIT
 install-data-hook:
+if ENABLE_COCKPIT
 	if [ "$(srcdir)" != "." ]; then cp -r $(srcdir)/src/cockpit src ; fi
 	mkdir -p src/cockpit/389-console/cockpit_dist/
 	mkdir -p $(DESTDIR)$(cockpitdir)
 	rsync -rupE src/cockpit/389-console/cockpit_dist/ $(DESTDIR)$(cockpitdir)
 	mkdir -p $(DESTDIR)$(metainfodir)
 	rsync -up src/cockpit/389-console/org.port389.cockpit_console.metainfo.xml $(DESTDIR)$(metainfodir)/org.port389.cockpit_console.metainfo.xml
+endif
+if INSTALL_SYSUSERS
+	mkdir -p $(DESTDIR)$(sysusersdir)
+	$(INSTALL_DATA) $(srcdir)/ldap/admin/src/389-ds-base.sysusers $(DESTDIR)$(sysusersdir)/$(PACKAGE_TARNAME).conf
 endif
 
 sbin_SCRIPTS =
@@ -692,13 +713,33 @@ dist_bin_SCRIPTS = ldap/admin/src/scripts/ds-replcheck \
 	ldap/admin/src/scripts/ds-logpipe.py
 
 dist_bin_SCRIPTS += ldap/admin/src/logconv.pl
+dist_bin_SCRIPTS += ldap/admin/src/logconv.py
 
 python_DATA = ldap/admin/src/scripts/failedbinds.py \
 	ldap/admin/src/scripts/logregex.py
 
 gdbautoload_DATA = ldap/admin/src/scripts/ns-slapd-gdb.py
 
+if INSTALL_SYSCTL
 dist_sysctl_DATA = ldap/admin/src/70-dirsrv.conf
+endif
+
+if USDT
+profilingstapdir = $(datadir)/$(PACKAGE_NAME)/profiling/stap
+profilingbpftracedir = $(datadir)/$(PACKAGE_NAME)/profiling/bpftrace
+
+dist_profilingstap_DATA = \
+	profiling/stap/probe_work_queue.stp \
+	profiling/stap/probe_do_search_detail.stp \
+	profiling/stap/probe_op_shared_search.stp \
+	profiling/stap/probe_log_access_detail.stp
+
+dist_profilingbpftrace_DATA = \
+	profiling/bpftrace/probe_work_queue.bt \
+	profiling/bpftrace/probe_do_search_detail.bt \
+	profiling/bpftrace/probe_op_shared_search.bt \
+	profiling/bpftrace/probe_log_access_detail.bt
+endif
 
 if SYSTEMD
 # yes, that is an @ in the filename . . .
@@ -750,6 +791,7 @@ dist_man_MANS = man/man1/dbscan.1 \
 	man/man1/ldap-agent.1 \
 	man/man1/ldclt.1 \
 	man/man1/logconv.pl.1 \
+	man/man1/logconv.py.1 \
 	man/man1/pwdhash.1 \
 	man/man5/99user.ldif.5 \
 	man/man8/ns-slapd.8 \
@@ -841,7 +883,6 @@ librslapd_la_SOURCES = \
 	src/librslapd/src/cache.rs \
 	src/librslapd/src/lib.rs
 
-librslapd_la_EXTRA = src/librslapd/Cargo.lock
 
 @abs_top_builddir@/rs/rslapd/@rust_target_dir@/librslapd.a: $(librslapd_la_SOURCES)
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -862,7 +903,6 @@ librnsslapd_la_SOURCES = \
 	src/librnsslapd/build.rs \
 	src/librnsslapd/src/lib.rs
 
-librnsslapd_la_EXTRA = src/librnsslapd/Cargo.lock
 
 @abs_top_builddir@/rs/rnsslapd/@rust_target_dir@/librnsslapd.a: $(librnsslapd_la_SOURCES)
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -901,7 +941,6 @@ libentryuuid_la_SOURCES = \
 	src/plugins/entryuuid/src/lib.rs \
 	$(libslapi_r_plugin_SOURCES)
 
-libentryuuid_la_EXTRA = src/plugin/entryuuid/Cargo.lock
 
 @abs_top_builddir@/rs/entryuuid/@rust_target_dir@/libentryuuid.a: $(libentryuuid_la_SOURCES) libslapd.la libentryuuid.la
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -919,7 +958,6 @@ libentryuuid_syntax_la_SOURCES = \
 	src/plugins/entryuuid_syntax/src/lib.rs \
 	$(libslapi_r_plugin_SOURCES)
 
-libentryuuid_syntax_la_EXTRA = src/plugin/entryuuid_syntax/Cargo.lock
 
 @abs_top_builddir@/rs/entryuuid_syntax/@rust_target_dir@/libentryuuid_syntax.a: $(libentryuuid_syntax_la_SOURCES) libslapd.la libentryuuid_syntax.la
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -939,7 +977,6 @@ libpwdchan_la_SOURCES = \
 	src/plugins/pwdchan/src/lib.rs \
 	$(libslapi_r_plugin_SOURCES)
 
-libpwdchan_la_EXTRA = src/plugin/pwdchan/Cargo.lock
 
 @abs_top_builddir@/rs/pwdchan/@rust_target_dir@/libpwdchan.a: $(libpwdchan_la_SOURCES) libslapd.la libpwdchan.la
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
@@ -952,11 +989,13 @@ libpwdchan_la_EXTRA = src/plugin/pwdchan/Cargo.lock
 
 # == pwdchan
 
-EXTRA_DIST = $(librslapd_la_SOURCES) $(librslapd_la_EXTRA) \
-			$(libentryuuid_la_SOURCES) $(libentryuuid_la_EXTRA) \
-			$(libentryuuid_syntax_la_SOURCES) $(libentryuuid_syntax_la_EXTRA) \
-			$(libpwdchan_la_SOURCES) $(libpwdchan_la_EXTRA) \
-			$(librnsslapd_la_SOURCES) $(librnsslapd_la_EXTRA)
+EXTRA_DIST = src/Cargo.toml \
+			src/Cargo.lock \
+			$(librslapd_la_SOURCES) \
+			$(libentryuuid_la_SOURCES) \
+			$(libentryuuid_syntax_la_SOURCES) \
+			$(libpwdchan_la_SOURCES) \
+			$(librnsslapd_la_SOURCES)
 
 ## Run rust tests
 # cargo does not support offline tests :(
@@ -1094,6 +1133,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/dn.c \
 	ldap/servers/slapd/dse.c \
 	ldap/servers/slapd/dynalib.c \
+	ldap/servers/slapd/dyncerts.c \
 	ldap/servers/slapd/entry.c \
 	ldap/servers/slapd/entrywsi.c \
 	ldap/servers/slapd/errormap.c \
@@ -1175,6 +1215,13 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(DB_INC) $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SVRCORE_INCLUDES)
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsvrcore.la $(RSLAPD_LIB) $(OPENSSL_LIBS)
+
+if ENABLE_HIBP
+libslapd_la_SOURCES += ldap/servers/slapd/hibp_client.c
+libslapd_la_CPPFLAGS += $(CURL_CFLAGS)
+libslapd_la_LIBADD += $(CURL_LIBS)
+dist_noinst_HEADERS += ldap/servers/slapd/hibp.h
+endif
 # If asan is enabled, it creates special libcrypt interceptors. However, they are
 # detected by the first load of libasan at runtime, and what is in the linked lib
 # so we need libcrypt to be present as soon as libasan is loaded for the interceptors
@@ -1194,19 +1241,26 @@ libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 # libback-bdb
 #------------------------
 DB_BDB_SRCS = \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_config.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_instance_config.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_verify.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_layer.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_misc.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_perfctrs.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_upgrade.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_version.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_monitor.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_ldif2db.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import_threads.c
+	@db_bdb_srcdir@/bdb_config.c \
+	@db_bdb_srcdir@/bdb_instance_config.c \
+	@db_bdb_srcdir@/bdb_verify.c \
+	@db_bdb_srcdir@/bdb_layer.c \
+	@db_bdb_srcdir@/bdb_misc.c \
+	@db_bdb_srcdir@/bdb_perfctrs.c \
+	@db_bdb_srcdir@/bdb_upgrade.c \
+	@db_bdb_srcdir@/bdb_version.c \
+	@db_bdb_srcdir@/bdb_monitor.c \
+	@db_bdb_srcdir@/bdb_ldif2db.c \
+	@db_bdb_srcdir@/bdb_import.c \
+	@db_bdb_srcdir@/bdb_import_threads.c
 
+
+if WITH_LIBBDB_RO
+  # db-bdb sources are compiled within libback-ldbm.so and linked to librobdb
+  DB_BDB_SRCS += @db_bdb_srcdir@/bdb_bdbreader_glue.c
+  DB_BDB_WITHIN_BACKLDBM = $(DB_BDB_SRCS)
+  ROBDB_INC = -I$(srcdir)/lib/librobdb/lib
+else
 if BUNDLE_LIBDB
   # db-bdb sources are compiled within libback-bdb.so
   DB_BDB_WITHIN_BACKLDBM =
@@ -1220,6 +1274,20 @@ else
   # db-bdb sources are compiled within libback-ldbm.so
   DB_BDB_WITHIN_BACKLDBM = $(DB_BDB_SRCS)
 endif
+endif
+
+clean-bdb-ro-src:
+	/bin/rm -f $(DB_BDB_RO_BUILT_SRCS)
+
+build-src: $(BUILT_SOURCES)
+echo-src:
+	@echo V2 @db_bdbro_srcdir@
+	@echo V3 @db_bdb_srcdir@
+	@echo V1 $(patsubst %-ro/,%,$(dir $(DB_BDB_RO_BUILT_SRCS)))
+	@echo V4 $(DB_BDB_RO_BUILT_SRCS)
+	@echo V5 $(DB_BDB_WITHIN_BACKLDBM)
+	@echo V6 $(libback_ldbm_la_SOURCES)
+
 
 #------------------------
 # libback-ldbm
@@ -1296,10 +1364,23 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	$(DB_BDB_WITHIN_BACKLDBM)
 
 
-libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC)
+libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC) $(ROBDB_INC)
 libback_ldbm_la_DEPENDENCIES = libslapd.la
 libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK)
 libback_ldbm_la_LDFLAGS = -avoid-version
+
+if WITH_LIBBDB_RO
+libback_ldbm_la_LIBADD += librobdb.la
+libback_ldbm_la_DEPENDENCIES += librobdb.la
+
+#------------------------
+# librobdb
+#------------------------
+librobdb_la_SOURCES =  lib/librobdb/lib/bdb_ro.c
+librobdb_la_CPPFLAGS = $(AM_CPPFLAGS) $(DB_INC)
+librobdb_la_LDFLAGS =  -avoid-version
+librobdb_la_LIBADD =
+endif
 
 #------------------------
 # libacctpolicy-plugin
@@ -1899,6 +1980,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/strdup.c \
 	ldap/servers/slapd/stubs.c \
 	ldap/servers/slapd/tempnam.c  \
+	ldap/servers/slapd/threadpool_stats.c \
 	ldap/servers/slapd/unbind.c \
 	ldap/servers/slapd/subentries.c
 
@@ -1941,6 +2023,7 @@ test_slapd_SOURCES = test/main.c \
 	test/libslapd/operation/v3_compat.c \
 	test/libslapd/spal/meminfo.c \
 	test/libslapd/haproxy/parse.c \
+	test/libslapd/csngen/clock_error.c \
 	test/plugins/test.c \
 	test/plugins/pwdstorage/pbkdf2.c
 
@@ -1954,6 +2037,12 @@ test_slapd_LDFLAGS = $(AM_CPPFLAGS) $(CMOCKA_LINKS)
 # We need to pull in plugin header paths too:
 test_slapd_CPPFLAGS =	$(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) \
 						-I$(srcdir)/ldap/servers/plugins/pwdstorage
+
+if ENABLE_HIBP
+test_slapd_SOURCES += test/libslapd/hibp/parse.c
+test_slapd_LDADD += $(CURL_LIBS)
+test_slapd_CPPFLAGS += $(CURL_CFLAGS)
+endif
 
 endif
 #------------------------
@@ -2027,6 +2116,8 @@ fixupcmd = sed \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@with_systemd\@,$(WITH_SYSTEMD),g' \
 	-e 's,@tmpfiles_d\@,$(tmpfiles_d),g' \
+	-e 's,@runtime_tmpfiles_d\@,$(runtime_tmpfiles_d),g' \
+	-e 's,@sysusers_d\@,$(sysusersdir),g' \
 	-e 's,@pythonexec\@,@pythonexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g' \
@@ -2106,14 +2197,21 @@ git-archive:
 	fi ; \
 	git archive --prefix=$(distdir)/ $$gittag | bzip2 > $$srcdistdir/$(distdir).tar.bz2
 
+# Duplicate topologies.py from test389 lib to lib389.tests
+$(srcdir)/src/lib389/lib389/tests/topologies.py: $(srcdir)/dirsrvtests/lib/test389/topologies.py
+	cp $< $@
+
 # Python test tests
 # How will we update this to python 3?
 
-lib389: $(srcdir)/src/lib389/setup.py
-	cd $(srcdir)/src/lib389; $(PYTHON) setup.py build ; $(PYTHON) setup.py build_manpages
+lib389: $(srcdir)/src/lib389/lib389/tests/topologies.py
+	cd $(srcdir)/src/lib389 && \
+	python3 validate_version.py && \
+	python3 -m build
 
 lib389-install: lib389
-	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build --force
+	cd $(srcdir)/src/lib389 && \
+	pip3 install . --no-deps --force-reinstall
 
 if ENABLE_COCKPIT
 

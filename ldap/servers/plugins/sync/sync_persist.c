@@ -28,7 +28,7 @@ static SyncRequestList *sync_request_list = NULL;
  */
 #define SYNC_IS_INITIALIZED() (sync_request_list != NULL)
 
-static int plugin_closing = 0;
+static PRUint64 plugin_closing = 0;
 static PRUint64 thread_count = 0;
 static int sync_add_request(SyncRequest *req);
 static void sync_remove_request(SyncRequest *req);
@@ -40,6 +40,69 @@ static void sync_node_free(SyncQueueNode **node);
 
 static int sync_acquire_connection(Slapi_Connection *conn);
 static int sync_release_connection(Slapi_PBlock *pb, Slapi_Connection *conn, Slapi_Operation *op, int release);
+
+/*
+ * Free all resources owned by a SyncRequest and the request itself.
+ * Caller must remove the request from the list (sync_remove_request)
+ * before calling this, if it was added.
+ */
+static void
+sync_request_free(SyncRequest **reqp)
+{
+    SyncRequest *req;
+    SyncQueueNode *qnode, *qnodenext;
+
+    if (reqp == NULL || *reqp == NULL) {
+        return;
+    }
+    req = *reqp;
+
+    if (req->req_pblock) {
+        char **attrs_dup = NULL;
+        char *strFilter = NULL;
+        LDAPControl **ctrls = NULL;
+        Slapi_DN *sdn = NULL;
+
+        slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_TARGET_SDN, &sdn);
+        slapi_sdn_free(&sdn);
+        slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_TARGET_SDN, NULL);
+
+        slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_ATTRS, &attrs_dup);
+        slapi_ch_array_free(attrs_dup);
+        slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_ATTRS, NULL);
+
+        slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_STRFILTER, &strFilter);
+        slapi_ch_free((void **)&strFilter);
+        slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_STRFILTER, NULL);
+
+        slapi_pblock_get(req->req_pblock, SLAPI_REQCONTROLS, &ctrls);
+        if (ctrls) {
+            ldap_controls_free(ctrls);
+            slapi_pblock_set(req->req_pblock, SLAPI_REQCONTROLS, NULL);
+        }
+
+        slapi_pblock_destroy(req->req_pblock);
+        req->req_pblock = NULL;
+    }
+
+    slapi_ch_free((void **)&req->req_orig_base);
+    slapi_filter_free(req->req_filter, 1);
+    req->req_filter = NULL;
+
+    for (qnode = req->ps_eq_head; qnode; qnode = qnodenext) {
+        qnodenext = qnode->sync_next;
+        sync_node_free(&qnode);
+    }
+    req->ps_eq_head = NULL;
+    req->ps_eq_tail = NULL;
+
+    if (req->req_lock) {
+        PR_DestroyLock(req->req_lock);
+        req->req_lock = NULL;
+    }
+
+    slapi_ch_free((void **)reqp);
+}
 
 /* This routine appends the operation at the end of the
  * per thread pending list of nested operation..
@@ -195,7 +258,7 @@ ignore_op_pl(Slapi_PBlock *pb)
  * of the completed operation.
  * When all operations are completed, if the primary operation is successful it
  * flushes (enqueue) the operations to the sync repl queue(s), else it just free
- * the pending list (skipping enqueue). 
+ * the pending list (skipping enqueue).
  */
 static void
 sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t op_tag, char *label)
@@ -221,7 +284,7 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
         ignore_op_pl(pb);
         return;
     }
-    
+
     /* Retrieve the result of the operation */
     if (slapi_op_internal(pb)) {
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -287,11 +350,11 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
         }
     }
     if (!curr_op) {
-        slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "%s - operation (op=0x%lx, idx_pl=%d) not found on the pendling list\n", 
+        slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "%s - operation (op=0x%lx, idx_pl=%d) not found on the pendling list\n",
                       label, (ulong) pb_op, ident->idx_pl);
         PR_ASSERT(curr_op);
     }
-    
+
     /* for diagnostic of the pending list, dump its content if it is too long */
     for (count = 0, curr_op = prim_op; curr_op; count++, curr_op = curr_op->next);
     if (loglevel_is_set(SLAPI_LOG_PLUGIN) && (count > 10)) {
@@ -368,7 +431,7 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
             if (enqueue_it) {
                 sync_queue_change(curr_op);
             }
-            
+
             /* now free this pending operation */
             next = curr_op->next;
             slapi_entry_free(curr_op->entry);
@@ -532,8 +595,16 @@ sync_queue_change(OPERATION_PL_CTX_T *operation)
             }
             /* Put it on the end of the list for this sync search */
             PR_Lock(req->req_lock);
+            /* check if the queue max size is reached */
+            if (req->req_queue_count >= req->req_queue_max_size) {
+                slapi_log_err(SLAPI_LOG_WARNING, SYNC_PLUGIN_SUBSYSTEM, "sync_queue_change - queue max size reached, dropping entry \"%s\"\n", slapi_entry_get_dn_const(node->sync_entry));
+                PR_Unlock(req->req_lock);
+                sync_node_free(&node);
+                continue;
+            }
             pOldtail = req->ps_eq_tail;
             req->ps_eq_tail = node;
+            req->req_queue_count++;
             if (NULL == req->ps_eq_head) {
                 req->ps_eq_head = req->ps_eq_tail;
             } else {
@@ -568,7 +639,7 @@ sync_queue_change(OPERATION_PL_CTX_T *operation)
  * of established content sync persistent requests
  */
 int
-sync_persist_initialize(int argc, char **argv)
+sync_persist_initialize(int argc, char **argv, Slapi_Entry *config_entry)
 {
     if (!SYNC_IS_INITIALIZED()) {
         pthread_condattr_t sync_req_condAttr; /* cond var attribute */
@@ -607,14 +678,44 @@ sync_persist_initialize(int argc, char **argv)
 
         sync_request_list->sync_req_head = NULL;
         sync_request_list->sync_req_cur_persist = 0;
-        sync_request_list->sync_req_max_persist = SYNC_MAX_CONCURRENT;
+        sync_request_list->sync_req_max_persist = SYNC_DEFAULT_MAX_CONCURRENT;
+        sync_request_list->sync_req_queue_max_size = SYNC_DEFAULT_QUEUE_MAX_SIZE;
+        /* set the max concurrent persistent sync searches */
         if (argc > 0) {
             /* for now the only plugin arg is the max concurrent
              * persistent sync searches
              */
             sync_request_list->sync_req_max_persist = sync_number2int(argv[0]);
             if (sync_request_list->sync_req_max_persist == -1) {
-                sync_request_list->sync_req_max_persist = SYNC_MAX_CONCURRENT;
+                sync_request_list->sync_req_max_persist = SYNC_DEFAULT_MAX_CONCURRENT;
+            }
+        } else if (NULL != config_entry) {
+            char *value = NULL;
+            if ((value = (char *)slapi_entry_attr_get_ref(config_entry, SYNC_CFG_MAX_CONCURRENT))) {
+                sync_request_list->sync_req_max_persist = sync_number2int(value);
+                if (sync_request_list->sync_req_max_persist == -1) {
+                    sync_request_list->sync_req_max_persist = SYNC_DEFAULT_MAX_CONCURRENT;
+                }
+            }
+        }
+        /* set the max queue size per persistent sync search */
+        if (NULL != config_entry) {
+            char *value = NULL;
+            if ((value = (char *)slapi_entry_attr_get_ref(config_entry, SYNC_CFG_QUEUE_MAX_SIZE))) {
+                sync_request_list->sync_req_queue_max_size = sync_number2int(value);
+                if (sync_request_list->sync_req_queue_max_size < 100) {
+                    /* too small queue max size, set to default */
+                    slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize - Queue max size is too small (<100), setting to default %d\n", SYNC_DEFAULT_QUEUE_MAX_SIZE);
+                    sync_request_list->sync_req_queue_max_size = SYNC_DEFAULT_QUEUE_MAX_SIZE;
+                }
+                if (sync_request_list->sync_req_queue_max_size > 100000) {
+                    /* too large queue max size, set to default */
+                    slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize - Queue max size is too large (>100000), setting to default %d\n", SYNC_DEFAULT_QUEUE_MAX_SIZE);
+                    sync_request_list->sync_req_queue_max_size = SYNC_DEFAULT_QUEUE_MAX_SIZE;
+                }
+                if (sync_request_list->sync_req_queue_max_size != SYNC_DEFAULT_QUEUE_MAX_SIZE) {
+                    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize - Queue max size is set to %d\n", sync_request_list->sync_req_queue_max_size);
+                }
             }
         }
         plugin_closing = 0;
@@ -665,12 +766,9 @@ sync_persist_add(Slapi_PBlock *pb)
                               prerr, slapi_pr_strerror(prerr));
                 /* Now remove the ps from the list so call the function ps_remove */
                 sync_remove_request(req);
-                PR_DestroyLock(req->req_lock);
-                req->req_lock = NULL;
-                slapi_ch_free((void **)&req->req_pblock);
-                slapi_ch_free((void **)&req);
+                sync_request_free(&req);
             } else {
-                thread_count++;
+                slapi_atomic_incr_64(&thread_count, __ATOMIC_RELEASE);
                 return (req->req_tid);
             }
         }
@@ -739,11 +837,11 @@ sync_persist_terminate_all()
     SyncRequest *req = NULL, *next;
     if (SYNC_IS_INITIALIZED()) {
         /* signal the threads to stop */
-        plugin_closing = 1;
+        slapi_atomic_store_64(&plugin_closing, 1, __ATOMIC_RELEASE);
         sync_request_wakeup_all();
 
         /* wait for all the threads to finish */
-        while (thread_count > 0) {
+        while (slapi_atomic_load_64(&thread_count, __ATOMIC_ACQUIRE) > 0) {
             PR_Sleep(PR_SecondsToInterval(1));
         }
 
@@ -754,11 +852,7 @@ sync_persist_terminate_all()
         /* it frees the structures, just in case it remained connected sync_repl client */
         for (req = sync_request_list->sync_req_head; NULL != req; req = next) {
             next = req->req_next;
-            slapi_pblock_destroy(req->req_pblock);
-            req->req_pblock = NULL;
-            PR_DestroyLock(req->req_lock);
-            req->req_lock = NULL;
-            slapi_ch_free((void **)&req);
+            sync_request_free(&req);
         }
         slapi_ch_free((void **)&sync_request_list);
     }
@@ -786,6 +880,8 @@ sync_request_alloc(void)
     req->req_complete = 0;
     req->req_cookie = NULL;
     req->ps_eq_head = req->ps_eq_tail = (SyncQueueNode *)NULL;
+    req->req_queue_count = 0;
+    req->req_queue_max_size = SYNC_DEFAULT_QUEUE_MAX_SIZE;
     req->req_next = NULL;
     req->req_active = PR_FALSE;
     return req;
@@ -804,6 +900,8 @@ sync_add_request(SyncRequest *req)
         SYNC_LOCK_WRITE();
         if (sync_request_list->sync_req_cur_persist < sync_request_list->sync_req_max_persist) {
             sync_request_list->sync_req_cur_persist++;
+            req->req_queue_count = 0;
+            req->req_queue_max_size = sync_request_list->sync_req_queue_max_size;
             req->req_next = sync_request_list->sync_req_head;
             sync_request_list->sync_req_head = req;
         } else {
@@ -920,17 +1018,15 @@ sync_release_connection(Slapi_PBlock *pb, Slapi_Connection *conn, Slapi_Operatio
 static void
 sync_send_results(void *arg)
 {
+    slapi_set_thread_name("sync-send");
     SyncRequest *req = (SyncRequest *)arg;
-    SyncQueueNode *qnode, *qnodenext;
+    SyncQueueNode *qnode;
     int conn_acq_flag = 0;
     Slapi_Connection *conn = NULL;
     Slapi_Operation *op = req->req_orig_op;
-    LDAPControl **ctrls = NULL;
     int rc;
     PRUint64 connid;
     int opid;
-    char **attrs_dup;
-    char *strFilter;
 
     slapi_pblock_get(req->req_pblock, SLAPI_CONN_ID, &connid);
     slapi_pblock_get(req->req_pblock, SLAPI_OPERATION_ID, &opid);
@@ -951,7 +1047,7 @@ sync_send_results(void *arg)
 
     pthread_mutex_lock(&(sync_request_list->sync_req_cvarlock));
 
-    while ((conn_acq_flag == 0) && !req->req_complete && !plugin_closing) {
+    while ((conn_acq_flag == 0) && !req->req_complete && !slapi_atomic_load_64(&plugin_closing, __ATOMIC_ACQUIRE)) {
         /* Check for an abandoned operation */
         if (op == NULL || slapi_is_operation_abandoned(op)) {
             slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM,
@@ -983,7 +1079,8 @@ sync_send_results(void *arg)
             /* dequeue one element */
             PR_Lock(req->req_lock);
             qnode = req->ps_eq_head;
-            slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_queue_change - dequeue  "
+            req->req_queue_count--;
+            slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_send_results - dequeue  "
                           "\"%s\" \n",
                           slapi_entry_get_dn_const(qnode->sync_entry));
             req->ps_eq_head = qnode->sync_next;
@@ -1062,35 +1159,8 @@ sync_send_results(void *arg)
 done:
     /* This client closed the connection or shutdown, free the req */
     sync_remove_request(req);
-    PR_DestroyLock(req->req_lock);
-    req->req_lock = NULL;
-
-    slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_ATTRS, &attrs_dup);
-    slapi_ch_array_free(attrs_dup);
-    slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_ATTRS, NULL);
-
-    slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_STRFILTER, &strFilter);
-    slapi_ch_free((void **)&strFilter);
-    slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_STRFILTER, NULL);
-
-    slapi_pblock_get(req->req_pblock, SLAPI_REQCONTROLS, &ctrls);
-    if (ctrls) {
-        ldap_controls_free(ctrls);
-        slapi_pblock_set(req->req_pblock, SLAPI_REQCONTROLS, NULL);
-    }
-
-    slapi_pblock_destroy(req->req_pblock);
-    req->req_pblock = NULL;
-
-    slapi_ch_free((void **)&req->req_orig_base);
-    slapi_filter_free(req->req_filter, 1);
-
-    for (qnode = req->ps_eq_head; qnode; qnode = qnodenext) {
-        qnodenext = qnode->sync_next;
-        sync_node_free(&qnode);
-    }
-    slapi_ch_free((void **)&req);
-    thread_count--;
+    sync_request_free(&req);
+    slapi_atomic_decr_64(&thread_count, __ATOMIC_RELEASE);
 }
 
 

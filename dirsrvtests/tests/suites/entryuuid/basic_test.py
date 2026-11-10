@@ -17,7 +17,7 @@ import logging
 from lib389.idm.user import nsUserAccounts, UserAccounts
 from lib389.idm.account import Accounts
 from lib389.idm.domain import Domain
-from lib389.topologies import topology_st as topology
+from test389.topologies import topology_st as topology
 from lib389.backend import Backends
 from lib389.paths import Paths
 from lib389.utils import ds_is_older

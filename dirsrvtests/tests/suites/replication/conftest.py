@@ -9,7 +9,7 @@
 import os
 import logging
 import pytest
-from lib389.topologies import create_topology
+from test389.topologies import create_topology
 from lib389._constants import ReplicaRole
 
 DEBUGGING = os.getenv('DEBUGGING', default=False)

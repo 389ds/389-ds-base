@@ -196,6 +196,9 @@ class AddRole extends React.Component {
                 // true ==> Do not check the attribute selection when navigating back.
                 this.updateValuesTableRows(true);
             }
+            this.setState({
+                stepIdReached: id
+            });
         };
 
         this.handleSearchClick = () => {
@@ -822,6 +825,7 @@ class AddRole extends React.Component {
                                         skipLeafEntries
                                         handleNodeOnClick={this.onBaseDnSelection}
                                         showTreeLoadingState={this.showTreeLoadingState}
+                                        addNotification={this.props.addNotification}
                                     />
                                 </CardBody>
                             </Card>
@@ -844,16 +848,16 @@ class AddRole extends React.Component {
                         position="left"
                         onSelect={this.handleAttrDropDownSelect}
                         toggle={
-                            <BadgeToggle 
-                                id="toggle-attr-select" 
+                            <BadgeToggle
+                                id="toggle-attr-select"
                                 badgeProps={{
                                     className: selectedAttributes.length > 0 ? "ds-badge-bgcolor" : undefined,
                                     isRead: selectedAttributes.length === 0
                                 }}
                                 onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}
                             >
-                                {selectedAttributes.length > 0 ? 
-                                    `${selectedAttributes.length} ${_("selected")}` : 
+                                {selectedAttributes.length > 0 ?
+                                    `${selectedAttributes.length} ${_("selected")}` :
                                     `0 ${_("selected")}`}
                             </BadgeToggle>
                         }
@@ -898,7 +902,7 @@ class AddRole extends React.Component {
                                     }}
                                 />
                                 {row.cells.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={`${rowIndex}_${cellIndex}`}
                                         dataLabel={columnsRole[cellIndex]?.title || columnsRole[cellIndex]}
                                     >
@@ -952,7 +956,7 @@ class AddRole extends React.Component {
         );
 
         const ldifListItems = ldifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -1059,7 +1063,7 @@ class AddRole extends React.Component {
                 component: roleReviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 7,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding
             }
         ];
@@ -1067,6 +1071,11 @@ class AddRole extends React.Component {
         const title = (
             <>
                 {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {stepIdReached >= 2 &&
+                    <>
+                        <br />Role type:&nbsp;&nbsp;&nbsp;&nbsp;<strong>{this.state.roleType}</strong>
+                    </>
+                }
             </>
         );
 

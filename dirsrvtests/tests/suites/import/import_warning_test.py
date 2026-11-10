@@ -10,7 +10,7 @@
 import pytest
 
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_conf.backend import *
 from lib389.cli_base import FakeArgs
 from lib389._constants import DEFAULT_SUFFIX
@@ -105,6 +105,7 @@ def test_import_warning(topology_st):
     args.include_suffixes = 'dc=example,dc=com'
     args.exclude_suffixes = None
     args.timeout = 0
+    args.watch = False
 
     log.info('Import the LDIF file')
     backend_import(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)

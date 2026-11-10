@@ -14,16 +14,29 @@ import pytest
 import time
 import subprocess
 import glob
+import re
 from lib389.properties import TASK_WAIT
-from lib389.replica import Replicas
+from lib389.replica import Changelog, Changelog5, Replicas
 from lib389.idm.user import UserAccounts
-from lib389.topologies import topology_m2 as topo
-from lib389._constants import *
+from test389.topologies import topology_m2 as topo
+from lib389._constants import (
+    BDB_CL_FILENAME,
+    DEFAULT_BENAME,
+    DEFAULT_CHANGELOG_DB,
+    DEFAULT_SUFFIX,
+    DN_DM,
+    DN_USERROOT_LDBM,
+    HOST_SUPPLIER_1,
+    PASSWORD,
+    PORT_SUPPLIER_1,
+)
 from lib389.plugins import RetroChangelogPlugin
 from lib389.dseldif import DSEldif
-from lib389.tasks import *
-from lib389.utils import *
-from lib389.utils import ensure_bytes, ds_supports_new_changelog
+from lib389.utils import (
+    ds_is_older,
+    ds_supports_new_changelog,
+    ensure_bytes,
+)
 
 pytestmark = pytest.mark.tier1
 
@@ -46,10 +59,11 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+
 def _check_repl_changelog_backup(instance, backup_dir):
     # Note: there is no way to check dbi on lmdb backup
     # That said dbscan may perhaps do it ...
-    if instance.get_db_lib() is 'bdb':
+    if instance.get_db_lib() == 'bdb':
         if ds_supports_new_changelog():
             backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
         else:
@@ -59,6 +73,7 @@ def _check_repl_changelog_backup(instance, backup_dir):
         else:
             log.fatal('test_changelog5: backup directory does not exist : {}*'.format(backup_checkdir))
             assert False
+
 
 def _perform_ldap_operations(topo):
     """Add a test user, modify description, modrdn user and delete it"""
@@ -212,14 +227,10 @@ def add_and_check(topo, plugin, attr, val, isvalid):
                 log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
                 assert False
         else:
-            if plugin == CHANGELOG:
-                if entries[0].hasValue(attr, val):
-                    log.fatal('%s has unexpected (%s: %s)' % (plugin, attr, val))
-                    assert False
-            else:
-                if not entries[0].hasValue(attr, val):
-                    log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
-                    assert False
+            if entries[0].hasValue(attr, val):
+                log.fatal('%s has unexpected (%s: %s)' % (plugin, attr, val))
+                assert False
+
     except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (plugin, e.message['desc']))
         assert False
@@ -567,8 +578,10 @@ def test_changelog_maxage(topo, changelog_init):
             '/var/lib/dirsrv/slapd-supplier1/changelog' and
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
-        1. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '12345','10s','30M','12h','2D','4w'
-        2. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '-123','xyz'
+        1. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values:
+           '100s','100S','30m','30M','12h','12H','2d','2D','4w','4W'
+        2. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values:
+           '12345', 'd', '-123', '-123d', '345345xyz', '0d', 'xyz'
 
     :expectedresults:
         1. Operation should be successful
@@ -580,13 +593,22 @@ def test_changelog_maxage(topo, changelog_init):
     topo.ms["supplier1"].log.info("Bind as %s" % DN_DM)
     topo.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, CHANGELOG, MAXAGE, '12345', True)
-    add_and_check(topo, CHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '100s', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '100S', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '30m', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '30M', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '12H', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '2d', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '2D', True)
     add_and_check(topo, CHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '4W', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '12345', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, 'd', False)
     add_and_check(topo, CHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, '-123d', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, '345345xyz', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, '0d', False)
     add_and_check(topo, CHANGELOG, MAXAGE, 'xyz', False)
 
 
@@ -665,9 +687,9 @@ def test_retrochangelog_maxage(topo, changelog_init):
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to values -
-           '12345','10s','30M','12h','2D','4w'
+           '100s','100S','30m','30M','12h','12H','2d','2D','4w','4W'
         2. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to values -
-           '-123','xyz'
+           '12345', 'd', '-123', '-123d', '345345xyz', '0d', 'xyz'
 
     :expectedresults:
         1. Operation should be successful
@@ -679,13 +701,22 @@ def test_retrochangelog_maxage(topo, changelog_init):
     topo.ms["supplier1"].log.info("Bind as %s" % DN_DM)
     topo.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12345', True)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '100s', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '100S', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '30m', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '30M', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12H', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '2d', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '2D', True)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '4W', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12345', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, 'd', False)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '-123d', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '345345xyz', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '0d', False)
     add_and_check(topo, RETROCHANGELOG, MAXAGE, 'xyz', False)
 
     topo.ms["supplier1"].log.info("ticket47669 was successfully verified.")
@@ -751,7 +782,7 @@ def test_changelog_pagesize(topo):
          3. Should not have any 4K page size in db_stat output
     """
 
-    s1=topo.ms["supplier1"]
+    s1 = topo.ms["supplier1"]
     fs_pagesize = os.statvfs(s1.ds_paths.db_home_dir).f_bsize
     if fs_pagesize != 4096:
         pytest.skip("This test requires that database filesystem prefered block size is 4K.")
@@ -761,10 +792,54 @@ def test_changelog_pagesize(topo):
         log.debug(f"DEBUG: Running {cmd}")
         output = subprocess.check_output(cmd, universal_newlines=True, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        self.log.error(f'Failed to gather db statistics {cmd}: "{e.output.decode()}')
-        self.log.error(e)
+        log.error(f'Failed to gather db statistics {cmd}: "{e.output.decode()}')
+        log.error(e)
         raise e
     assert not re.match("^4096 *Page size", output, flags=re.MULTILINE)
+
+
+def test_changelog_type_validation(topo):
+    """Verify that changelog configuration properly validates attribute values
+
+    :id: 4c7681ff-0511-4256-9589-bdcad84c13e6
+    :setup: Replication with two suppliers
+    :steps:
+        1. Get changelog configuration object
+        2. Set valid string values for maxage and trim interval attributes
+        3. Verify the values were set correctly
+    :expectedresults:
+        1. Changelog object retrieved successfully
+        2. Valid string values should be accepted
+        3. Configuration should be updated with correct values
+    """
+
+    supplier = topo.ms["supplier1"]
+
+    log.info('Getting changelog configuration object')
+    if ds_supports_new_changelog():
+        cl = Changelog(supplier, suffix=DEFAULT_SUFFIX)
+    else:
+        cl = Changelog5(supplier)
+
+    log.info('Reading current changelog max age configuration')
+    current_maxage = cl.get_attr_val_utf8(MAXAGE)
+    log.info(f'Current {MAXAGE}: {current_maxage}')
+
+    log.info('Setting changelog maxage to 60s')
+    cl.replace(MAXAGE, '60s')
+
+    log.info('Setting changelog trim interval to 10s')
+    cl.replace(TRIMINTERVAL, '10s')
+
+    log.info('Verifying changelog maxage was updated')
+    new_maxage = cl.get_attr_val_utf8(MAXAGE)
+    assert new_maxage == '60s', f'Expected maxage "60s", got "{new_maxage}"'
+
+    log.info('Verifying changelog trim interval was updated')
+    new_triminterval = cl.get_attr_val_utf8(TRIMINTERVAL)
+    assert new_triminterval == '10s', f'Expected triminterval "10s", got "{new_triminterval}"'
+
+    log.info('Changelog configuration validated successfully')
 
 
 if __name__ == '__main__':

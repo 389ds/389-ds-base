@@ -122,7 +122,15 @@ sort_log_access(Slapi_PBlock *pb, sort_spec_thing *s, IDList *candidates, PRBool
         buffer_copy = slapi_ch_strdup(buffer);
     } else {
         /* Log it */
-        ldbm_log_access_message(pb, buffer);
+        int32_t log_format = config_get_accesslog_log_format();
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock logpb = {0};
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.sort_str = buffer;
+            slapd_log_access_sort(&logpb);
+        } else {
+            ldbm_log_access_message(pb, buffer);
+        }
     }
     if (buffer != stack_buffer) {
         slapi_ch_free_string(&buffer);

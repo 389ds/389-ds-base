@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/param.h>
@@ -77,6 +78,29 @@ slapi_copy(const char *srcfilename, const char *destfilename)
 
     unlink(destfilename);
     if (link(srcfilename, destfilename) < 0) {
+        rv = errno;
+    }
+
+    return rv;
+}
+
+/*
+ * Flush a directory's metadata (e.g. renames, links) to stable storage.
+ * Returns 0 on success, or the errno of the failing call. Does not log.
+ */
+int
+slapi_fsync_dir(const char *dirpath)
+{
+    int rv = 0;
+    int fd = open(dirpath, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+
+    if (fd < 0) {
+        return errno;
+    }
+    if (fsync(fd) != 0) {
+        rv = errno;
+    }
+    if (close(fd) != 0 && rv == 0) {
         rv = errno;
     }
 

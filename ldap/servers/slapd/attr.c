@@ -278,7 +278,7 @@ slapi_attr_init_syntax(Slapi_Attr *a)
     basetype = buf;
     tmp = slapi_attr_basetype(a->a_type, buf, sizeof(buf));
     if (tmp) {
-        basetype = buf;
+        basetype = tmp;
     }
     asi = attr_syntax_get_by_name_with_default(basetype);
     if (asi) {
@@ -288,6 +288,7 @@ slapi_attr_init_syntax(Slapi_Attr *a)
         a->a_mr_eq_plugin = asi->asi_mr_eq_plugin;
         a->a_mr_ord_plugin = asi->asi_mr_ord_plugin;
         a->a_mr_sub_plugin = asi->asi_mr_sub_plugin;
+        attr_syntax_return(asi);
     }
     if (tmp)
         slapi_ch_free_string(&tmp);
@@ -323,7 +324,7 @@ slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_loc
             asi = attr_syntax_get_by_name_locking_optional(
                 ATTR_WITH_OCTETSTRING_SYNTAX, use_lock, 0);
         } else {
-            char *attroptions = NULL;
+            const char *attroptions = NULL;
 
             if (NULL != type) {
                 attroptions = strchr(type, ';');
@@ -932,8 +933,20 @@ attr_check_minmax(const char *attr_name, char *value, long minval, long maxval, 
 {
     int retVal = LDAP_SUCCESS;
     long val;
+    char *endptr = NULL;
 
-    val = strtol(value, NULL, 0);
+    if (!value || *value == '\0') {
+        slapi_create_errormsg(errorbuf, ebuflen, "%s: attr value is NULL.", attr_name);
+        return LDAP_CONSTRAINT_VIOLATION;
+    }
+
+    errno = 0;
+    val = strtol(value, &endptr, 0);
+    if (endptr == value || *endptr != '\0' || errno != 0) {
+        slapi_create_errormsg(errorbuf, ebuflen, "%s: invalid value \"%s\".", attr_name, value);
+        return LDAP_CONSTRAINT_VIOLATION;
+    }
+
     if ((minval != -1 ? (val < minval ? 1 : 0) : 0) ||
         (maxval != -1 ? (val > maxval ? 1 : 0) : 0)) {
         slapi_create_errormsg(errorbuf, ebuflen, "%s: invalid value \"%s\".", attr_name, value);

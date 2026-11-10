@@ -146,6 +146,7 @@ void
 operation_init(Slapi_Operation *o, int flags)
 {
     if (NULL != o) {
+        slapdFrontendConfig_t *fecfg = getFrontendConfig();
         BerElement *ber = o->o_ber; /* may have already been set */
         /* We can't get rid of this til we remove the operation stack. */
         memset(o, 0, sizeof(Slapi_Operation));
@@ -164,6 +165,16 @@ operation_init(Slapi_Operation *o, int flags)
         o->o_flags = flags;
         o->o_reverse_search_state = 0;
         o->o_pagedresults_sizelimit = -1;
+        o->o_wbusy = -1;
+        o->o_wmax = -1;
+        o->o_wqdepth = -1;
+        if (fecfg) {
+            for(fgot_id_t id=0; id < FGOT_MAX; id++) {
+                if ((1UL<<id) & fecfg->fgot_flags) {
+                    o->o_fgots[id].enabled = true;
+                }
+            }
+        }
     }
 }
 
@@ -223,6 +234,22 @@ operation_done(Slapi_Operation **op, Connection *conn)
             (*op)->o_results.result_controls = NULL;
         }
         slapi_ch_free_string(&(*op)->o_results.result_matched);
+        slapi_ch_free_string(&(*op)->o_results.result_text);
+        /*
+         * For a search, the referral URLs collected by send_ldap_referral()
+         * live in the r_search arm of the results union and are never freed
+         * anywhere else (issue #7744).  send_ldap_referral() only fills that
+         * array on its LDAPv2 path, which is taken for genuine v2 clients and
+         * for internal searches (no connection), so those leak on every
+         * referral; v3 clients go through send_ldapv3_referral() and do not.
+         * Free it here, guarded by operation type because the union arm is
+         * only valid for a search.  ber_bvecfree() matches how the sibling
+         * refscopy array is freed in opshared.c process_entry().
+         */
+        if (operation_get_type(*op) == SLAPI_OPERATION_SEARCH) {
+            ber_bvecfree((*op)->o_results.r.r_search.search_referrals);
+            (*op)->o_results.r.r_search.search_referrals = NULL;
+        }
         int options = 0;
         /* save the old options */
         if ((*op)->o_ber) {
@@ -778,4 +805,44 @@ LDAPControl **
 operation_get_result_controls(const Operation *o)
 {
     return o->o_results.result_controls;
+}
+
+/* Set t in cumulative fine grain operation timing slot */
+void
+fgot_set(struct op *op, fgot_id_t fgot_id, struct timespec *t)
+{
+    if (op->o_fgots[fgot_id].enabled) {
+        op->o_fgots[fgot_id].c = *t;
+    }
+}
+
+/* Add t1-t2 in cumulative fine grain operation timing slot */
+void
+fgot_compute(struct op *op, fgot_id_t fgot_id, struct timespec *t1, struct timespec *t2)
+{
+    if (op->o_fgots[fgot_id].enabled) {
+        struct timespec elapsed;
+        slapi_timespec_diff(t1, t2, &elapsed);
+        slapi_timespec_add(&op->o_fgots[fgot_id].c, &elapsed);
+    }
+}
+
+/* Start cumulative fine grain operation timing */
+void
+fgot_start(struct op *op, fgot_id_t fgot_id)
+{
+    if (op->o_fgots[fgot_id].enabled) {
+        clock_gettime(CLOCK_MONOTONIC, &op->o_fgots[fgot_id].s);
+    }
+}
+
+/* End cumulative fine grain operation timing */
+void
+fgot_end(struct op *op, fgot_id_t fgot_id)
+{
+    if (op->o_fgots[fgot_id].enabled) {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        fgot_compute(op, fgot_id, &now, &op->o_fgots[fgot_id].s);
+    }
 }

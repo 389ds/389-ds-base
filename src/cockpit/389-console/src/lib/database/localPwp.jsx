@@ -1,13 +1,13 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { PwpTable } from "./databaseTables.jsx";
 import {
 	Alert,
 	Button,
 	Checkbox,
-	ExpandableSection,
+	Divider,
 	Form,
 	FormAlert,
 	FormHelperText,
@@ -15,6 +15,8 @@ import {
 	FormSelectOption,
 	Grid,
 	GridItem,
+	Modal,
+	ModalVariant,
 	Spinner,
 	Tab,
 	Tabs,
@@ -26,10 +28,12 @@ import {
 	ValidatedOptions
 } from '@patternfly/react-core';
 import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+    hasInvalidField,
+    renderValidationError,
+    updateFieldValidation,
+} from "./pwpValidation.jsx";
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
+import { DsNumberInput } from "../dsNumberInput.jsx";
 import { SyncAltIcon } from "@patternfly/react-icons";
 import PropTypes from "prop-types";
 
@@ -90,41 +94,135 @@ const tpr_attrs = [
     "passwordtprdelayvalidfrom",
 ];
 
+function getDefaultCreatePolicyState(defaultStorageScheme = "") {
+    return {
+        create_passwordchange: false,
+        create_passwordmustchange: false,
+        create_passwordhistory: false,
+        create_passwordtrackupdatetime: false,
+        create_passwordexp: false,
+        create_passwordsendexpiringtime: false,
+        create_passwordlockout: false,
+        create_passwordunlock: false,
+        create_passwordchecksyntax: false,
+        create_passwordpalindrome: false,
+        create_passworddictcheck: false,
+        create_passwordstoragescheme: defaultStorageScheme,
+        create_passwordinhistory: "0",
+        create_passwordwarning: "0",
+        create_passwordmaxage: "0",
+        create_passwordminage: "0",
+        create_passwordgracelimit: "0",
+        create_passwordlockoutduration: "0",
+        create_passwordmaxfailure: "0",
+        create_passwordresetfailurecount: "0",
+        create_passwordminlength: "0",
+        create_passwordmindigits: "0",
+        create_passwordminalphas: "0",
+        create_passwordminuppers: "0",
+        create_passwordminlowers: "0",
+        create_passwordminspecials: "0",
+        create_passwordmin8bit: "0",
+        create_passwordmaxrepeats: "0",
+        create_passwordmaxsequence: "0",
+        create_passwordmaxseqsets: "0",
+        create_passwordmaxclasschars: "0",
+        create_passwordmincategories: "0",
+        create_passwordmintokenlength: "0",
+        create_passwordbadwords: "",
+        create_passworduserattributes: [],
+        create_passwordtprmaxuse: "-1",
+        create_passwordtprdelayexpireat: "-1",
+        create_passwordtprdelayvalidfrom: "-1",
+        create_passwordadmindn: "",
+        create_passwordadminskipinfoupdate: false,
+        _create_passwordchange: false,
+        _create_passwordmustchange: false,
+        _create_passwordhistory: false,
+        _create_passwordtrackupdatetime: false,
+        _create_passwordexp: false,
+        _create_passwordsendexpiringtime: false,
+        _create_passwordlockout: false,
+        _create_passwordunlock: false,
+        _create_passwordchecksyntax: false,
+        _create_passwordpalindrome: false,
+        _create_passworddictcheck: false,
+        _create_passwordstoragescheme: defaultStorageScheme,
+        _create_passwordinhistory: "0",
+        _create_passwordwarning: "0",
+        _create_passwordmaxage: "0",
+        _create_passwordminage: "0",
+        _create_passwordgracelimit: "0",
+        _create_passwordlockoutduration: "0",
+        _create_passwordmaxfailure: "0",
+        _create_passwordresetfailurecount: "0",
+        _create_passwordminlength: "0",
+        _create_passwordmindigits: "0",
+        _create_passwordminalphas: "0",
+        _create_passwordminuppers: "0",
+        _create_passwordminlowers: "0",
+        _create_passwordminspecials: "0",
+        _create_passwordmin8bit: "0",
+        _create_passwordmaxrepeats: "0",
+        _create_passwordmaxsequence: "0",
+        _create_passwordmaxseqsets: "0",
+        _create_passwordmaxclasschars: "0",
+        _create_passwordmincategories: "0",
+        _create_passwordmintokenlength: "0",
+        _create_passwordbadwords: "",
+        _create_passworduserattributes: [],
+        _create_passwordtprmaxuse: "-1",
+        _create_passwordtprdelayexpireat: "-1",
+        _create_passwordtprdelayvalidfrom: "-1",
+        _create_passwordadmindn: "",
+        _create_passwordadminskipinfoupdate: false,
+    };
+}
+
+const edit_policy_attrs = general_attrs.concat(
+    exp_attrs,
+    lockout_attrs,
+    syntax_attrs,
+    tpr_attrs
+);
+
+function attrValuesDiffer(attr, orig, cur) {
+    if (attr === "passworduserattributes") {
+        const orig_val = Array.isArray(orig) ? orig.join(" ") : (orig || "");
+        const new_val = Array.isArray(cur) ? cur.join(" ") : (cur || "");
+        return orig_val !== new_val;
+    }
+    return orig !== cur;
+}
+
+function computeSaveEditDisabled(state) {
+    const hasChanges = edit_policy_attrs.some((attr) =>
+        attrValuesDiffer(attr, state["_" + attr], state[attr])
+    );
+    if (!hasChanges) {
+        return true;
+    }
+    return hasInvalidField(edit_policy_attrs, state.invalidFields);
+}
+
+function formatAttrValueForCmd(attr, val) {
+    if (attr === "passworduserattributes") {
+        return Array.isArray(val) ? val.join(" ") : val;
+    }
+    if (typeof val === "boolean") {
+        return val ? "on" : "off";
+    }
+    return val;
+}
+
 class CreatePolicy extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            isExpiredExpanded: false,
-            isGeneralExpanded: false,
-            isLockoutExpanded: false,
-            isSyntaxExpanded: false,
-            isTPRExpanded: false,
+            createActiveTabKey: 0,
         };
-
-        this.handleGeneralToggle = (_event, isGeneralExpanded) => {
-            this.setState({
-                isGeneralExpanded
-            });
-        };
-        this.handleLockoutToggle = (_event, isLockoutExpanded) => {
-            this.setState({
-                isLockoutExpanded
-            });
-        };
-        this.handleExpiredToggle = (_event, isExpiredExpanded) => {
-            this.setState({
-                isExpiredExpanded
-            });
-        };
-        this.handleSyntaxToggle = (_event, isSyntaxExpanded) => {
-            this.setState({
-                isSyntaxExpanded
-            });
-        };
-        this.handleTPRToggle = (_event, isTPRExpanded) => {
-            this.setState({
-                isTPRExpanded
-            });
+        this.handleCreateNavSelect = (_event, tabIndex) => {
+            this.setState({ createActiveTabKey: tabIndex });
         };
     }
 
@@ -135,18 +233,13 @@ class CreatePolicy extends React.Component {
         }
 
         return (
-            <div className="ds-margin-bottom-md">
-                <Form className="ds-margin-left ds-margin-top-xlg" isHorizontal autoComplete="off">
-                    <TextContent>
-                        <Text className="ds-center" component={TextVariants.h3}>
-                            {_("Create A New Local Password Policy")}
-                        </Text>
-                    </TextContent>
+            <>
+                <Form className="ds-margin-left" isHorizontal autoComplete="off">
                     <Grid className="ds-margin-top-lg">
                         <GridItem className="ds-label" span={3}>
                             {_("Password Policy Type")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={7}>
                             <FormSelect value={this.props.createPolicyType} onChange={this.props.handleSelectChange} id="createPolicyType" aria-label={_("FormSelect Input")}>
                                 <FormSelectOption key={1} value="Subtree Policy" label={_("Subtree Policy")} />
                                 <FormSelectOption key={2} value="User Policy" label={_("User Policy")} />
@@ -157,12 +250,13 @@ class CreatePolicy extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("Target DN")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={7}>
                             <TextInput
                                 type="text"
                                 id="policyDN"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="policyDN"
+                                value={this.props.policyDN}
                                 onChange={(e, str) => {
                                     this.props.handleChange(e);
                                 }}
@@ -173,19 +267,15 @@ class CreatePolicy extends React.Component {
                             </FormHelperText>
                         </GridItem>
                     </Grid>
-
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isGeneralExpanded ? _("Hide General Settings") : _("Show General Settings")}
-                        onToggle={(event, isOpen) => this.handleGeneralToggle(event, isOpen)}
-                        isExpanded={this.state.isGeneralExpanded}
-                    >
-                        <div className="ds-margin-left">
+                </Form>
+                <Tabs className="ds-margin-top-lg" activeKey={this.state.createActiveTabKey} onSelect={this.handleCreateNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("General Settings")}</TabTitleText>}>
+                        <Form className="ds-margin-left-sm ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid className="ds-margin-top" title={_("Set the password storage scheme (passwordstoragescheme).")}>
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Storage Scheme")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={7}>
                                     <FormSelect
                                         id="create_passwordstoragescheme"
                                         value={this.props.create_passwordstoragescheme}
@@ -206,33 +296,32 @@ class CreatePolicy extends React.Component {
                             </Grid>
                             <Grid
                                 title={_("Indicates the number of seconds that must pass before a user can change their password again. (passwordMinAge).")}
-                                className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Minimum Age")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        type="number"
+                                <GridItem span={7}>
+                                    <DsNumberInput
                                         id="create_passwordminage"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="create_passwordminage"
-                                        onChange={(e, checked) => {
+                                        value={this.props.create_passwordminage}
+                                        fieldName="create_passwordminage"
+                                        invalidFields={this.props.invalidCreateFields}
+                                        onChange={(e) => {
                                             this.props.handleChange(e);
                                         }}
                                     />
                                 </GridItem>
+                                {renderValidationError("create_passwordminage", this.props.invalidCreateFields)}
                             </Grid>
                             <Grid
-                                className="ds-margin-top"
                                 title={_("The DN for a password administrator or administrator group (passwordAdminDN).")}
                             >
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Administrator")}
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={7}>
                                     <TextInput
-                                        value={this.props.passwordadmindn}
+                                        value={this.props.create_passwordadmindn}
                                         type="text"
                                         id="create_passwordadmindn"
                                         aria-describedby="horizontal-form-name-helper"
@@ -243,23 +332,11 @@ class CreatePolicy extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid
-                                className="ds-margin-top"
-                                title={_("Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate).")}
-                            >
-                                <GridItem offset={3} span={9}>
-                                    <Checkbox
-                                        id="create_passwordadminskipinfoupdate"
-                                        isChecked={this.props.create_passwordadminskipinfoupdate}
-                                        onChange={(e, checked) => {
-                                            this.props.handleChange(e);
-                                        }}
-                                        label={_("Do not update target entry's password state attributes")}
-                                    />
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title={_("Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).")}>
-                                <GridItem span={12}>
+                            <Grid hasGutter>
+                                <GridItem
+                                    span={5}
+                                    title={_("Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).")}
+                                >
                                     <Checkbox
                                         id="create_passwordtrackupdatetime"
                                         isChecked={this.props.create_passwordtrackupdatetime}
@@ -269,9 +346,7 @@ class CreatePolicy extends React.Component {
                                         label={_("Track Password Update Time")}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title={_("Allow user's to change their passwords (passwordChange).")}>
-                                <GridItem span={12}>
+                                <GridItem span={5} title={_("Allow user's to change their passwords (passwordChange).")}>
                                     <Checkbox
                                         id="create_passwordchange"
                                         isChecked={this.props.create_passwordchange}
@@ -281,9 +356,7 @@ class CreatePolicy extends React.Component {
                                         label={_("Allow Users To Change Their Passwords")}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title={_("User must change its password after its been reset by an administrator (passwordMustChange).")}>
-                                <GridItem span={12}>
+                                <GridItem span={5} title={_("User must change its password after its been reset by an administrator (passwordMustChange).")}>
                                     <Checkbox
                                         id="create_passwordmustchange"
                                         isChecked={this.props.create_passwordmustchange}
@@ -293,9 +366,20 @@ class CreatePolicy extends React.Component {
                                         label={_("User Must Change Password After Reset")}
                                     />
                                 </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title={_("Maintain a password history for each user (passwordHistory).")}>
-                                <GridItem span={12}>
+                                <GridItem
+                                    span={5}
+                                    title={_("Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate).")}
+                                >
+                                    <Checkbox
+                                        id="create_passwordadminskipinfoupdate"
+                                        isChecked={this.props.create_passwordadminskipinfoupdate}
+                                        onChange={(e, checked) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label={_("Do not update target entry's password state attributes")}
+                                    />
+                                </GridItem>
+                                <GridItem span={5} title={_("Maintain a password history for each user (passwordHistory).")}>
                                     <div className="ds-inline">
                                         <Checkbox
                                             id="create_passwordhistory"
@@ -307,31 +391,25 @@ class CreatePolicy extends React.Component {
                                         />
                                     </div>
                                     <div className="ds-inline ds-left-margin ds-raise-field-md ds-width-sm">
-                                        <TextInput
-                                            value={this.props.passwordinhistory}
-                                            type="number"
+                                        <DsNumberInput
                                             id="create_passwordinhistory"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="create_passwordinhistory"
-                                            onChange={(e, checked) => {
+                                            value={this.props.create_passwordinhistory}
+                                            fieldName="create_passwordinhistory"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
                                                 this.props.handleChange(e);
                                             }}
                                         />
+                                        {renderValidationError("create_passwordinhistory", this.props.invalidCreateFields)}
                                     </div>
                                 </GridItem>
                             </Grid>
-                        </div>
-                    </ExpandableSection>
-
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isExpiredExpanded ? _("Hide Expiration Settings") : _("Show Expiration Settings")}
-                        onToggle={(event, isOpen) => this.handleExpiredToggle(event, isOpen)}
-                        isExpanded={this.state.isExpiredExpanded}
-                    >
-                        <div className="ds-margin-left">
+                        </Form>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Expiration")}</TabTitleText>}>
+                        <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                             <Grid className="ds-margin-top" title={_("Enable a password expiration policy (passwordExp).")}>
-                                <GridItem span={12}>
+                                <GridItem span={10}>
                                     <Checkbox
                                         id="create_passwordexp"
                                         isChecked={this.props.create_passwordexp}
@@ -345,62 +423,61 @@ class CreatePolicy extends React.Component {
                             <div className="ds-left-indent">
                                 <Grid
                                     title={_("The maximum age of a password in seconds before it expires (passwordMaxAge).")}
-                                    className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={4}>
                                         {_("Password Expiration Time")}
                                     </GridItem>
                                     <GridItem span={1}>
-                                        <TextInput
-                                            type="number"
+                                        <DsNumberInput
                                             id="create_passwordmaxage"
-                                            aria-describedby="create_passwordmaxage"
-                                            name="create_passwordmaxage"
-                                            onChange={(e, str) => {
+                                            value={this.props.create_passwordmaxage}
+                                            isDisabled={!this.props.create_passwordexp}
+                                            fieldName="create_passwordmaxage"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordexp}
                                         />
                                     </GridItem>
+                                    {renderValidationError("create_passwordmaxage", this.props.invalidCreateFields)}
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("The number of logins that are allowed after the password has expired (passwordGraceLimit).")}>
                                     <GridItem className="ds-label" span={4}>
                                         {_("Allowed Logins After Password Expires")}
                                     </GridItem>
                                     <GridItem span={1}>
-                                        <TextInput
-                                            type="number"
+                                        <DsNumberInput
                                             id="create_passwordgracelimit"
-                                            aria-describedby="create_passwordgracelimit"
-                                            name="create_passwordgracelimit"
-                                            onChange={(e, str) => {
+                                            value={this.props.create_passwordgracelimit}
+                                            isDisabled={!this.props.create_passwordexp}
+                                            fieldName="create_passwordgracelimit"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordexp}
                                         />
                                     </GridItem>
+                                    {renderValidationError("create_passwordgracelimit", this.props.invalidCreateFields)}
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning).")}>
                                     <GridItem className="ds-label" span={4}>
                                         {_("Send Password Expiring Warning")}
                                     </GridItem>
                                     <GridItem span={1}>
-                                        <TextInput
-                                            type="number"
+                                        <DsNumberInput
                                             id="create_passwordwarning"
-                                            aria-describedby="create_passwordwarning"
-                                            name="create_passwordwarning"
-                                            onChange={(e, str) => {
+                                            value={this.props.create_passwordwarning}
+                                            isDisabled={!this.props.create_passwordexp}
+                                            fieldName="create_passwordwarning"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordexp}
                                         />
                                     </GridItem>
+                                    {renderValidationError("create_passwordwarning", this.props.invalidCreateFields)}
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Always return a password expiring control when requested (passwordSendExpiringTime).")}>
-                                    <GridItem className="ds-label" span={4}>
-                                        {_("Send Password Expiring Warning")}
-                                    </GridItem>
                                     <GridItem span={4}>
                                         <Checkbox
                                             id="create_passwordsendexpiringtime"
@@ -408,25 +485,19 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordexp}
-                                            label={_("<>Always Send <i>Password Expiring</i> Control</>")}
+                                            isDisabled={!this.props.create_passwordexp}
+                                            label={_("Always send Password Expiring Control")}
                                             className="ds-lower-field"
                                         />
                                     </GridItem>
                                 </Grid>
                             </div>
-                        </div>
-                    </ExpandableSection>
-
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isLockoutExpanded ? _("Hide Lockout Settings") : _("Show Lockout Settings")}
-                        onToggle={(event, isOpen) => this.handleLockoutToggle(event, isOpen)}
-                        isExpanded={this.state.isLockoutExpanded}
-                    >
-                        <div className="ds-margin-left">
+                        </Form>
+                    </Tab>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Account Lockout")}</TabTitleText>}>
+                        <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                             <Grid className="ds-margin-top" title={_("Enable account lockout (passwordLockout).")}>
-                                <GridItem span={12}>
+                                <GridItem span={10}>
                                     <Checkbox
                                         id="create_passwordlockout"
                                         isChecked={this.props.create_passwordlockout}
@@ -438,56 +509,59 @@ class CreatePolicy extends React.Component {
                                 </GridItem>
                             </Grid>
                             <div className="ds-left-indent">
-                                <Grid className="ds-margin-top" title={_("The maximum number of failed logins before account gets locked (passwordMaxFailure).")}>
+                                <Grid title={_("The maximum number of failed logins before account gets locked (passwordMaxFailure).")}>
                                     <GridItem className="ds-label" span={4}>
                                         {_("Number of Failed Logins That Locks out Account")}
                                     </GridItem>
                                     <GridItem span={2}>
-                                        <TextInput
-                                            type="number"
+                                        <DsNumberInput
                                             id="create_passwordmaxfailure"
-                                            aria-describedby="create_passwordmaxfailure"
-                                            name="create_passwordmaxfailure"
-                                            onChange={(e, str) => {
+                                            value={this.props.create_passwordmaxfailure}
+                                            isDisabled={!this.props.create_passwordlockout}
+                                            fieldName="create_passwordmaxfailure"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordlockout}
                                         />
                                     </GridItem>
+                                    {renderValidationError("create_passwordmaxfailure", this.props.invalidCreateFields)}
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("The number of seconds until an accounts failure count is reset (passwordResetFailureCount).")}>
                                     <GridItem className="ds-label" span={4}>
-                                        {_("Time Until <i>Failure Count</i> Resets")}
+                                        {_("Time Until Failure Count Resets")}
                                     </GridItem>
                                     <GridItem span={2}>
-                                        <TextInput
-                                            type="number"
+                                        <DsNumberInput
                                             id="create_passwordresetfailurecount"
-                                            aria-describedby="create_passwordresetfailurecount"
-                                            name="create_passwordresetfailurecount"
-                                            onChange={(e, str) => {
+                                            value={this.props.create_passwordresetfailurecount}
+                                            isDisabled={!this.props.create_passwordlockout}
+                                            fieldName="create_passwordresetfailurecount"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordlockout}
                                         />
                                     </GridItem>
+                                    {renderValidationError("create_passwordresetfailurecount", this.props.invalidCreateFields)}
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("The number of seconds, duration, before the account gets unlocked (passwordLockoutDuration).")}>
                                     <GridItem className="ds-label" span={4}>
                                         {_("Time Until Account Unlocked")}
                                     </GridItem>
                                     <GridItem span={2}>
-                                        <TextInput
-                                            type="number"
+                                        <DsNumberInput
                                             id="create_passwordlockoutduration"
-                                            aria-describedby="create_passwordlockoutduration"
-                                            name="create_passwordlockoutduration"
-                                            onChange={(e, str) => {
+                                            value={this.props.create_passwordlockoutduration}
+                                            isDisabled={!this.props.create_passwordlockout}
+                                            fieldName="create_passwordlockoutduration"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordlockout}
                                         />
                                     </GridItem>
+                                    {renderValidationError("create_passwordlockoutduration", this.props.invalidCreateFields)}
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Do not lockout the user account forever, instead the account will unlock based on the lockout duration (passwordUnlock).")}>
                                     <GridItem span={6}>
@@ -497,24 +571,18 @@ class CreatePolicy extends React.Component {
                                             onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordlockout}
+                                            isDisabled={!this.props.create_passwordlockout}
                                             label={_("Do Not Lockout Account Forever")}
                                         />
                                     </GridItem>
                                 </Grid>
                             </div>
-                        </div>
-                    </ExpandableSection>
-
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isSyntaxExpanded ? _("Hide Syntax Settings") : _("Show Syntax Settings")}
-                        onToggle={(event, isOpen) => this.handleSyntaxToggle(event, isOpen)}
-                        isExpanded={this.state.isSyntaxExpanded}
-                    >
-                        <div className="ds-margin-left">
+                        </Form>
+                    </Tab>
+                    <Tab eventKey={3} title={<TabTitleText>{_("Syntax Checking")}</TabTitleText>}>
+                        <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                             <Grid title={_("Enable password syntax checking (passwordCheckSyntax).")}>
-                                <GridItem span={12}>
+                                <GridItem span={10}>
                                     <Checkbox
                                         id="create_passwordchecksyntax"
                                         isChecked={this.props.create_passwordchecksyntax}
@@ -526,300 +594,330 @@ class CreatePolicy extends React.Component {
                                 </GridItem>
                             </Grid>
                             <div className="ds-left-indent">
-                                <Grid className="ds-margin-top">
-                                    <GridItem className="ds-label" span={3}>
+                                <Grid>
+                                    <GridItem className="ds-label" span={2}>
                                         {_("Minimum Length")}
                                     </GridItem>
-                                    <GridItem span={1} title={_("The minimum number of characters in the password (passwordMinLength).")}>
-                                        <TextInput
-                                            type="number"
+                                    <GridItem span={1}>
+                                        <DsNumberInput
                                             id="create_passwordminlength"
-                                            aria-describedby="create_passwordminlength"
-                                            name="create_passwordminlength"
-                                            onChange={(e, str) => {
+                                            value={this.props.create_passwordminlength}
+                                            title={_("The minimum number of characters in the password (passwordMinLength).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordminlength"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
                                         />
+                                        {renderValidationError("create_passwordminlength", this.props.invalidCreateFields)}
                                     </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("Reject passwords with fewer than this many alpha characters (passwordMinAlphas).")}>
-                                        {_("Minimum Alpha's")}
-                                    </GridItem>
-                                    <GridItem span={1}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordminalphas"
-                                            aria-describedby="create_passwordminalphas"
-                                            name="create_passwordminalphas"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid className="ds-margin-top">
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Minimum Digits")}
-                                    </GridItem>
-                                    <GridItem span={1} title={_("Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits).")}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordmindigits"
-                                            aria-describedby="create_passwordmindigits"
-                                            name="create_passwordmindigits"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}>
-                                        {_("Minimum Special")}
-                                    </GridItem>
-                                    <GridItem span={1}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordminspecials"
-                                            aria-describedby="create_passwordminspecials"
-                                            name="create_passwordminspecials"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid className="ds-margin-top">
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Minimum Uppercase")}
-                                    </GridItem>
-                                    <GridItem span={1} title={_("Reject passwords with fewer than this many uppercase characters (passwordMinUppers).")}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordminuppers"
-                                            aria-describedby="create_passwordminuppers"
-                                            name="create_passwordminuppers"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("Reject passwords with fewer than this many lowercase characters (passwordMinLowers).")}>
-                                        {_("Minimum Lowercase")}
-                                    </GridItem>
-                                    <GridItem span={1}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordminlowers"
-                                            aria-describedby="create_passwordminlowers"
-                                            name="create_passwordminlowers"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid className="ds-margin-top">
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Minimum 8-bit")}
-                                    </GridItem>
-                                    <GridItem span={1} title={_("Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).")}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordmin8bit"
-                                            aria-describedby="create_passwordmin8bit"
-                                            name="create_passwordmin8bit"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).")}>
-                                        {_("Minimum Categories")}
-                                    </GridItem>
-                                    <GridItem span={1}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordmincategories"
-                                            aria-describedby="create_passwordmincategories"
-                                            name="create_passwordmincategories"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid className="ds-margin-top">
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Minimum Token Length")}
-                                    </GridItem>
-                                    <GridItem span={1} title={_("The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength).")}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordmintokenlength"
-                                            aria-describedby="create_passwordmintokenlength"
-                                            name="create_passwordmintokenlength"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}>
+                                    <GridItem className="ds-label" offset={6} span={2}>
                                         {_("Max Repeated Chars")}
                                     </GridItem>
                                     <GridItem span={1}>
-                                        <TextInput
-                                            type="number"
+                                        <DsNumberInput
                                             id="create_passwordmaxrepeats"
-                                            aria-describedby="create_passwordmaxrepeats"
-                                            name="create_passwordmaxrepeats"
-                                            onChange={(e, str) => {
+                                            value={this.props.create_passwordmaxrepeats}
+                                            title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordmaxrepeats"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
                                         />
+                                        {renderValidationError("create_passwordmaxrepeats", this.props.invalidCreateFields)}
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Max Sequences")}
-                                    </GridItem>
-                                    <GridItem span={1} title={_("The maximum number of allowed monotonic characters sequences (passwordMaxSequence).")}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordmaxsequence"
-                                            aria-describedby="create_passwordmaxsequence"
-                                            name="create_passwordmaxsequence"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}>
-                                        {_("Max Sequence Sets")}
-                                    </GridItem>
-                                    <GridItem span={1}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordmaxseqsets"
-                                            aria-describedby="create_passwordmaxseqsets"
-                                            name="create_passwordmaxseqsets"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid className="ds-margin-top">
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Max Seq Per Class")}
-                                    </GridItem>
-                                    <GridItem span={1} title={_("The maximum number of consecutive characters from the same character class/category (passwordMaxClassChars)..")}>
-                                        <TextInput
-                                            type="number"
-                                            id="create_passwordmaxclasschars"
-                                            aria-describedby="create_passwordmaxclasschars"
-                                            name="create_passwordmaxclasschars"
-                                            onChange={(e, str) => {
-                                                this.props.handleChange(e);
-                                            }}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        />
-                                    </GridItem>
-                                </Grid>
-                                <Grid
-                                    title={_("A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).")}
-                                    className="ds-margin-top"
-                                >
-                                    <GridItem className="ds-label" span={3}>
+                                    <GridItem className="ds-label" span={2}>
                                         {_("Prohibited Words")}
                                     </GridItem>
-                                    <GridItem span={9}>
+                                    <GridItem span={8}>
                                         <TextInput
+                                            title={_("A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).")}
                                             type="text"
                                             id="create_passwordbadwords"
                                             aria-describedby="create_passwordbadwords"
                                             name="create_passwordbadwords"
+                                            value={this.props.create_passwordbadwords}
                                             onChange={(e, str) => {
-                                                this.handleChange(e);
+                                                this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title={_("A list of entry attributes to compare to the new password (passwordUserAttributes).")}>
-                                    <GridItem className="ds-label" span={3}>
-                                        {_("Check User Attributes")}
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type a attribute name to check"
-                                            onToggle={(event, isOpen) => this.props.onUserAttrsCreateToggle(event, isOpen)}
-                                            onSelect={this.props.handleChange}
-                                            onClear={this.props.onUserAttrsCreateClear}
-                                            selections={this.props.passworduserattributes}
-                                            isOpen={this.props.isUserAttrsCreateOpen}
-                                            aria-labelledby="typeAhead-user-attr-create"
-                                            placeholderText={_("Type attributes to check...")}
-                                            noResultsFoundText={_("There are no matching entries")}
-                                            isDisabled={!this.props.passwordchecksyntax}
-                                        >
-                                            {this.props.attrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
-                                    </GridItem>
-                                </Grid>
-                                <Grid className="ds-margin-top" title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>
-                                    <GridItem span={12}>
+                                <Grid className="ds-margin-top">
+                                    <GridItem span={3} title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>
                                         <Checkbox
                                             id="create_passworddictcheck"
                                             isChecked={this.props.create_passworddictcheck}
                                             onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                             label={_("Dictionary Check")}
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title={_("Reject a password if it is a palindrome (passwordPalindrome).")}>
-                                    <GridItem span={12}>
+                                <Grid className="ds-margin-top">
+                                    <GridItem span={3} title={_("Check if the password is a palindrome (passwordPalindrome).")}>
                                         <Checkbox
                                             id="create_passwordpalindrome"
                                             isChecked={this.props.create_passwordpalindrome}
+                                            className="ds-label"
                                             onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
-                                            isDisabled={!this.props.passwordchecksyntax}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
                                             label={_("Reject Palindromes")}
                                         />
                                     </GridItem>
                                 </Grid>
+                                <Grid>
+                                    <GridItem span={10}>
+                                        <Divider />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={2}>
+                                        {_("Minimum Alpha's")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordminalphas"
+                                            value={this.props.create_passwordminalphas}
+                                            title={_("Reject passwords with fewer than this many alpha characters (passwordMinAlphas).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordminalphas"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordminalphas", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                    <GridItem className="ds-label" offset={6} span={2}>
+                                        {_("Minimum Digits")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordmindigits"
+                                            value={this.props.create_passwordmindigits}
+                                            title={_("Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordmindigits"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordmindigits", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={2}>
+                                        {_("Minimum Uppercase")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordminuppers"
+                                            value={this.props.create_passwordminuppers}
+                                            title={_("Reject passwords with fewer than this many uppercase characters (passwordMinUppers).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordminuppers"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordminuppers", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                    <GridItem className="ds-label" offset={6} span={2}>
+                                        {_("Minimum Lowercase")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordminlowers"
+                                            value={this.props.create_passwordminlowers}
+                                            title={_("Reject passwords with fewer than this many lowercase characters (passwordMinLowers).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordminlowers"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordminlowers", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={2}>
+                                        {_("Minimum Special")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordminspecials"
+                                            value={this.props.create_passwordminspecials}
+                                            title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordminspecials"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordminspecials", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                    <GridItem className="ds-label" offset={6} span={2}>
+                                        {_("Minimum 8-bit")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordmin8bit"
+                                            value={this.props.create_passwordmin8bit}
+                                            title={_("Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordmin8bit"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordmin8bit", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={2}>
+                                        {_("Minimum Categories")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordmincategories"
+                                            value={this.props.create_passwordmincategories}
+                                            title={_("The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordmincategories"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordmincategories", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={10}>
+                                        <Divider />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={2}>
+                                        {_("Maximum Sequences")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordmaxsequence"
+                                            value={this.props.create_passwordmaxsequence}
+                                            title={_("The maximum number of allowed monotonic characters sequences (passwordMaxSequence).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordmaxsequence"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordmaxsequence", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                    <GridItem className="ds-label" offset={6} span={2}>
+                                        {_("Max Sequence Sets")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordmaxseqsets"
+                                            value={this.props.create_passwordmaxseqsets}
+                                            title={_("The maximum number of allowed monotonic characters sequences that can appear more than once (passwordMaxSeqSets).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordmaxseqsets"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordmaxseqsets", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={2}>
+                                        {_("Max Seq Per Class")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordmaxclasschars"
+                                            value={this.props.create_passwordmaxclasschars}
+                                            title={_("The maximum number of consecutive characters from the same character class/category (passwordMaxClassChars).")}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordmaxclasschars"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordmaxclasschars", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={10}>
+                                        <Divider />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title={_("A list of entry attributes to compare to the new password (passwordUserAttributes).")}>
+                                    <GridItem className="ds-label" span={2}>
+                                        {_("Check User Attributes")}
+                                    </GridItem>
+                                    <GridItem span={8}>
+                                        <TypeaheadSelect
+                                            selected={this.props.create_passworduserattributes}
+                                            onSelect={this.props.handleChange}
+                                            onClear={this.props.onUserAttrsCreateClear}
+                                            options={this.props.attrs}
+                                            isOpen={this.props.isUserAttrsCreateOpen}
+                                            onToggle={this.props.onUserAttrsCreateToggle}
+                                            placeholder={_("Type attributes to check...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            ariaLabel="Type an attribute to check"
+                                            isMulti={true}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top" title={_("The smallest attribute value used when checking if the password contains any of the user's attributes that are set via passwordUserAttributes (passwordMinTokenLength).")}>
+                                    <GridItem className="ds-label" span={2}>
+                                        {_("Minimum Token Length")}
+                                    </GridItem>
+                                    <GridItem span={1}>
+                                        <DsNumberInput
+                                            id="create_passwordmintokenlength"
+                                            value={this.props.create_passwordmintokenlength}
+                                            isDisabled={!this.props.create_passwordchecksyntax}
+                                            fieldName="create_passwordmintokenlength"
+                                            invalidFields={this.props.invalidCreateFields}
+                                            onChange={(e) => {
+                                                this.props.handleChange(e);
+                                            }}
+                                        />
+                                        {renderValidationError("create_passwordmintokenlength", this.props.invalidCreateFields)}
+                                    </GridItem>
+                                </Grid>
                             </div>
-                        </div>
-                    </ExpandableSection>
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isTPRExpanded ? _("Hide Temporary Password Settings") : _("Show Temporary Password Settings")}
-                        onToggle={(event, isOpen) => this.handleTPRToggle(event, isOpen)}
-                        isExpanded={this.state.isTPRExpanded}
-                    >
-                        <div className="ds-margin-left">
+                        </Form>
+                    </Tab>
+                    <Tab eventKey={4} title={<TabTitleText>{_("Temporary Password Rules")}</TabTitleText>}>
+                        <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                             {this.props.create_passwordmustchange === false && (
-                                <FormAlert>
+                                <FormAlert className="ds-margin-top">
                                     <Alert
                                         variant="info"
                                         title={_("\"User Must Change Password After Reset\" must be enabled in General Settings to activate TPR.")}
@@ -830,19 +928,18 @@ class CreatePolicy extends React.Component {
                             )}
                             <Grid
                                 title={_("Number of times the temporary password can be used to authenticate (passwordTPRMaxUse).")}
-                                className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Max Use")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        type="number"
+                                <GridItem span={7}>
+                                    <DsNumberInput
                                         id="create_passwordtprmaxuse"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="create_passwordtprmaxuse"
+                                        fieldName="create_passwordtprmaxuse"
+                                        value={this.props.create_passwordtprmaxuse}
+                                        invalidFields={this.props.invalidCreateFields}
                                         isDisabled={!this.props.create_passwordmustchange}
-                                        onChange={(e, checked) => {
+                                        onChange={(e) => {
                                             this.props.handleChange(e);
                                         }}
                                     />
@@ -850,19 +947,18 @@ class CreatePolicy extends React.Component {
                             </Grid>
                             <Grid
                                 title={_("Number of seconds before the temporary password expires (passwordTPRDelayExpireAt).")}
-                                className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Expires In")}
                                 </GridItem>
                                 <GridItem span={9}>
-                                    <TextInput
-                                        type="number"
+                                    <DsNumberInput
                                         id="create_passwordtprdelayexpireat"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="create_passwordtprdelayexpireat"
+                                        fieldName="create_passwordtprdelayexpireat"
+                                        value={this.props.create_passwordtprdelayexpireat}
+                                        invalidFields={this.props.invalidCreateFields}
                                         isDisabled={!this.props.create_passwordmustchange}
-                                        onChange={(e, checked) => {
+                                        onChange={(e) => {
                                             this.props.handleChange(e);
                                         }}
                                     />
@@ -870,39 +966,31 @@ class CreatePolicy extends React.Component {
                             </Grid>
                             <Grid
                                 title={_("Number of seconds after which temporary password starts to be valid for authentication (passwordTPRDelayValidFrom).")}
-                                className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password Valid From")}
                                 </GridItem>
                                 <GridItem span={9}>
-                                    <TextInput
-                                        type="number"
+                                    <DsNumberInput
                                         id="create_passwordtprdelayvalidfrom"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="create_passwordtprdelayvalidfrom"
+                                        fieldName="create_passwordtprdelayvalidfrom"
+                                        value={this.props.create_passwordtprdelayvalidfrom}
+                                        invalidFields={this.props.invalidCreateFields}
                                         isDisabled={!this.props.create_passwordmustchange}
-                                        onChange={(e, checked) => {
+                                        onChange={(e) => {
                                             this.props.handleChange(e);
                                         }}
                                     />
                                 </GridItem>
                             </Grid>
-                        </div>
-                    </ExpandableSection>
-                </Form>
-                <Button
-                    isDisabled={this.props.createDisabled}
-                    variant="primary"
-                    className="ds-margin-top-lg ds-margin-left"
-                    onClick={this.props.handleCreatePolicy}
-                >
-                    {_("Create New Policy")}
-                </Button>
-            </div>
+                        </Form>
+                    </Tab>
+                </Tabs>
+            </>
         );
     }
 }
+
 
 export class LocalPwPolicy extends React.Component {
     constructor(props) {
@@ -911,7 +999,8 @@ export class LocalPwPolicy extends React.Component {
             loading: true,
             loaded: false,
             activeTabKey: 0,
-            localActiveTabKey: 0,
+            showCreateModal: false,
+            showEditModal: false,
             modalChecked: false,
             editPolicy: false,
             tableLoading: false,
@@ -921,18 +1010,14 @@ export class LocalPwPolicy extends React.Component {
             policyName: "",
             deleteName: "",
             createDisabled: true,
+            creating: false,
             createPolicyType: "Subtree Policy",
             // Lists of all the attributes for each tab/section.
             // We use the exact attribute name for the ID of
             // each field, so we can loop over them to efficently
             // check for changes, and updating/saving the config.
             rows: [],
-            saveGeneralDisabled: true,
-            saveUserDisabled: true,
-            saveExpDisabled: true,
-            saveLockoutDisabled: true,
-            saveSyntaxDisabled: true,
-            saveTPRDisabled: true,
+            saveEditDisabled: true,
             showDeletePolicy: false,
             // Edit policy
             passwordchange: false,
@@ -1016,86 +1101,10 @@ export class LocalPwPolicy extends React.Component {
             _passwordadmindn: "",
             _passwordadminskipinfoupdate: false,
             // Create policy
-            create_passwordchange: false,
-            create_passwordmustchange: false,
-            create_passwordhistory: false,
-            create_passwordtrackupdatetime: false,
-            create_passwordexp: false,
-            create_passwordsendexpiringtime: false,
-            create_passwordlockout: false,
-            create_passwordunlock: false,
-            create_passwordchecksyntax: false,
-            create_passwordpalindrome: false,
-            create_passworddictcheck: false,
-            create_passwordstoragescheme: "",
-            create_passwordinhistory: "0",
-            create_passwordwarning: "0",
-            create_passwordmaxage: "0",
-            create_passwordminage: "0",
-            create_passwordgracelimit: "0",
-            create_passwordlockoutduration: "0",
-            create_passwordmaxfailure: "0",
-            create_passwordresetfailurecount: "0",
-            create_passwordminlength: "0",
-            create_passwordmindigits: "0",
-            create_passwordminalphas: "0",
-            create_passwordminuppers: "0",
-            create_passwordminlowers: "0",
-            create_passwordminspecials: "0",
-            create_passwordmin8bit: "0",
-            create_passwordmaxrepeats: "0",
-            create_passwordmaxsequence: "0",
-            create_passwordmaxseqsets: "0",
-            create_passwordmaxclasschars: "0",
-            create_passwordmincategories: "0",
-            create_passwordmintokenlength: "0",
-            create_passwordbadwords: "",
-            create_passworduserattributes: [],
-            create_passwordtprmaxuse: "-1",
-            create_passwordtprdelayexpireat:  "-1",
-            create_passwordtprdelayvalidfrom:  "-1",
-            create_passwordadmindn: "",
-            create_passwordadminskipinfoupdate: false,
-            _create_passwordchange: false,
-            _create_passwordmustchange: false,
-            _create_passwordhistory: false,
-            _create_passwordtrackupdatetime: false,
-            _create_passwordexp: false,
-            _create_passwordsendexpiringtime: false,
-            _create_passwordlockout: false,
-            _create_passwordunlock: false,
-            _create_passwordchecksyntax: false,
-            _create_passwordpalindrome: false,
-            _create_passworddictcheck: false,
-            _create_passwordstoragescheme: "",
-            _create_passwordinhistory: "0",
-            _create_passwordwarning: "0",
-            _create_passwordmaxage: "0",
-            _create_passwordminage: "0",
-            _create_passwordgracelimit: "0",
-            _create_passwordlockoutduration: "0",
-            _create_passwordmaxfailure: "0",
-            _create_passwordresetfailurecount: "0",
-            _create_passwordminlength: "0",
-            _create_passwordmindigits: "0",
-            _create_passwordminalphas: "0",
-            _create_passwordminuppers: "0",
-            _create_passwordminlowers: "0",
-            _create_passwordminspecials: "0",
-            _create_passwordmin8bit: "0",
-            _create_passwordmaxrepeats: "0",
-            _create_passwordmaxsequence: "0",
-            _create_passwordmaxseqsets: "0",
-            _create_passwordmaxclasschars: "0",
-            _create_passwordmincategories: "0",
-            _create_passwordmintokenlength: "0",
-            _create_passwordbadwords: "",
-            _create_passworduserattributes: [],
-            _create_passwordtprmaxuse: "-1",
-            _create_passwordtprdelayexpireat:  "-1",
-            _create_passwordtprdelayvalidfrom:  "-1",
-            _create_passwordadmindn: "",
-            _create_passwordadminskipinfoupdate: false,
+            ...getDefaultCreatePolicyState(),
+            // Validation
+            invalidFields: {},
+            invalidCreateFields: {},
             // Select typeahead
             isUserAttrsCreateOpen: false,
             isUserAttrsEditOpen: false,
@@ -1144,6 +1153,8 @@ export class LocalPwPolicy extends React.Component {
             },
         };
 
+        this.unknownPolicyType = "Unknown policy type";
+
         // Check User Attributes Create
         this.handleUserAttrsCreateToggle = (_event, isUserAttrsCreateOpen) => {
             this.setState({
@@ -1177,11 +1188,10 @@ export class LocalPwPolicy extends React.Component {
             });
         };
 
-        this.handleLocalNavSelect = (event, tabIndex) => {
-            this.setState({
-                localActiveTabKey: tabIndex
-            });
-        };
+        this.openCreateModal = this.openCreateModal.bind(this);
+        this.closeCreateModal = this.closeCreateModal.bind(this);
+        this.closeEditModal = this.closeEditModal.bind(this);
+        this.getCreatePolicyProps = this.getCreatePolicyProps.bind(this);
 
         this.handleSelectToggle = (_event, isSelectOpen) => {
             this.setState({
@@ -1208,12 +1218,7 @@ export class LocalPwPolicy extends React.Component {
         this.handleTPRChange = this.handleTPRChange.bind(this);
         this.loadLocal = this.loadLocal.bind(this);
         this.handleLoadPolicies = this.handleLoadPolicies.bind(this);
-        this.handleResetTab = this.handleResetTab.bind(this);
-        this.handleSaveExp = this.handleSaveExp.bind(this);
-        this.handleSaveGeneral = this.handleSaveGeneral.bind(this);
-        this.handleSaveLockout = this.handleSaveLockout.bind(this);
-        this.handleSaveSyntax = this.handleSaveSyntax.bind(this);
-        this.handleSaveTPR = this.handleSaveTPR.bind(this);
+        this.handleSavePolicy = this.handleSavePolicy.bind(this);
         this.showDeletePolicy = this.showDeletePolicy.bind(this);
     }
 
@@ -1241,9 +1246,60 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    handleResetTab() {
-        // Reset to the table tab
-        this.setState({ localActiveTabKey: 0 });
+    openCreateModal() {
+        const defaultStorageScheme = this.state._create_passwordstoragescheme || "";
+        this.setState({
+            showCreateModal: true,
+            createDisabled: true,
+            creating: false,
+            policyDN: "",
+            invalid_dn: false,
+            invalidCreateFields: {},
+            createPolicyType: "Subtree Policy",
+            activeTabKey: 0,
+            isUserAttrsCreateOpen: false,
+            ...getDefaultCreatePolicyState(defaultStorageScheme),
+        });
+    }
+
+    closeCreateModal() {
+        this.setState({
+            showCreateModal: false,
+            creating: false,
+        });
+    }
+
+    closeEditModal() {
+        this.setState({
+            showEditModal: false,
+            editPolicy: false,
+        });
+    }
+
+    getCreatePolicyProps() {
+        const props = {
+            handleChange: this.onCreateChange,
+            handleSelectChange: this.onCreateSelectChange,
+            attrs: this.props.attrs,
+            passwordexp: this.state.create_passwordexp,
+            passwordchecksyntax: this.state.create_passwordchecksyntax,
+            passwordlockout: this.state.create_passwordlockout,
+            createDisabled: this.state.createDisabled,
+            passworduserattributes: this.state.create_passworduserattributes,
+            invalid_dn: this.state.invalid_dn,
+            policyDN: this.state.policyDN,
+            createPolicyType: this.state.createPolicyType,
+            pwdStorageSchemes: this.props.pwdStorageSchemes,
+            invalidCreateFields: this.state.invalidCreateFields,
+            onUserAttrsCreateToggle: this.handleUserAttrsCreateToggle,
+            onUserAttrsCreateClear: this.handleUserAttrsCreateClear,
+            isUserAttrsCreateOpen: this.state.isUserAttrsCreateOpen,
+        };
+        const all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs, tpr_attrs);
+        for (const attr of all_attrs) {
+            props['create_' + attr] = this.state['create_' + attr];
+        }
+        return props;
     }
 
     onModalChange(e) {
@@ -1279,8 +1335,9 @@ export class LocalPwPolicy extends React.Component {
         // Check if a setting was changed, if so enable the save button
         for (const all_attr of all_attrs) {
             if (all_attr === 'passworduserattributes' && attr === 'create_passworduserattributes') {
-                const orig_val = this.state['_' + all_attr].join(' ');
-                if (orig_val !== value) {
+                const orig_val = this.state._create_passworduserattributes.join(' ');
+                const new_val = Array.isArray(value) ? value.join(' ') : value;
+                if (orig_val !== new_val) {
                     value = selection; // restore value
                     disableSaveBtn = false;
                     break;
@@ -1296,8 +1353,8 @@ export class LocalPwPolicy extends React.Component {
         for (const all_attr of all_attrs) {
             if (all_attr === 'passworduserattributes' && attr !== 'create_passworduserattributes') {
                 // Typeahead attribute needs special care
-                const orig_val = this.state['_' + all_attr].join(' ');
-                const new_val = this.state[all_attr].join(' ');
+                const orig_val = this.state._create_passworduserattributes.join(' ');
+                const new_val = this.state.create_passworduserattributes.join(' ');
                 if (orig_val !== new_val) {
                     disableSaveBtn = false;
                     break;
@@ -1326,32 +1383,27 @@ export class LocalPwPolicy extends React.Component {
             }
         }
 
+        // Validate constrained fields for create
+        const newInvalidCreateFields = updateFieldValidation(this.state.invalidCreateFields, attr, value);
+        if (newInvalidCreateFields[attr]) {
+            disableSaveBtn = true;
+        }
+
         // Select Typeahead
         if (selection) {
-            if (this.state[attr].includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== selection),
-                        createDisabled: disableSaveBtn,
-                        invalid_dn,
-                        isUserAttrsCreateOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: [...prevState[attr], selection],
-                        createDisabled: disableSaveBtn,
-                        invalid_dn,
-                        isUserAttrsCreateOpen: false
-                    }),
-                );
-            }
+            this.setState({
+                [attr]: Array.isArray(selection) ? selection : [],
+                createDisabled: disableSaveBtn,
+                invalid_dn,
+                invalidCreateFields: newInvalidCreateFields,
+                isUserAttrsCreateOpen: false
+            });
         } else { // Checkbox
             this.setState({
                 [attr]: value,
                 createDisabled: disableSaveBtn,
-                invalid_dn
+                invalid_dn,
+                invalidCreateFields: newInvalidCreateFields,
             });
         }
     }
@@ -1361,7 +1413,7 @@ export class LocalPwPolicy extends React.Component {
         let action = "adduser";
 
         this.setState({
-            loading: true
+            creating: true,
         });
 
         if (this.state.createPolicyType === "Subtree Policy") {
@@ -1395,455 +1447,156 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("createPolicy", "Create a local password policy", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    this.handleLoadPolicies();
                     this.setState({
-                        loading: false,
+                        creating: false,
+                        showCreateModal: false,
                     });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully created new password policy")
-                    );
+                    this.handleLoadPolicies();
+                    let message;
+                    let type = "success";
+
+                    const response = JSON.parse(content);
+                    if (response) {
+                        switch (response.ensure_status) {
+                            case "UNCHANGED":
+                                message = _("Password policy is already up to date");
+                                break;
+                            case "UPDATED":
+                                message = _("Successfully updated password policy");
+                                break;
+                            case "ADDED":
+                                message = _("Successfully created new password policy");
+                                break;
+                            default:
+                                message = _("Unknown password policy operation");
+                                type = "error";
+                                break;
+                        }
+                    }
+                    this.props.addNotification(type, message);
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadPolicies();
                     this.setState({
-                        loading: false
+                        creating: false,
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error creating password policy - $0"), errMsg.desc)
+                        cockpit.format(_("Error creating password policy - $0"), errMsg)
                     );
                 });
+    }
+
+    updateEditPolicyField(attr, value, extraState = {}) {
+        const invalidFields = updateFieldValidation(
+            this.state.invalidFields,
+            attr,
+            value
+        );
+        const nextState = {
+            ...this.state,
+            ...extraState,
+            [attr]: value,
+            invalidFields,
+        };
+        this.setState({
+            ...extraState,
+            [attr]: value,
+            invalidFields,
+            saveEditDisabled: computeSaveEditDisabled(nextState),
+        });
     }
 
     handleGeneralChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const general_attr of general_attrs) {
-            if (attr === general_attr && this.state['_' + general_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const general_attr of general_attrs) {
-            if (attr !== general_attr && this.state['_' + general_attr] !== this.state[general_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        this.setState({
-            [attr]: value,
-            saveGeneralDisabled: disableSaveBtn,
-        });
-    }
-
-    handleSaveGeneral() {
-        this.setState({
-            loading: true
-        });
-
-        const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
-        ];
-
-        for (const attr of general_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                let val = this.state[attr];
-                if (typeof val === "boolean") {
-                    if (val) {
-                        val = "on";
-                    } else {
-                        val = "off";
-                    }
-                }
-                cmd.push(this.state.attrMap[attr] + "=" + val);
-            }
-        }
-
-        log_cmd("handleSaveGeneral", "Saving general pwpolicy settings", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
-                    );
-                });
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        this.updateEditPolicyField(e.target.id, value);
     }
 
     handleExpChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const exp_attr of exp_attrs) {
-            if (attr === exp_attr && this.state['_' + exp_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const exp_attr of exp_attrs) {
-            if (attr !== exp_attr && this.state['_' + exp_attr] !== this.state[exp_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        this.setState({
-            [attr]: value,
-            saveExpDisabled: disableSaveBtn,
-        });
-    }
-
-    handleSaveExp() {
-        this.setState({
-            loading: true
-        });
-
-        const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
-        ];
-
-        for (const attr of exp_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                let val = this.state[attr];
-                if (typeof val === "boolean") {
-                    if (val) {
-                        val = "on";
-                    } else {
-                        val = "off";
-                    }
-                }
-                cmd.push(this.state.attrMap[attr] + "=" + val);
-            }
-        }
-
-        log_cmd("handleSaveExp", "Saving Expiration pwpolicy settings", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
-                    );
-                });
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        this.updateEditPolicyField(e.target.id, value);
     }
 
     handleLockoutChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const lockout_attr of lockout_attrs) {
-            if (attr === lockout_attr && this.state['_' + lockout_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const lockout_attr of lockout_attrs) {
-            if (attr !== lockout_attr && this.state['_' + lockout_attr] !== this.state[lockout_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        this.setState({
-            [attr]: value,
-            saveLockoutDisabled: disableSaveBtn,
-        });
-    }
-
-    handleSaveLockout() {
-        this.setState({
-            loading: true
-        });
-
-        const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
-        ];
-
-        for (const attr of lockout_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                let val = this.state[attr];
-                if (typeof val === "boolean") {
-                    if (val) {
-                        val = "on";
-                    } else {
-                        val = "off";
-                    }
-                }
-                cmd.push(this.state.attrMap[attr] + "=" + val);
-            }
-        }
-
-        log_cmd("handleSaveLockout", "Saving lockout pwpolicy settings", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
-                    );
-                });
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        this.updateEditPolicyField(e.target.id, value);
     }
 
     handleSyntaxChange(e, selection) {
-        let attr;
-        let value;
         if (selection) {
-            attr = "passworduserattributes";
-            value = selection;
+            const attr = "passworduserattributes";
+            const value = Array.isArray(selection) ? selection : [];
+            this.updateEditPolicyField(attr, value, { isUserAttrsEditOpen: false });
         } else {
-            value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-            attr = e.target.id;
+            const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+            this.updateEditPolicyField(e.target.id, value, { isUserAttrsEditOpen: false });
         }
-        let disableSaveBtn = true;
-        // Check if a setting was changed, if so enable the save button
-        for (const syntax_attr of syntax_attrs) {
-            if (syntax_attr === 'passworduserattributes' && attr === 'passworduserattributes') {
-                const orig_val = this.state['_' + syntax_attr].join(' ');
-                if (orig_val !== value) {
-                    value = selection; // restore value
-                    disableSaveBtn = false;
-                    break;
-                }
-                value = selection; // restore value
-            } else if (attr === syntax_attr && this.state['_' + syntax_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const syntax_attr of syntax_attrs) {
-            if (syntax_attr === 'passworduserattributes' && attr !== 'passworduserattributes') {
-                // Typeahead attribute needs special care
-                const orig_val = this.state['_' + syntax_attr].join(' ');
-                const new_val = this.state[syntax_attr].join(' ');
-                if (orig_val !== new_val) {
-                    disableSaveBtn = false;
-                    break;
-                }
-            } else if (attr !== syntax_attr && this.state['_' + syntax_attr] !== this.state[syntax_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        if (selection) {
-            if (this.state[attr].includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== selection),
-                        isSelectOpen: false,
-                        isUserAttrsEditOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: [...prevState[attr], selection],
-                        saveSyntaxDisabled: disableSaveBtn,
-                        isUserAttrsEditOpen: false
-                    }),
-                );
-            }
-        } else {
-            this.setState({
-                [attr]: value,
-                saveSyntaxDisabled: disableSaveBtn,
-                isUserAttrsEditOpen: false
-            });
-        }
-    }
-
-    handleSaveSyntax() {
-        this.setState({
-            loading: true
-        });
-
-        const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
-        ];
-
-        for (const attr of syntax_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                let val = this.state[attr];
-                if (typeof val === "boolean") {
-                    if (val) {
-                        val = "on";
-                    } else {
-                        val = "off";
-                    }
-                }
-                cmd.push(this.state.attrMap[attr] + "=" + val);
-            }
-        }
-
-        log_cmd("handleSaveSyntax", "Saving syntax checking pwpolicy settings", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        loading: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
-                    );
-                });
     }
 
     handleTPRChange(e) {
-        const value = e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const tpr_attr of tpr_attrs) {
-            if (attr === tpr_attr && this.state['_' + tpr_attr] !== value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const tpr_attr of tpr_attrs) {
-            if (attr !== tpr_attr && this.state['_' + tpr_attr] !== this.state[tpr_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        this.setState({
-            [attr]: value,
-            saveTPRDisabled: disableSaveBtn,
-        });
+        this.updateEditPolicyField(e.target.id, e.target.value);
     }
 
-    handleSaveTPR() {
+    handleSavePolicy() {
         this.setState({
-            saving: true
+            saving: true,
         });
 
         const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            'localpwp', 'set', this.state.policyName
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "localpwp",
+            "set",
+            this.state.policyName,
         ];
 
-        for (const attr of tpr_attrs) {
-            if (this.state['_' + attr] !== this.state[attr]) {
-                const val = this.state[attr];
+        for (const attr of edit_policy_attrs) {
+            if (attrValuesDiffer(attr, this.state["_" + attr], this.state[attr])) {
+                const val = formatAttrValueForCmd(attr, this.state[attr]);
                 cmd.push(this.state.attrMap[attr] + "=" + val);
             }
         }
 
-        log_cmd("handleSaveTPR", "Saving TPR pwpolicy settings", cmd);
+        log_cmd("handleSavePolicy", "Saving local password policy settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        saving: false
-                    });
-                    this.props.addNotification(
-                        "success",
-                        _("Successfully updated password policy configuration")
-                    );
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.loadLocal(this.state.policyName);
-                    this.setState({
-                        saving: false
-                    });
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
-                    );
+            .spawn(cmd, { superuser: "require", err: "message" })
+            .done(() => {
+                this.setState({
+                    saving: false,
+                    showEditModal: false,
+                    editPolicy: false,
                 });
+                this.handleLoadPolicies();
+                this.props.addNotification(
+                    "success",
+                    _("Successfully updated password policy configuration")
+                );
+            })
+            .fail((err) => {
+                const errMsg = getApiErrorMessage(err);
+                this.loadLocal(this.state.policyName);
+                this.setState({
+                    saving: false,
+                });
+                this.props.addNotification(
+                    "error",
+                    cockpit.format(
+                        _("Error updating password policy configuration - $0"),
+                        errMsg
+                    )
+                );
+            });
     }
 
     deletePolicy() {
         this.setState({
             loading: true,
             editPolicy: false,
+            showEditModal: false,
         });
 
         const cmd = [
@@ -1852,16 +1605,21 @@ export class LocalPwPolicy extends React.Component {
         ];
         log_cmd("deletePolicy", "delete policy", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.handleLoadPolicies();
+                    this.props.addNotification(
+                        "success",
+                        "Successfully deleted password policy"
+                    )
                 })
+
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleLoadPolicies();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error deleting local password policy - $0"), errMsg.desc)
+                        cockpit.format(_("Error deleting local password policy - $0"), errMsg)
                     );
                 });
     }
@@ -1876,31 +1634,34 @@ export class LocalPwPolicy extends React.Component {
         ];
         log_cmd("handleLoadPolicies", "Load all the local password policies for the table", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const policy_obj = JSON.parse(content);
                     const pwpRows = [];
                     for (const row of policy_obj.items) {
-                        pwpRows.push([row.targetdn, row.pwp_type, row.basedn]);
+                        let {basedn} = row;
+                        if (row.pwp_type === this.unknownPolicyType) {
+                            basedn = row.dn;
+                        }
+                        pwpRows.push([row.targetdn, row.pwp_type, basedn]);
                     }
                     this.setState({
-                        localActiveTabKey: 0,
-                        activeKey: 0,
+                        activeTabKey: 0,
                         rows: pwpRows,
                         loaded: true,
                         loading: false,
                         editPolicy: false,
+                        showCreateModal: false,
+                        showEditModal: false,
                         policyDN: "",
                         createPolicyType: "Subtree Policy",
                         policyName: "",
                         deleteName: "",
                         showDeletePolicy: false,
+                        invalidFields: {},
+                        invalidCreateFields: {},
                         // Reset edit and create tab
-                        saveGeneralDisabled: true,
-                        saveUserDisabled: true,
-                        saveExpDisabled: true,
-                        saveLockoutDisabled: true,
-                        saveSyntaxDisabled: true,
+                        saveEditDisabled: true,
                         // Edit policy
                         passwordchange: false,
                         passwordmustchange: false,
@@ -1977,80 +1738,7 @@ export class LocalPwPolicy extends React.Component {
                         _passwordadmindn: "",
                         _passwordadminskipinfoupdate: false,
                         // Create policy
-                        create_passwordchange: false,
-                        create_passwordmustchange: false,
-                        create_passwordhistory: false,
-                        create_passwordtrackupdatetime: false,
-                        create_passwordexp: false,
-                        create_passwordsendexpiringtime: false,
-                        create_passwordlockout: false,
-                        create_passwordunlock: false,
-                        create_passwordchecksyntax: false,
-                        create_passwordpalindrome: false,
-                        create_passworddictcheck: false,
-                        create_passwordstoragescheme: "",
-                        create_passwordinhistory: "0",
-                        create_passwordwarning: "0",
-                        create_passwordmaxage: "0",
-                        create_passwordminage: "0",
-                        create_passwordgracelimit: "0",
-                        create_passwordlockoutduration: "0",
-                        create_passwordmaxfailure: "0",
-                        create_passwordresetfailurecount: "0",
-                        create_passwordminlength: "0",
-                        create_passwordmindigits: "0",
-                        create_passwordminalphas: "0",
-                        create_passwordminuppers: "0",
-                        create_passwordminlowers: "0",
-                        create_passwordminspecials: "0",
-                        create_passwordmin8bit: "0",
-                        create_passwordmaxrepeats: "0",
-                        create_passwordmaxsequence: "0",
-                        create_passwordmaxseqsets: "0",
-                        create_passwordmaxclasschars: "0",
-                        create_passwordmincategories: "0",
-                        create_passwordmintokenlength: "0",
-                        create_passwordbadwords: "",
-                        create_passworduserattributes: [],
-                        create_passwordadmindn: "",
-                        create_passwordadminskipinfoupdate: false,
-                        _create_passwordchange: false,
-                        _create_passwordmustchange: false,
-                        _create_passwordhistory: false,
-                        _create_passwordtrackupdatetime: false,
-                        _create_passwordexp: false,
-                        _create_passwordsendexpiringtime: false,
-                        _create_passwordlockout: false,
-                        _create_passwordunlock: false,
-                        _create_passwordchecksyntax: false,
-                        _create_passwordpalindrome: false,
-                        _create_passworddictcheck: false,
-                        _create_passwordstoragescheme: "",
-                        _create_passwordinhistory: "0",
-                        _create_passwordwarning: "0",
-                        _create_passwordmaxage: "0",
-                        _create_passwordminage: "0",
-                        _create_passwordgracelimit: "0",
-                        _create_passwordlockoutduration: "0",
-                        _create_passwordmaxfailure: "0",
-                        _create_passwordresetfailurecount: "0",
-                        _create_passwordminlength: "0",
-                        _create_passwordmindigits: "0",
-                        _create_passwordminalphas: "0",
-                        _create_passwordminuppers: "0",
-                        _create_passwordminlowers: "0",
-                        _create_passwordminspecials: "0",
-                        _create_passwordmin8bit: "0",
-                        _create_passwordmaxrepeats: "0",
-                        _create_passwordmaxsequence: "0",
-                        _create_passwordmaxseqsets: "0",
-                        _create_passwordmaxclasschars: "0",
-                        _create_passwordmincategories: "0",
-                        _create_passwordmintokenlength: "0",
-                        _create_passwordbadwords: "",
-                        _create_passworduserattributes: [],
-                        _create_passwordadmindn: "",
-                        _create_passwordadminskipinfoupdate: false,
+                        ...getDefaultCreatePolicyState(),
                     }, () => {
                         const gcmd = [
                             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -2058,7 +1746,7 @@ export class LocalPwPolicy extends React.Component {
                         ];
                         log_cmd("handleLoadPolicies", "Load global password policy password scheme", gcmd);
                         cockpit
-                                .spawn(gcmd, { superuser: true, err: "message" })
+                                .spawn(gcmd, { superuser: "require", err: "message" })
                                 .done(content => {
                                     const config = JSON.parse(content);
                                     const attrs = config.attrs;
@@ -2069,38 +1757,46 @@ export class LocalPwPolicy extends React.Component {
                                     }, this.props.enableTree);
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.setState({
                                         loaded: true,
                                         loading: false,
                                     });
                                     this.props.addNotification(
                                         "error",
-                                        cockpit.format(_("Error loading global password storage scheme - $0"), errMsg.desc)
+                                        cockpit.format(_("Error loading global password storage scheme - $0"), errMsg)
                                     );
                                 });
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loaded: true,
                         loading: false,
                     }, this.props.enableTree);
                     console.log(
-                        `Error loading local password policies - ${errMsg.desc}`
+                        `Error loading local password policies - ${errMsg}`
                     );
                 });
     }
 
     loadLocal(name) {
+        this.setState({
+            loading: true,
+            showEditModal: true,
+            editPolicy: false,
+            policyName: name,
+            activeTabKey: 0,
+        });
+
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "localpwp", "get", name
         ];
         log_cmd("loadLocal", "Load a local password policy", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -2285,15 +1981,11 @@ export class LocalPwPolicy extends React.Component {
                     this.setState({
                         editPolicy: true,
                         loading: false,
-                        localActiveTabKey: 1,
-                        activeKey: 0,
+                        showEditModal: true,
+                        activeTabKey: 0,
                         policyName: name,
                         policyType: config.pwp_type,
-                        saveGeneralDisabled: true,
-                        saveUserDisabled: true,
-                        saveExpDisabled: true,
-                        saveLockoutDisabled: true,
-                        saveSyntaxDisabled: true,
+                        saveEditDisabled: true,
                         // Settings
                         passwordchange: pwChange,
                         passwordmustchange: pwMustChange,
@@ -2379,458 +2071,498 @@ export class LocalPwPolicy extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loaded: true,
                         loading: false,
+                        showEditModal: false,
+                        editPolicy: false,
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading local password policy - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading local password policy - $0"), errMsg)
                     );
                 });
     }
 
     render() {
-        let edit_tab = "";
+        let editPolicyTabs = null;
         let pwExpirationRows = "";
         let pwLockoutRows = "";
         let pwSyntaxRows = "";
 
-        let saveBtnName = _("Save");
-        const extraPrimaryProps = {};
+        let editSaveBtnName = _("Save");
+        const editSaveExtraPrimaryProps = {};
         if (this.state.saving) {
-            saveBtnName = _("Saving ...");
-            extraPrimaryProps.spinnerAriaValueText = _("Saving");
+            editSaveBtnName = _("Saving ...");
+            editSaveExtraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
-        if (this.state.passwordchecksyntax) {
-            pwSyntaxRows = (
-                <div className="ds-margin-left">
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
-                            {_("Minimum Length")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("The minimum number of characters in the password (passwordMinLength).")}
-                                value={this.state.passwordminlength}
-                                type="number"
-                                id="passwordminlength"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminlength"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                        <GridItem className="ds-label" offset={6} span={3}>
-                            {_("Minimum Alpha's")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("Reject passwords with fewer than this many alpha characters (passwordMinAlphas).")}
-                                value={this.state.passwordminalphas}
-                                type="number"
-                                id="passwordminalphas"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminalphas"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
-                            {_("Minimum Digits")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits).")}
-                                value={this.state.passwordmindigits}
-                                type="number"
-                                id="passwordmindigits"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmindigits"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                        <GridItem className="ds-label" offset={6} span={3}>
-                            {_("Minimum Special")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}
-                                value={this.state.passwordminspecials}
-                                type="number"
-                                id="passwordminspecials"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminspecials"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
-                            {_("Minimum Uppercase")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("Reject passwords with fewer than this many uppercase characters (passwordMinUppers).")}
-                                value={this.state.passwordminuppers}
-                                type="number"
-                                id="passwordminuppers"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminuppers"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                        <GridItem className="ds-label" offset={6} span={3}>
-                            {_("Minimum Lowercase")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("Reject passwords with fewer than this many lowercase characters (passwordMinLowers).")}
-                                value={this.state.passwordminlowers}
-                                type="number"
-                                id="passwordminlowers"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordminlowers"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
-                            {_("Minimum 8-bit")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).")}
-                                value={this.state.passwordmin8bit}
-                                type="number"
-                                id="passwordmin8bit"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmin8bit"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                        <GridItem className="ds-label" offset={6} span={3}>
-                            {_("Minimum Categories")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).")}
-                                value={this.state.passwordmincategories}
-                                type="number"
-                                id="passwordmincategories"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmincategories"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
-                            {_("Maximum Sequences")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("The maximum number of allowed monotonic characters sequences (passwordMaxSequence).")}
-                                value={this.state.passwordmaxsequence}
-                                type="number"
-                                id="passwordmaxsequence"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxsequence"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                        <GridItem className="ds-label" offset={6} span={3}>
-                            {_("Max Sequence Sets")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("The maximum number of allowed monotonic characters sequences that can appear more than once (passwordMaxSeqSets).")}
-                                value={this.state.passwordmaxseqsets}
-                                type="number"
-                                id="passwordmaxseqsets"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxseqsets"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
-                            {_("Max Seq Per Class")}
-                        </GridItem>
-                        <GridItem span={1}>
-                            <TextInput
-                                title={_("The maximum number of consecutive characters from the same character class/category (passwordMaxClassChars).")}
-                                value={this.state.passwordmaxclasschars}
-                                type="number"
-                                id="passwordmaxclasschars"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxclasschars"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top">
-                        <GridItem className="ds-label" span={3}>
-                            {_("Prohibited Words")}
-                        </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
-                                title={_("A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).")}
-                                value={this.state.passwordbadwords}
-                                type="text"
-                                id="passwordbadwords"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordbadwords"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("A list of entry attributes to compare to the new password (passwordUserAttributes).")}>
-                        <GridItem className="ds-label" span={3}>
-                            {_("Check User Attributes")}
-                        </GridItem>
-                        <GridItem span={9}>
-                            <Select
-                                variant={SelectVariant.typeaheadMulti}
-                                typeAheadAriaLabel="Type an attribute to check"
-                                onToggle={(event, isOpen) => this.handleSelectToggle(event, isOpen)}
-                                onSelect={this.handleSyntaxChange}
-                                onClear={this.handleSelectClear}
-                                selections={this.state.passworduserattributes}
-                                isOpen={this.state.isSelectOpen}
-                                aria-labelledby="typeAhead-user-attr"
-                                placeholderText={_("Type attributes to check...")}
-                                noResultsFoundText={_("There are no matching entries")}
-                            >
-                                {this.props.attrs.map((attr, index) => (
-                                    <SelectOption
-                                        key={index}
-                                        value={attr}
-                                    />
-                                ))}
-                            </Select>
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top-lg" title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>
-                        <GridItem span={12}>
-                            <Checkbox
-                                id="passworddictcheck"
-                                isChecked={this.state.passworddictcheck}
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                                label={_("Dictionary Check")}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("Check if the password is a palindrome (passwordPalindrome).")}>
-                        <GridItem span={12}>
-                            <Checkbox
-                                id="passwordpalindrome"
-                                isChecked={this.state.passwordpalindrome}
-                                className="ds-label"
-                                onChange={(e, checked) => {
-                                    this.handleSyntaxChange(e);
-                                }}
-                                label={_("Reject Palindromes")}
-                            />
-                        </GridItem>
-                    </Grid>
+        pwSyntaxRows = (
+            <>
+                <Grid>
+                    <GridItem className="ds-label" span={2}>
+                        {_("Minimum Length")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordminlength"
+                            value={this.state.passwordminlength}
+                            title={_("The minimum number of characters in the password (passwordMinLength).")}
+                            fieldName="passwordminlength"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                        {renderValidationError("passwordminlength", this.state.invalidFields)}
+                    </GridItem>
+
+                    <GridItem className="ds-label" offset={6} span={2}>
+                        {_("Max Repeated Chars")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordmaxrepeats"
+                            value={this.state.passwordmaxrepeats}
+                            title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}
+                            fieldName="passwordmaxrepeats"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                        {renderValidationError("passwordmaxrepeats", this.state.invalidFields)}
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={2}>
+                        {_("Prohibited Words")}
+                    </GridItem>
+                    <GridItem span={8}>
+                        <TextInput
+                            title={_("A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).")}
+                            value={this.state.passwordbadwords}
+                            type="text"
+                            id="passwordbadwords"
+                            aria-describedby="horizontal-form-name-helper"
+                            name="passwordbadwords"
+                            onChange={(e, checked) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem span={3} title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>
+                        <Checkbox
+                            id="passworddictcheck"
+                            isChecked={this.state.passworddictcheck}
+                            onChange={(e, checked) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                            label={_("Dictionary Check")}
+                        />
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem span={3} title={_("Check if the password is a palindrome (passwordPalindrome).")}>
+                        <Checkbox
+                            id="passwordpalindrome"
+                            isChecked={this.state.passwordpalindrome}
+                            className="ds-label"
+                            onChange={(e, checked) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                            label={_("Reject Palindromes")}
+                        />
+                    </GridItem>
+                </Grid>
+                <Grid>
+                    <GridItem span={10}>
+                        <Divider />
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={2}>
+                        {_("Minimum Alpha's")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordminalphas"
+                            value={this.state.passwordminalphas}
+                            title={_("Reject passwords with fewer than this many alpha characters (passwordMinAlphas).")}
+                            fieldName="passwordminalphas"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                        {renderValidationError("passwordminalphas", this.state.invalidFields)}
+                    </GridItem>
+                    <GridItem className="ds-label" offset={6} span={2}>
+                        {_("Minimum Digits")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordmindigits"
+                            value={this.state.passwordmindigits}
+                            title={_("Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits).")}
+                            fieldName="passwordmindigits"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                        {renderValidationError("passwordmindigits", this.state.invalidFields)}
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={2}>
+                        {_("Minimum Uppercase")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordminuppers"
+                            value={this.state.passwordminuppers}
+                            title={_("Reject passwords with fewer than this many uppercase characters (passwordMinUppers).")}
+                            fieldName="passwordminuppers"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                        {renderValidationError("passwordminuppers", this.state.invalidFields)}
+                    </GridItem>
+                    <GridItem className="ds-label" offset={6} span={2}>
+                        {_("Minimum Lowercase")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordminlowers"
+                            value={this.state.passwordminlowers}
+                            title={_("Reject passwords with fewer than this many lowercase characters (passwordMinLowers).")}
+                            fieldName="passwordminlowers"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                        {renderValidationError("passwordminlowers", this.state.invalidFields)}
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={2}>
+                        {_("Minimum Special")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordminspecials"
+                            value={this.state.passwordminspecials}
+                            title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}
+                            fieldName="passwordminspecials"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                        {renderValidationError("passwordminspecials", this.state.invalidFields)}
+                    </GridItem>
+                    <GridItem className="ds-label" offset={6} span={2}>
+                        {_("Minimum 8-bit")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordmin8bit"
+                            value={this.state.passwordmin8bit}
+                            title={_("Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).")}
+                            fieldName="passwordmin8bit"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                        {renderValidationError("passwordmin8bit", this.state.invalidFields)}
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={2}>
+                        {_("Minimum Categories")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordmincategories"
+                            value={this.state.passwordmincategories}
+                            title={_("The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).")}
+                            fieldName="passwordmincategories"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                        {renderValidationError("passwordmincategories", this.state.invalidFields)}
+                    </GridItem>
+                </Grid>
+                <Grid>
+                    <GridItem span={10}>
+                        <Divider />
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={2}>
+                        {_("Maximum Sequences")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordmaxsequence"
+                            value={this.state.passwordmaxsequence}
+                            title={_("The maximum number of allowed monotonic characters sequences (passwordMaxSequence).")}
+                            fieldName="passwordmaxsequence"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordmaxsequence", this.state.invalidFields)}
+                    <GridItem className="ds-label" offset={6} span={2}>
+                        {_("Max Sequence Sets")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordmaxseqsets"
+                            value={this.state.passwordmaxseqsets}
+                            title={_("The maximum number of allowed monotonic characters sequences that can appear more than once (passwordMaxSeqSets).")}
+                            fieldName="passwordmaxseqsets"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordmaxseqsets", this.state.invalidFields)}
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={2}>
+                        {_("Max Seq Per Class")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordmaxclasschars"
+                            value={this.state.passwordmaxclasschars}
+                            title={_("The maximum number of consecutive characters from the same character class/category (passwordMaxClassChars).")}
+                            fieldName="passwordmaxclasschars"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordmaxclasschars", this.state.invalidFields)}
+                </Grid>
+                <Grid>
+                    <GridItem span={10}>
+                        <Divider />
+                    </GridItem>
+                </Grid>
+                <Grid title={_("A list of entry attributes to compare to the new password (passwordUserAttributes).")}>
+                    <GridItem className="ds-label" span={2}>
+                        {_("Check User Attributes")}
+                    </GridItem>
+                    <GridItem span={8}>
+                        <TypeaheadSelect
+                            selected={this.state.passworduserattributes}
+                            onSelect={this.handleSyntaxChange}
+                            onClear={this.handleSelectClear}
+                            options={this.props.attrs}
+                            isOpen={this.state.isSelectOpen}
+                            onToggle={this.handleSelectToggle}
+                            placeholder={_("Type attributes to check...")}
+                            noResultsText={_("There are no matching entries")}
+                            ariaLabel="Type an attribute to check"
+                            isMulti={true}
+                        />
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top" title={_("The smallest attribute value used when checking if the password contains any of the user's attributes that are set via passwordUserAttributes (passwordMinTokenLength).")}>
+                    <GridItem className="ds-label" span={2}>
+                        {_("Minimum Token Length")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordmintokenlength"
+                            value={this.state.passwordmintokenlength}
+                            fieldName="passwordmintokenlength"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleSyntaxChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordmintokenlength", this.state.invalidFields)}
+                </Grid>
+            </>
+        );
+
+        pwLockoutRows = (
+            <>
+                <Grid title={_("The maximum number of failed logins before account gets locked (passwordMaxFailure).")}>
+                    <GridItem className="ds-label" span={4}>
+                        {_("Number of Failed Logins That Locks out Account")}
+                    </GridItem>
+                    <GridItem span={2}>
+                        <DsNumberInput
+                            id="passwordmaxfailure"
+                            value={this.state.passwordmaxfailure}
+                            fieldName="passwordmaxfailure"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleLockoutChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordmaxfailure", this.state.invalidFields)}
+                </Grid>
+                <Grid className="ds-margin-top" title={_("The number of seconds until an accounts failure count is reset (passwordResetFailureCount).")}>
+                    <GridItem className="ds-label" span={4}>
+                        {_("Time Until <i>Failure Count</i> Resets")}
+                    </GridItem>
+                    <GridItem span={2}>
+                        <DsNumberInput
+                            id="passwordresetfailurecount"
+                            value={this.state.passwordresetfailurecount}
+                            fieldName="passwordresetfailurecount"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleLockoutChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordresetfailurecount", this.state.invalidFields)}
+                </Grid>
+                <Grid className="ds-margin-top" title={_("The number of seconds, duration, before the account gets unlocked (passwordLockoutDuration).")}>
+                    <GridItem className="ds-label" span={4}>
+                        {_("Time Until Account Unlocked")}
+                    </GridItem>
+                    <GridItem span={2}>
+                        <DsNumberInput
+                            id="passwordlockoutduration"
+                            value={this.state.passwordlockoutduration}
+                            fieldName="passwordlockoutduration"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleLockoutChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordlockoutduration", this.state.invalidFields)}
+                </Grid>
+                <Grid className="ds-margin-top" title={_("Do not lockout the user account forever, instead the account will unlock based on the lockout duration (passwordUnlock).")}>
+                    <GridItem span={6}>
+                        <Checkbox
+                            id="passwordunlock"
+                            isChecked={this.state.passwordunlock}
+                            onChange={(e, checked) => {
+                                this.handleLockoutChange(e);
+                            }}
+                            label={_("Do Not Lockout Account Forever")}
+                        />
+                    </GridItem>
+                </Grid>
+            </>
+        );
+
+        pwExpirationRows = (
+            <>
+                <Grid title={_("The maximum age of a password in seconds before it expires (passwordMaxAge).")}>
+                    <GridItem className="ds-label" span={4}>
+                        {_("Password Expiration Time")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordmaxage"
+                            value={this.state.passwordmaxage}
+                            fieldName="passwordmaxage"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleExpChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordmaxage", this.state.invalidFields)}
+                </Grid>
+                <Grid className="ds-margin-top" title={_("The number of logins that are allowed after the password has expired (passwordGraceLimit).")}>
+                    <GridItem className="ds-label" span={4}>
+                        {_("Allowed Logins After Password Expires")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordgracelimit"
+                            value={this.state.passwordgracelimit}
+                            fieldName="passwordgracelimit"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleExpChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordgracelimit", this.state.invalidFields)}
+                </Grid>
+                <Grid className="ds-margin-top" title={_("Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning).")}>
+                    <GridItem className="ds-label" span={4}>
+                        {_("Send Password Expiring Warning")}
+                    </GridItem>
+                    <GridItem span={1}>
+                        <DsNumberInput
+                            id="passwordwarning"
+                            value={this.state.passwordwarning}
+                            fieldName="passwordwarning"
+                            invalidFields={this.state.invalidFields}
+                            onChange={(e) => {
+                                this.handleExpChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    {renderValidationError("passwordwarning", this.state.invalidFields)}
+                </Grid>
+                <Grid className="ds-margin-top" title={_("Always return a password expiring control when requested (passwordSendExpiringTime).")}>
+                    <GridItem span={4}>
+                        <Checkbox
+                            id="passwordsendexpiringtime"
+                            isChecked={this.state.passwordsendexpiringtime}
+                            onChange={(e, checked) => {
+                                this.handleExpChange(e);
+                            }}
+                            label={_("Always send Password Expiring Control")}
+                            className="ds-lower-field"
+                        />
+                    </GridItem>
+                </Grid>
+            </>
+        );
+
+        if (this.state.showEditModal && this.state.loading && !this.state.editPolicy) {
+            editPolicyTabs = (
+                <div className="ds-center ds-margin-top-xlg">
+                    <Spinner size="xl" />
                 </div>
             );
-        }
-
-        if (this.state.passwordlockout) {
-            pwLockoutRows = (
-                <div className="ds-margin-left">
-                    <Grid className="ds-margin-top" title={_("The maximum number of failed logins before account gets locked (passwordMaxFailure).")}>
-                        <GridItem className="ds-label" span={5}>
-                            {_("Number of Failed Logins That Locks out Account")}
-                        </GridItem>
-                        <GridItem span={2}>
-                            <TextInput
-                                value={this.state.passwordmaxfailure}
-                                type="number"
-                                id="passwordmaxfailure"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxpasswordmaxfailureclasschars"
-                                onChange={(e, checked) => {
-                                    this.handleLockoutChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("The number of seconds until an accounts failure count is reset (passwordResetFailureCount).")}>
-                        <GridItem className="ds-label" span={5}>
-                            {_("Time Until <i>Failure Count</i> Resets")}
-                        </GridItem>
-                        <GridItem span={2}>
-                            <TextInput
-                                value={this.state.passwordresetfailurecount}
-                                type="number"
-                                id="passwordresetfailurecount"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordresetfailurecount"
-                                onChange={(e, checked) => {
-                                    this.handleLockoutChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("The number of seconds, duration, before the account gets unlocked (passwordLockoutDuration).")}>
-                        <GridItem className="ds-label" span={5}>
-                            {_("Time Until Account Unlocked")}
-                        </GridItem>
-                        <GridItem span={2}>
-                            <TextInput
-                                value={this.state.passwordlockoutduration}
-                                type="number"
-                                id="passwordlockoutduration"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordlockoutduration"
-                                onChange={(e, checked) => {
-                                    this.handleLockoutChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("Do not lockout the user account forever, instead the account will unlock based on the lockout duration (passwordUnlock).")}>
-                        <GridItem className="ds-label" span={5}>
-                            <Checkbox
-                                id="passwordunlock"
-                                isChecked={this.state.passwordunlock}
-                                onChange={(e, checked) => {
-                                    this.handleLockoutChange(e);
-                                }}
-                                label={_("Do Not Lockout Account Forever")}
-                            />
-                        </GridItem>
-                    </Grid>
-                </div>
-            );
-        }
-
-        if (this.state.passwordexp) {
-            pwExpirationRows = (
-                <div className="ds-margin-left">
-                    <Grid className="ds-margin-top" title={_("The maximum age of a password in seconds before it expires (passwordMaxAge).")}>
-                        <GridItem className="ds-label" span={5}>
-                            {_("Password Expiration Time")}
-                        </GridItem>
-                        <GridItem span={2}>
-                            <TextInput
-                                value={this.state.passwordmaxage}
-                                type="number"
-                                id="passwordmaxage"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordmaxage"
-                                onChange={(e, checked) => {
-                                    this.handleExpChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("The number of logins that are allowed after the password has expired (passwordGraceLimit).")}>
-                        <GridItem className="ds-label" span={5}>
-                            {_("Allowed Logins After Password Expires")}
-                        </GridItem>
-                        <GridItem span={2}>
-                            <TextInput
-                                value={this.state.passwordgracelimit}
-                                type="number"
-                                id="passwordgracelimit"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordgracelimit"
-                                onChange={(e, checked) => {
-                                    this.handleExpChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning).")}>
-                        <GridItem className="ds-label" span={5}>
-                            {_("Send Password Expiring Warning")}
-                        </GridItem>
-                        <GridItem span={2}>
-                            <TextInput
-                                value={this.state.passwordwarning}
-                                type="number"
-                                id="passwordwarning"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="passwordwarning"
-                                onChange={(e, checked) => {
-                                    this.handleExpChange(e);
-                                }}
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Grid className="ds-margin-top" title={_("Always return a password expiring control when requested (passwordSendExpiringTime).")}>
-                        <GridItem className="ds-label" span={5}>
-                            <Checkbox
-                                id="passwordsendexpiringtime"
-                                isChecked={this.state.passwordsendexpiringtime}
-                                onChange={(e, checked) => {
-                                    this.handleExpChange(e);
-                                }}
-                                label={_("<>Always Send <i>Password Expiring</i> Control</>")}
-                            />
-                        </GridItem>
-                    </Grid>
-                </div>
-            );
-        }
-
-        if (!this.state.editPolicy) {
-            edit_tab = (
-                <div className="ds-margin-top-xlg ds-center">
+        } else if (this.state.editPolicy) {
+            editPolicyTabs = (
+                <div className="ds-left-margin">
                     <TextContent>
-                        <Text className="ds-center" component={TextVariants.h3}>
-                            {_("Please choose a policy from the ")}<a onClick={this.handleResetTab}>{_("Local Policy Table")}</a>.
-                        </Text>
-                    </TextContent>
-                </div>
-            );
-        } else {
-            edit_tab = (
-                <div className={this.state.loading ? 'ds-fadeout ds-left-margin' : 'ds-fadein ds-left-margin'}>
-                    <TextContent>
-                        <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
+                        <Text className="ds-margin-top" component={TextVariants.h4}>
                             <b>{this.state.policyName}</b> <font size="2">({this.state.policyType})</font>
                         </Text>
                     </TextContent>
                     <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText>{_("General Settings")}</TabTitleText>}>
                             <Form className="ds-margin-left-sm ds-margin-top-lg" isHorizontal autoComplete="off">
-                                <Grid title={_("Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).")}>
-                                    <GridItem span={12}>
+                                <Grid hasGutter>
+                                    <GridItem
+                                        span={5}
+                                        title={_("Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).")}
+                                    >
                                         <Checkbox
                                             id="passwordtrackupdatetime"
                                             isChecked={this.state.passwordtrackupdatetime}
@@ -2840,9 +2572,7 @@ export class LocalPwPolicy extends React.Component {
                                             label={_("Track Password Update Time")}
                                         />
                                     </GridItem>
-                                </Grid>
-                                <Grid title={_("Allow user's to change their passwords (passwordChange).")}>
-                                    <GridItem span={12}>
+                                    <GridItem span={5} title={_("Allow user's to change their passwords (passwordChange).")}>
                                         <Checkbox
                                             id="passwordchange"
                                             isChecked={this.state.passwordchange}
@@ -2852,9 +2582,7 @@ export class LocalPwPolicy extends React.Component {
                                             label={_("Allow Users To Change Their Passwords")}
                                         />
                                     </GridItem>
-                                </Grid>
-                                <Grid title={_("User must change its password after its been reset by an administrator (passwordMustChange).")}>
-                                    <GridItem span={12}>
+                                    <GridItem span={5} title={_("User must change its password after its been reset by an administrator (passwordMustChange).")}>
                                         <Checkbox
                                             id="passwordmustchange"
                                             isChecked={this.state.passwordmustchange}
@@ -2864,9 +2592,20 @@ export class LocalPwPolicy extends React.Component {
                                             label={_("User Must Change Password After Reset")}
                                         />
                                     </GridItem>
-                                </Grid>
-                                <Grid title={_("Maintain a password history for each user (passwordHistory).")}>
-                                    <GridItem span={12}>
+                                    <GridItem
+                                        span={5}
+                                        title={_("Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate).")}
+                                    >
+                                        <Checkbox
+                                            id="passwordadminskipinfoupdate"
+                                            isChecked={this.state.passwordadminskipinfoupdate}
+                                            onChange={(e, checked) => {
+                                                this.handleGeneralChange(e);
+                                            }}
+                                            label={_("Do not update target entry's password state attributes")}
+                                        />
+                                    </GridItem>
+                                    <GridItem span={5} title={_("Maintain a password history for each user (passwordHistory).")}>
                                         <div className="ds-inline">
                                             <Checkbox
                                                 id="passwordhistory"
@@ -2878,24 +2617,24 @@ export class LocalPwPolicy extends React.Component {
                                             />
                                         </div>
                                         <div className="ds-inline ds-left-margin ds-raise-field-md ds-width-sm">
-                                            <TextInput
-                                                value={this.state.passwordinhistory}
-                                                type="number"
+                                            <DsNumberInput
                                                 id="passwordinhistory"
-                                                aria-describedby="horizontal-form-name-helper"
-                                                name="passwordinhistory"
-                                                onChange={(e, checked) => {
+                                                value={this.state.passwordinhistory}
+                                                fieldName="passwordinhistory"
+                                                invalidFields={this.state.invalidFields}
+                                                onChange={(e) => {
                                                     this.handleGeneralChange(e);
                                                 }}
                                             />
+                                            {renderValidationError("passwordinhistory", this.state.invalidFields)}
                                         </div>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Set the password storage scheme (passwordstoragescheme).")}>
-                                    <GridItem span={3} className="ds-label">
+                                    <GridItem className="ds-label" span={3}>
                                         {_("Password Storage Scheme")}
                                     </GridItem>
-                                    <GridItem span={9}>
+                                    <GridItem span={7}>
                                         <FormSelect
                                             id="passwordstoragescheme"
                                             value={this.state.passwordstoragescheme}
@@ -2920,18 +2659,18 @@ export class LocalPwPolicy extends React.Component {
                                     <GridItem className="ds-label" span={3}>
                                         {_("Password Minimum Age")}
                                     </GridItem>
-                                    <GridItem span={9}>
-                                        <TextInput
-                                            value={this.state.passwordminage}
-                                            type="number"
+                                    <GridItem span={7}>
+                                        <DsNumberInput
                                             id="passwordminage"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="passwordminage"
-                                            onChange={(e, checked) => {
+                                            value={this.state.passwordminage}
+                                            fieldName="passwordminage"
+                                            invalidFields={this.state.invalidFields}
+                                            onChange={(e) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                         />
                                     </GridItem>
+                                    {renderValidationError("passwordminage", this.state.invalidFields)}
                                 </Grid>
                                 <Grid
                                     title={_("The DN for a password administrator or administrator group (passwordAdminDN).")}
@@ -2939,7 +2678,7 @@ export class LocalPwPolicy extends React.Component {
                                     <GridItem className="ds-label" span={3}>
                                         {_("Password Administrator")}
                                     </GridItem>
-                                    <GridItem span={9}>
+                                    <GridItem span={7}>
                                         <TextInput
                                             value={this.state.passwordadmindn}
                                             type="text"
@@ -2952,37 +2691,12 @@ export class LocalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid
-                                    title={_("Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate).")}
-                                >
-                                    <GridItem offset={3} span={9}>
-                                        <Checkbox
-                                            id="passwordadminskipinfoupdate"
-                                            isChecked={this.state.passwordadminskipinfoupdate}
-                                            onChange={(e, checked) => {
-                                                this.handleGeneralChange(e);
-                                            }}
-                                            label="Do not update target entry's password state attributes"
-                                        />
-                                    </GridItem>
-                                </Grid>
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveGeneralDisabled || this.state.saving}
-                                variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left-sm ds-margin-bottom-md"
-                                onClick={this.handleSaveGeneral}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                         <Tab eventKey={1} title={<TabTitleText>{_("Expiration")}</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
-                                <Grid title={_("Enable a password expiration policy (passwordExp).")}>
-                                    <GridItem span={12}>
+                            <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
+                                <Grid className="ds-margin-top" title={_("Enable a password expiration policy (passwordExp).")}>
+                                    <GridItem span={10}>
                                         <Checkbox
                                             id="passwordexp"
                                             isChecked={this.state.passwordexp}
@@ -2993,24 +2707,15 @@ export class LocalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                {pwExpirationRows}
+                                <div className="ds-left-indent">
+                                    {pwExpirationRows}
+                                </div>
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveExpDisabled || this.state.saving}
-                                variant="primary"
-                                className="ds-margin-top-lg ds-margin-left"
-                                onClick={this.handleSaveExp}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                         <Tab eventKey={2} title={<TabTitleText>{_("Account Lockout")}</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
-                                <Grid title={_("Enable account lockout (passwordLockout).")}>
-                                    <GridItem span={12}>
+                            <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
+                                <Grid className="ds-margin-top" title={_("Enable account lockout (passwordLockout).")}>
+                                    <GridItem span={10}>
                                         <Checkbox
                                             id="passwordlockout"
                                             isChecked={this.state.passwordlockout}
@@ -3021,24 +2726,15 @@ export class LocalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                {pwLockoutRows}
+                                <div className="ds-left-indent">
+                                    {pwLockoutRows}
+                                </div>
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveLockoutDisabled || this.state.saving}
-                                variant="primary"
-                                className="ds-margin-top-lg ds-margin-left"
-                                onClick={this.handleSaveLockout}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                         <Tab eventKey={3} title={<TabTitleText>{_("Syntax Checking")}</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                            <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title={_("Enable password syntax checking (passwordCheckSyntax).")}>
-                                    <GridItem span={12}>
+                                    <GridItem span={10}>
                                         <Checkbox
                                             id="passwordchecksyntax"
                                             isChecked={this.state.passwordchecksyntax}
@@ -3049,19 +2745,10 @@ export class LocalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                {pwSyntaxRows}
+                                <div className="ds-left-indent">
+                                    {pwSyntaxRows}
+                                </div>
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveSyntaxDisabled || this.state.saving}
-                                variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left ds-margin-bottom-md"
-                                onClick={this.handleSaveSyntax}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                         <Tab eventKey={4} title={<TabTitleText>{_("Temporary Password Rules")}</TabTitleText>}>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
@@ -3079,17 +2766,16 @@ export class LocalPwPolicy extends React.Component {
                                     title={_("Number of times the temporary password can be used to authenticate (passwordTPRMaxUse).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Password Max Use
+                                        {_("Password Max Use")}
                                     </GridItem>
-                                    <GridItem span={9}>
-                                        <TextInput
-                                            value={this.state.passwordtprmaxuse}
-                                            type="number"
+                                    <GridItem span={7}>
+                                        <DsNumberInput
                                             id="passwordtprmaxuse"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="passwordtprmaxuse"
+                                            fieldName="passwordtprmaxuse"
+                                            value={this.state.passwordtprmaxuse}
+                                            invalidFields={this.state.invalidFields}
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(e, checked) => {
+                                            onChange={(e) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -3104,14 +2790,13 @@ export class LocalPwPolicy extends React.Component {
                                         {_("Password Expires In")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
-                                            value={this.state.passwordtprdelayexpireat}
-                                            type="number"
+                                        <DsNumberInput
                                             id="passwordtprdelayexpireat"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="passwordtprdelayexpireat"
+                                            fieldName="passwordtprdelayexpireat"
+                                            value={this.state.passwordtprdelayexpireat}
+                                            invalidFields={this.state.invalidFields}
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(e, checked) => {
+                                            onChange={(e) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -3126,93 +2811,51 @@ export class LocalPwPolicy extends React.Component {
                                         {_("Password Valid From")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
-                                            value={this.state.passwordtprdelayvalidfrom}
-                                            type="number"
+                                        <DsNumberInput
                                             id="passwordtprdelayvalidfrom"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="passwordtprdelayvalidfrom"
+                                            fieldName="passwordtprdelayvalidfrom"
+                                            value={this.state.passwordtprdelayvalidfrom}
+                                            invalidFields={this.state.invalidFields}
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(e, checked) => {
+                                            onChange={(e) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
                                     </GridItem>
                                 </Grid>
                             </Form>
-                            <Button
-                                isDisabled={this.state.saveTPRDisabled || this.state.saving}
-                                variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left ds-margin-bottom-md"
-                                onClick={this.handleSaveTPR}
-                                isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
-                                {...extraPrimaryProps}
-                            >
-                                {saveBtnName}
-                            </Button>
                         </Tab>
                     </Tabs>
                 </div>
             );
         }
 
+        let createBtnName = _("Create New Policy");
+        const createExtraPrimaryProps = {};
+        if (this.state.creating) {
+            createBtnName = _("Creating ...");
+            createExtraPrimaryProps.spinnerAriaValueText = _("Creating");
+        }
+
         let body = (
-            <div className="ds-margin-top-lg">
-                <Tabs activeKey={this.state.localActiveTabKey} onSelect={this.handleLocalNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>{_("Local Policy Table")}</TabTitleText>}>
-                        <div className="ds-margin-top-xlg">
-                            <PwpTable
-                                key={this.state.rows}
-                                rows={this.state.rows}
-                                editPolicy={this.loadLocal}
-                                deletePolicy={this.showDeletePolicy}
-                            />
-                        </div>
-                    </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>{_("Edit Policy")}</TabTitleText>}>
-                        {edit_tab}
-                    </Tab>
-                    <Tab eventKey={2} title={<TabTitleText>{_("Create A Policy")}</TabTitleText>}>
-                        <CreatePolicy
-                            handleChange={this.onCreateChange}
-                            handleSelectChange={this.onCreateSelectChange}
-                            attrs={this.props.attrs}
-                            passwordexp={this.state.create_passwordexp}
-                            passwordchecksyntax={this.state.create_passwordchecksyntax}
-                            passwordlockout={this.state.create_passwordlockout}
-                            createDisabled={this.state.createDisabled}
-                            passworduserattributes={this.state.create_passworduserattributes}
-                            handleCreatePolicy={this.createPolicy}
-                            invalid_dn={this.state.invalid_dn}
-                            key={this.state.rows}
-                            policyDN={this.state.policyDN}
-                            createPolicyType={this.state.createPolicyType}
-                            create_passwordtrackupdatetime={this.state.create_passwordtrackupdatetime}
-                            create_passwordchange={this.state.create_passwordchange}
-                            create_passwordmustchange={this.state.create_passwordmustchange}
-                            create_passwordhistory={this.state.create_passwordhistory}
-                            create_passwordexp={this.state.create_passwordexp}
-                            create_passwordsendexpiringtime={this.state.create_passwordsendexpiringtime}
-                            create_passwordlockout={this.state.create_passwordlockout}
-                            create_passwordunlock={this.state.create_passwordunlock}
-                            create_passwordchecksyntax={this.state.create_passwordchecksyntax}
-                            create_passworddictcheck={this.state.create_passworddictcheck}
-                            create_passwordpalindrome={this.state.create_passwordpalindrome}
-                            create_passwordstoragescheme={this.state.create_passwordstoragescheme}
-                            create_passwordadmindn={this.state.create_passwordadmindn}
-                            create_passwordadminskipinfoupdate={this.state.create_passwordadminskipinfoupdate}
-                            onUserAttrsCreateToggle={this.handleUserAttrsCreateToggle}
-                            onUserAttrsCreateClear={this.handleUserAttrsCreateClear}
-                            isUserAttrsCreateOpen={this.state.isUserAttrsCreateOpen}
-                            pwdStorageSchemes={this.props.pwdStorageSchemes}
-                        />
-                    </Tab>
-                </Tabs>
+            <div className="ds-margin-top-xlg">
+                <PwpTable
+                    key={this.state.rows}
+                    rows={this.state.rows}
+                    editPolicy={this.loadLocal}
+                    deletePolicy={this.showDeletePolicy}
+                />
+                <Button
+                    variant="primary"
+                    className="ds-margin-top-lg"
+                    onClick={this.openCreateModal}
+                >
+                    {_("Create New Local Policy")}
+                </Button>
             </div>
         );
 
-        if (this.state.loading || !this.state.loaded) {
+        if (!this.state.loaded || (this.state.loading && !this.state.showCreateModal && !this.state.showEditModal)) {
             body = (
                 <div className="ds-margin-top-xlg ds-center">
                     <Spinner  size="xl" />
@@ -3225,9 +2868,9 @@ export class LocalPwPolicy extends React.Component {
                 <Grid>
                     <GridItem span={12}>
                         <TextContent>
-                            <Text component={TextVariants.h3}>
+                            <Text component={TextVariants.h2}>
                                 {_("Local Password Policies")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh the local password policies")}
                                     onClick={this.handleLoadPolicies}
@@ -3239,6 +2882,59 @@ export class LocalPwPolicy extends React.Component {
                     </GridItem>
                 </Grid>
                 {body}
+                <Modal
+                    variant={ModalVariant.large}
+                    title={_("Create Local Password Policy")}
+                    isOpen={this.state.showCreateModal}
+                    onClose={this.closeCreateModal}
+                    actions={[
+                        <Button
+                            key="create"
+                            variant="primary"
+                            onClick={this.createPolicy}
+                            isDisabled={this.state.createDisabled || this.state.creating}
+                            isLoading={this.state.creating}
+                            spinnerAriaValueText={this.state.creating ? _("Creating") : undefined}
+                            {...createExtraPrimaryProps}
+                        >
+                            {createBtnName}
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeCreateModal}>
+                            {_("Cancel")}
+                        </Button>,
+                    ]}
+                >
+                    <CreatePolicy
+                        key={this.state.showCreateModal ? "create-open" : "create-closed"}
+                        {...this.getCreatePolicyProps()}
+                    />
+                </Modal>
+                <Modal
+                    variant={ModalVariant.large}
+                    title={this.state.editPolicy
+                        ? cockpit.format(_("Edit Local Password Policy - $0"), this.state.policyName)
+                        : _("Edit Local Password Policy")}
+                    isOpen={this.state.showEditModal}
+                    onClose={this.closeEditModal}
+                    actions={[
+                        <Button
+                            key="save"
+                            variant="primary"
+                            onClick={this.handleSavePolicy}
+                            isDisabled={this.state.saveEditDisabled || this.state.saving}
+                            isLoading={this.state.saving}
+                            spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
+                            {...editSaveExtraPrimaryProps}
+                        >
+                            {editSaveBtnName}
+                        </Button>,
+                        <Button key="close" variant="link" onClick={this.closeEditModal}>
+                            {_("Close")}
+                        </Button>,
+                    ]}
+                >
+                    {editPolicyTabs}
+                </Modal>
                 <DoubleConfirmModal
                     showModal={this.state.showDeletePolicy}
                     closeHandler={this.closeDeletePolicy}
@@ -3246,7 +2942,7 @@ export class LocalPwPolicy extends React.Component {
                     actionHandler={this.deletePolicy}
                     item={this.state.deleteName}
                     checked={this.state.modalChecked}
-                    spinning={this.state.tableLoading}
+                    spinning={this.state.loading}
                     mTitle={_("Delete Local Password Policy")}
                     mMsg={_("Are you sure you want to delete this local password policy?")}
                     mSpinningMsg={_("Deleting local password policy ...")}

@@ -13,15 +13,11 @@ import {
 	TextInput,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { PassthroughAuthConfigsTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -80,21 +76,9 @@ class PAMPassthroughAuthentication extends React.Component {
             }, () => { this.validatePAM() });
         };
         this.handleExcludeSelect = (event, selection) => {
-            if (this.state.pamExcludeSuffix.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        pamExcludeSuffix: prevState.pamExcludeSuffix.filter(item => item !== selection),
-                        isExcludeOpen: false
-                    }), () => { this.validatePAM() }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        pamExcludeSuffix: [...prevState.pamExcludeSuffix, selection],
-                        isExcludeOpen: false
-                    }), () => { this.validatePAM() }
-                );
-            }
+            this.setState({
+                pamExcludeSuffix: Array.isArray(selection) ? selection : [],
+            }, () => { this.validatePAM() });
         };
         this.handleCreateExcludeOption = newValue => {
             if (!this.state.excludeOptions.includes(newValue)) {
@@ -117,21 +101,9 @@ class PAMPassthroughAuthentication extends React.Component {
             }, () => { this.validatePAM() });
         };
         this.handleIncludeSelect = (event, selection) => {
-            if (this.state.pamIncludeSuffix.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        pamIncludeSuffix: prevState.pamIncludeSuffix.filter(item => item !== selection),
-                        isIncludeOpen: false
-                    })
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        pamIncludeSuffix: [...prevState.pamIncludeSuffix, selection],
-                        isIncludeOpen: false
-                    })
-                );
-            }
+            this.setState({
+                pamIncludeSuffix: Array.isArray(selection) ? selection : [],
+            });
         };
         this.handleCreateIncludeOption = newValue => {
             if (!this.state.includeOptions.includes(newValue)) {
@@ -287,7 +259,7 @@ class PAMPassthroughAuthentication extends React.Component {
         this.props.toggleLoadingHandler();
         log_cmd("loadPAMConfigs", "Get PAM Passthrough Authentication Plugin Configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const tableKey = this.state.tableKey + 1;
@@ -298,9 +270,9 @@ class PAMPassthroughAuthentication extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadPAMConfigs failed", errMsg.desc);
+                        console.log("loadPAMConfigs failed", errMsg);
                     }
                     this.props.toggleLoadingHandler();
                 });
@@ -353,7 +325,7 @@ class PAMPassthroughAuthentication extends React.Component {
             );
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -490,7 +462,7 @@ class PAMPassthroughAuthentication extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -504,10 +476,10 @@ class PAMPassthroughAuthentication extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the pamConfig entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the pamConfig entry removal operation - $0"), errMsg)
                     );
                     this.loadPAMConfigs();
                     this.closeConfirmDeleteConfig();
@@ -600,7 +572,7 @@ class PAMPassthroughAuthentication extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -613,10 +585,10 @@ class PAMPassthroughAuthentication extends React.Component {
                     this.handleClosePAMModal();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the pamConfig entry $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the pamConfig entry $0 operation - $1"), action, errMsg)
                     );
                     this.loadPAMConfigs();
                     this.handleClosePAMModal();
@@ -705,26 +677,19 @@ class PAMPassthroughAuthentication extends React.Component {
                                 {_("Exclude Suffix")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    isCreatable
-                                    onCreateOption={this.handleCreateExcludeOption}
-                                    typeAheadAriaLabel="Add a suffix"
-                                    onToggle={(event, isOpen) => this.handleExcludeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={pamExcludeSuffix}
                                     onSelect={this.handleExcludeSelect}
                                     onClear={this.handleClearExcludeSelection}
-                                    selections={pamExcludeSuffix}
+                                    options={this.state.excludeOptions}
                                     isOpen={this.state.isExcludeOpen}
-                                    aria-labelledby="Add a suffix"
-                                    placeholderText={_("Type a suffix DN ...")}
-                                >
-                                    {this.state.excludeOptions.map((suffix, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={suffix}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleExcludeToggle}
+                                    placeholder={_("Type a suffix DN ...")}
+                                    ariaLabel="Add a suffix"
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleCreateExcludeOption}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid>
@@ -736,26 +701,19 @@ class PAMPassthroughAuthentication extends React.Component {
                                 {_("Include Suffix")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    isCreatable
-                                    onCreateOption={this.handleCreateIncludeOption}
-                                    typeAheadAriaLabel="Add an include suffix"
-                                    onToggle={(event, isOpen) => this.handleIncludeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={pamIncludeSuffix}
                                     onSelect={this.handleIncludeSelect}
                                     onClear={this.handleClearIncludeSelection}
-                                    selections={pamIncludeSuffix}
+                                    options={this.state.includeOptions}
                                     isOpen={this.state.isIncludeOpen}
-                                    aria-labelledby="Add an include suffix"
-                                    placeholderText={_("Type a suffix DN ...")}
-                                >
-                                    {this.state.includeOptions.map((suffix, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={suffix}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleIncludeToggle}
+                                    placeholder={_("Type a suffix DN ...")}
+                                    ariaLabel="Add an include suffix"
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleCreateIncludeOption}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid>
@@ -899,6 +857,7 @@ class PAMPassthroughAuthentication extends React.Component {
                     <Button
                         variant="primary"
                         onClick={this.handleShowAddPAMConfigModal}
+                        className="ds-margin-top"
                     >
                         {_("Add Config")}
                     </Button>

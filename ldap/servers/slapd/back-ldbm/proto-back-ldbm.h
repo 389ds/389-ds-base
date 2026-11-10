@@ -37,14 +37,14 @@ void attr_create_empty(backend *be, char *type, struct attrinfo **ai);
  * cache.c
  */
 void cache_disable(void);
-int cache_init(struct cache *cache, uint64_t maxsize, int64_t maxentries, int type);
+int cache_init(struct cache *cache, struct ldbm_instance *inst, uint64_t maxsize, int64_t maxentries, int type);
 void cache_clear(struct cache *cache, int type);
 void cache_destroy_please(struct cache *cache, int type);
-void cache_set_max_size(struct cache *cache, uint64_t bytes, int type);
-void cache_set_max_entries(struct cache *cache, int64_t entries);
+void cache_set_max_size(struct cache *cache, uint64_t bytes, int type, bool autotuned);
+void cache_set_max_entries(struct cache *cache, int64_t entries, bool autotuned);
 uint64_t cache_get_max_size(struct cache *cache);
 int64_t cache_get_max_entries(struct cache *cache);
-void cache_get_stats(struct cache *cache, uint64_t *hits, uint64_t *tries, uint64_t *entries, int64_t *maxentries, uint64_t *size, uint64_t *maxsize);
+void cache_get_stats(struct cache *cache, struct cache_stats *stats);
 void cache_debug_hash(struct cache *cache, char **out);
 int cache_remove(struct cache *cache, void *e);
 void cache_return(struct cache *cache, void **bep);
@@ -55,6 +55,7 @@ struct backentry *cache_find_id(struct cache *cache, ID id);
 struct backentry *cache_find_uuid(struct cache *cache, const char *uuid);
 int cache_add(struct cache *cache, void *ptr, void **alt);
 int cache_add_tentative(struct cache *cache, struct backentry *e, struct backentry **alt);
+void cache_remove_dn_hash(struct cache *cache, struct backentry *e);
 int cache_lock_entry(struct cache *cache, struct backentry *e);
 void cache_unlock_entry(struct cache *cache, struct backentry *e);
 int cache_replace(struct cache *cache, void *oldptr, void *newptr);
@@ -217,6 +218,9 @@ ID idl_firstid(IDList *idl);
 ID idl_nextid(IDList *idl, ID id);
 int idl_init_private(backend *be, struct attrinfo *a);
 int idl_release_private(struct attrinfo *a);
+IdRange_t *idrange_add_id(IdRange_t **head, ID id);
+void idrange_free(IdRange_t **head);
+int idl_id_is_in_idlist_ranges(IDList *idl, IdRange_t *idrange_list, ID id);
 int idl_id_is_in_idlist(IDList *idl, ID id);
 
 idl_iterator idl_iterator_init(const IDList *idl);
@@ -304,6 +308,7 @@ int get_parent_rdn(dbi_db_t *db, ID parentid, Slapi_RDN *srdn);
 /*
  * modify.c
  */
+Slapi_Attr *entry_rdn_find_attr(Slapi_Entry *entry, const char *type, char **normtype);
 int32_t entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, Slapi_Mods **smods_ret);
 int modify_update_all(backend *be, Slapi_PBlock *pb, modify_context *mc, back_txn *txn);
 void modify_init(modify_context *mc, struct backentry *old_entry);
@@ -323,10 +328,10 @@ void add_update_entrydn_operational_attributes(struct backentry *ep);
  * misc.c
  */
 void ldbm_nasty(const char *func, const char *str, int c, int err);
+void ldbm_fetch_retry_sleep(int retry_count);
 void ldbm_log_access_message(Slapi_PBlock *pblock, char *string);
 int return_on_disk_full(struct ldbminfo *li);
 int ldbm_attribute_always_indexed(const char *attrtype);
-void ldbm_destroy_instance_name(struct ldbminfo *li);
 char *compute_entry_tombstone_dn(const char *entrydn, const char *uniqueid);
 char *compute_entry_tombstone_rdn(const char *entryrdn, const char *uniqueid);
 int instance_set_busy(ldbm_instance *inst);
@@ -345,6 +350,7 @@ int get_value_from_string(const char *string, char *type, char **value);
 int get_values_from_string(const char *string, char *type, char ***valuearray);
 void normalize_dir(char *dir);
 void ldbm_set_error(Slapi_PBlock *pb, int retval, int *ldap_result_code, char **ldap_result_message);
+char *convert_bytes_to_str(double bytes, char *buffer, int level);
 
 /*
  * nextid.c
@@ -372,6 +378,8 @@ const Slapi_DN *backentry_get_sdn(const struct backentry *e);
 
 struct backdn *backdn_init(Slapi_DN *sdn, ID id, int to_remove_from_hash);
 void backdn_free(struct backdn **bdn);
+void backentry_init_weight(BackEntryWeightData *starttime);
+void backentry_compute_weight(struct backentry *e, const BackEntryWeightData *starttime);
 
 /*
  * parents.c
@@ -496,7 +504,7 @@ int vlv_trim_candidates_txn(backend *be, const IDList *candidates, const sort_sp
 int vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec *sort_control, const struct vlv_request *vlv_request_control, IDList **filteredCandidates, struct vlv_response *pResponse);
 int vlv_parse_request_control(backend *be, struct berval *vlv_spec_ber, struct vlv_request *vlvp);
 int vlv_make_response_control(Slapi_PBlock *pb, const struct vlv_response *vlvp);
-void vlv_getindices(IFP callback_fn, void *param, backend *be);
+void vlv_getindices(int32_t (*callback_fn)(caddr_t, caddr_t),  void *param, backend *be);
 void vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo, sort_spec_thing *sort_control);
 void vlv_grok_new_import_entry(const struct backentry *e, backend *be, int *seen_them_all);
 IDList *vlv_find_index_by_filter(struct backend *be, const char *base, Slapi_Filter *f);
@@ -605,8 +613,9 @@ int ldbm_ancestorid_move_subtree(
  */
 int ldbm_back_wire_import(Slapi_PBlock *pb);
 void import_abort_all(struct _ImportJob *job, int wait_for_them);
+void import_reenable_backend_after_restore(struct _ImportJob *job, backend *be);
 void *factory_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)));
-void factory_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)));
+void factory_destructor(void *extension, void *object, void *parent __attribute__((unused)));
 uint64_t wait_for_ref_count(Slapi_Counter *inst_ref_count);
 
 /*
@@ -617,7 +626,7 @@ int attrcrypt_encrypt_entry_inplace(backend *be, const struct backentry *inout);
 int attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentry **out);
 int attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berval *in, struct berval **out);
 int attrcrypt_decrypt_index_key(backend *be, struct attrinfo *ai, const struct berval *in, struct berval **out);
-int attrcrypt_hash_large_index_key(backend *be, char **prefix, struct attrinfo *ai, const struct berval *in, struct berval **out);
+int attrcrypt_hash_large_index_key(backend *be, const char *prefix, struct attrinfo *ai, const struct berval *in, struct berval **out);
 int attrcrypt_init(ldbm_instance *li);
 int attrcrypt_cleanup_private(ldbm_instance *li);
 
@@ -631,10 +640,7 @@ int ldbm_set_last_usn(Slapi_Backend *be);
 /*
  * ldbm_entryrdn.c
  */
-void entryrdn_set_switch(int val);
-int entryrdn_get_switch(void);
-void entryrdn_set_noancestorid(int val);
-int entryrdn_get_noancestorid(void);
+int ldbm_index_entrydn_should_ignore(const char *index_name);
 int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int entryrdn_index_read(backend *be, const Slapi_DN *sdn, ID *id, back_txn *txn);
 int

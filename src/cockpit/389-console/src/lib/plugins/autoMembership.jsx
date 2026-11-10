@@ -15,18 +15,14 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import {
     ArrowRightIcon,
 } from '@patternfly/react-icons';
 import { AutoMembershipDefinitionTable, AutoMembershipRegexTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, listsEqual, valid_dn } from "../tools.jsx";
+import { log_cmd, listsEqual, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -101,22 +97,9 @@ class AutoMembership extends React.Component {
         ));
 
         this.handleRegexExcludeSelect = (event, selection) => {
-            const { regexExclusive } = this.state;
-            if (regexExclusive.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        regexExclusive: prevState.regexExclusive.filter(item => item !== selection),
-                        isRegexExcludeOpen: false
-                    }), () => { this.validateRegex() }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        regexExclusive: [...prevState.regexExclusive, selection],
-                        isRegexExcludeOpen: false,
-                    }), () => { this.validateRegex() }
-                );
-            }
+            this.setState({
+                regexExclusive: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateRegex() });
         };
         this.handleCreateRegexExcludeOption = newValue => {
             if (!this.state.excludeOptions.includes(newValue)) {
@@ -139,22 +122,9 @@ class AutoMembership extends React.Component {
         };
 
         this.handleRegexIncludeSelect = (event, selection) => {
-            const { regexInclusive } = this.state;
-            if (regexInclusive.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        regexInclusive: prevState.regexInclusive.filter(item => item !== selection),
-                        isRegexIncludeOpen: false
-                    }), () => { this.validateRegex() }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        regexInclusive: [...prevState.regexInclusive, selection],
-                        isRegexIncludeOpen: false
-                    }), () => { this.validateRegex() }
-                );
-            }
+            this.setState({
+                regexInclusive: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateRegex() });
         };
         this.handleCreateRegexIncludeOption = newValue => {
             if (!this.state.includeOptions.includes(newValue)) {
@@ -379,7 +349,7 @@ class AutoMembership extends React.Component {
         ];
         log_cmd("loadDefinitions", "Get Auto Membership Plugin definitions", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     this.setState({
@@ -388,9 +358,9 @@ class AutoMembership extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadDefinitions failed", errMsg.desc);
+                        console.log("loadDefinitions failed", errMsg);
                     }
                 });
     }
@@ -422,7 +392,7 @@ class AutoMembership extends React.Component {
         ];
         log_cmd("loadRegexes", "Get Auto Membership Plugin regexes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const regexTableKey = this.state.regexTableKey + 1;
@@ -435,9 +405,9 @@ class AutoMembership extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadRegexes failed", errMsg.desc);
+                        console.log("loadRegexes failed", errMsg);
                     }
                 });
     }
@@ -481,7 +451,7 @@ class AutoMembership extends React.Component {
             log_cmd("openModal", "Fetch the Auto Membership Plugin definition entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -641,7 +611,7 @@ class AutoMembership extends React.Component {
             );
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -656,11 +626,11 @@ class AutoMembership extends React.Component {
                         this.props.toggleLoadingHandler();
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
-                        if (errMsg.desc.indexOf("nothing to set") === 0) {
+                        const errMsg = getApiErrorMessage(err);
+                        if (errMsg.indexOf("nothing to set") === 0) {
                             this.props.addNotification(
                                 "error",
-                                cockpit.format(_("Error during the definition entry $0 operation - $1"), action, errMsg.desc)
+                                cockpit.format(_("Error during the definition entry $0 operation - $1"), action, errMsg)
                             );
                         } else {
                             this.purgeRegexUpdate();
@@ -696,7 +666,7 @@ class AutoMembership extends React.Component {
             );
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -707,10 +677,10 @@ class AutoMembership extends React.Component {
                         );
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error during the regex \"$0\" entry delete operation - $1"), regexToDelete, errMsg.desc)
+                            cockpit.format(_("Error during the regex \"$0\" entry delete operation - $1"), regexToDelete, errMsg)
                         );
                     });
         }
@@ -788,7 +758,7 @@ class AutoMembership extends React.Component {
             );
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -799,10 +769,10 @@ class AutoMembership extends React.Component {
                         );
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error during the regex \"$0\" entry $1 operation - $2"), regexName, action, errMsg.desc)
+                            cockpit.format(_("Error during the regex \"$0\" entry $1 operation - $2"), regexName, action, errMsg)
                         );
                     });
         }
@@ -843,7 +813,7 @@ class AutoMembership extends React.Component {
         log_cmd("deleteDefinition", "Delete the Auto Membership Plugin definition entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -856,10 +826,10 @@ class AutoMembership extends React.Component {
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the definition entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the definition entry removal operation - $0"), errMsg)
                     );
                     this.loadDefinitions();
                     this.closeConfirmDelete();
@@ -1227,6 +1197,7 @@ class AutoMembership extends React.Component {
                             <Button
                                 variant="secondary"
                                 onClick={this.handleShowAddRegexModal}
+                                className="ds-margin-top"
                             >
                                 {_("Add Regex")}
                             </Button>
@@ -1280,26 +1251,19 @@ class AutoMembership extends React.Component {
                                 {_("Exclusive Regex")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a regex"
-                                    onToggle={(event, isOpen) => this.handleRegexExcludeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={regexExclusive}
                                     onSelect={this.handleRegexExcludeSelect}
                                     onClear={this.handleClearRegexExcludeSelection}
-                                    selections={regexExclusive}
+                                    options={[]}
                                     isOpen={this.state.isRegexExcludeOpen}
-                                    aria-labelledby="typeAhead-excl-regex"
-                                    placeholderText={_("Type a regex...")}
-                                    isCreatable
+                                    onToggle={this.handleRegexExcludeToggle}
+                                    placeholder={_("Type a regex...")}
+                                    ariaLabel="Type a regex"
+                                    isMulti={true}
+                                    isCreatable={true}
                                     onCreateOption={this.handleCreateRegexExcludeOption}
-                                >
-                                    {[].map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)")}>
@@ -1307,26 +1271,19 @@ class AutoMembership extends React.Component {
                                 {_("Inclusive Regex")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a regex"
-                                    onToggle={(event, isOpen) => this.handleRegexIncludeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={regexInclusive}
                                     onSelect={this.handleRegexIncludeSelect}
                                     onClear={this.handleClearRegexIncludeSelection}
-                                    selections={regexInclusive}
+                                    options={[]}
                                     isOpen={this.state.isRegexIncludeOpen}
-                                    aria-labelledby="typeAhead-incl-regex"
-                                    placeholderText={_("Type a regex...")}
-                                    isCreatable
+                                    onToggle={this.handleRegexIncludeToggle}
+                                    placeholder={_("Type a regex...")}
+                                    ariaLabel="Type a regex"
+                                    isMulti={true}
+                                    isCreatable={true}
                                     onCreateOption={this.handleCreateRegexIncludeOption}
-                                >
-                                    {[].map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets which group to add the entry to as a member, if it meets the regular expression conditions (autoMemberTargetGroup)")}>
@@ -1372,6 +1329,7 @@ class AutoMembership extends React.Component {
                             <Button
                                 variant="primary"
                                 onClick={this.handleShowAddDefinitionModal}
+                                className="ds-margin-top"
                             >
                                 {_("Add Definition")}
                             </Button>

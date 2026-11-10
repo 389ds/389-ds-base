@@ -56,39 +56,29 @@ dn2entry_ext(
         ID id = ALLID;
 
         /* convert dn to entry id */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            *err = entryrdn_index_read_ext(be, sdn, &id,
-                                           flags & TOMBSTONE_INCLUDED, txn);
-            indexname = LDBM_ENTRYRDN_STR;
-            if (*err) {
-                if (DBI_RC_NOTFOUND != *err) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dn2entry_ext",
-                                  "Failed to get id for %s from %s index: (%d)\n",
-                                  slapi_sdn_get_dn(sdn), indexname, *err);
-                }
-                /* There's no entry with this DN. */
-                goto bail;
+        *err = entryrdn_index_read_ext(be, sdn, &id,
+                                       flags & TOMBSTONE_INCLUDED, txn);
+        indexname = LDBM_ENTRYRDN_STR;
+        if (*err) {
+            if (DBI_RC_NOTFOUND != *err) {
+                slapi_log_err(SLAPI_LOG_ERR, "dn2entry_ext",
+                              "Failed to get id for %s from %s index: (%d)\n",
+                              slapi_sdn_get_dn(sdn), indexname, *err);
             }
-            if (0 == id) {
-                /*
-                 * Note: A special entry such as RUV could be added
-                 * to entryrdn even if the suffix does not exist in
-                 * the index.  At that time, fake ID 0 is used as the
-                 * parent id.
-                 */
-                /* There's no entry with this suffix. */
-                goto bail;
-            }
-        } else {
-            IDList *idl = NULL;
-            if ((idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY,
-                                  &ndnv, txn, err)) == NULL) {
-                /* There's no entry with this DN. */
-                goto bail;
-            }
-            id = idl_firstid(idl);
-            slapi_ch_free((void **)&idl);
+            /* There's no entry with this DN. */
+            goto bail;
         }
+        if (0 == id) {
+            /*
+             * Note: A special entry such as RUV could be added
+             * to entryrdn even if the suffix does not exist in
+             * the index.  At that time, fake ID 0 is used as the
+             * parent id.
+             */
+            /* There's no entry with this suffix. */
+            goto bail;
+        }
+
         /* convert entry id to entry */
         if ((e = id2entry(be, id, txn, err)) != NULL) {
             /* Means that we found the entry OK */

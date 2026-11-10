@@ -12,8 +12,7 @@ from lib389 import DirSrv, Entry
 import pytest
 import time
 import shutil
-import datetime
-from dateutil.tz import tzoffset
+import datetime as dt
 
 INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'standalone'
@@ -74,7 +73,7 @@ def test_access_log(topology):
         topology.standalone.ds_access_log.parse_line('[27/Apr/2016:12:49:49.726093186 +1000] conn=1 fd=64 slot=64 connection from ::1 to ::1') ==
         {
             'slot': '64', 'remote': '::1', 'action': 'CONNECT', 'timestamp': '[27/Apr/2016:12:49:49.726093186 +1000]', 'fd': '64', 'conn': '1', 'local': '::1',
-            'datetime': datetime.datetime(2016, 4, 27, 12, 0, 0, 726093, tzinfo=tzoffset(None, 36000))
+            'datetime': dt.datetime(2016, 4, 27, 12, 49, 49, 726093, tzinfo=dt.timezone(dt.timedelta(seconds=36000)))
         }
     )
     assert(
@@ -82,21 +81,21 @@ def test_access_log(topology):
         {
             'rem': 'base="cn=config" scope=0 filter="(objectClass=*)" attrs="nsslapd-instancedir nsslapd-errorlog nsslapd-accesslog nsslapd-auditlog nsslapd-certdir nsslapd-schemadir nsslapd-bakdir nsslapd-ldifdir"',  # noqa
             'action': 'SRCH', 'timestamp': '[27/Apr/2016:12:49:49.727235997 +1000]', 'conn': '1', 'op': '2',
-            'datetime': datetime.datetime(2016, 4, 27, 12, 0, 0, 727235, tzinfo=tzoffset(None, 36000))
+            'datetime': dt.datetime(2016, 4, 27, 12, 49, 49, 727235, tzinfo=dt.timezone(dt.timedelta(seconds=36000)))
         }
     )
     assert(
         topology.standalone.ds_access_log.parse_line('[27/Apr/2016:12:49:49.736297002 +1000] conn=1 op=4 fd=64 closed - U1') ==
         {
             'status': 'U1', 'fd': '64', 'action': 'DISCONNECT', 'timestamp': '[27/Apr/2016:12:49:49.736297002 +1000]', 'conn': '1', 'op': '4',
-            'datetime': datetime.datetime(2016, 4, 27, 12, 0, 0, 736297, tzinfo=tzoffset(None, 36000))
+            'datetime': dt.datetime(2016, 4, 27, 12, 49, 49, 736297, tzinfo=dt.timezone(dt.timedelta(seconds=36000)))
         }
     )
     assert(
         topology.standalone.ds_access_log.parse_line('[27/Apr/2016:12:49:49.736297002 -1000] conn=1 op=4 fd=64 closed - U1') ==
         {
             'status': 'U1', 'fd': '64', 'action': 'DISCONNECT', 'timestamp': '[27/Apr/2016:12:49:49.736297002 -1000]', 'conn': '1', 'op': '4',
-            'datetime': datetime.datetime(2016, 4, 27, 12, 0, 0, 736297, tzinfo=tzoffset(None, -36000))
+            'datetime': dt.datetime(2016, 4, 27, 12, 49, 49, 736297, tzinfo=dt.timezone(dt.timedelta(seconds=-36000)))
         }
     )
 
@@ -113,7 +112,7 @@ def test_error_log(topology):
         topology.standalone.ds_error_log.parse_line('[27/Apr/2016:13:46:35.775670167 +1000] slapd started.  Listening on All Interfaces port 54321 for LDAP requests') ==  # noqa
         {
             'timestamp': '[27/Apr/2016:13:46:35.775670167 +1000]', 'message': 'slapd started.  Listening on All Interfaces port 54321 for LDAP requests',
-            'datetime': datetime.datetime(2016, 4, 27, 13, 0, 0, 775670, tzinfo=tzoffset(None, 36000))
+            'datetime': dt.datetime(2016, 4, 27, 13, 46, 35, 775670, tzinfo=dt.timezone(dt.timedelta(seconds=36000)))
         }
     )
 

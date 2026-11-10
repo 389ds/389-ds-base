@@ -1,11 +1,7 @@
 {
   "extends": "stylelint-config-standard-scss",
   "rules": {
-	"declaration-colon-newline-after": null,
-	"selector-list-comma-newline-after": null,
-
 	"at-rule-empty-line-before": null,
-	"declaration-colon-space-before": null,
 	"declaration-empty-line-before": null,
 	"custom-property-empty-line-before": null,
 	"comment-empty-line-before": null,
@@ -19,13 +15,11 @@
 	"declaration-block-single-line-max-declarations": null,
 	"font-family-no-duplicate-names": null,
 	"function-url-quotes": null,
-	"indentation": null,
 	"keyframes-name-pattern": null,
-	"max-line-length": null,
 	"no-descending-specificity": null,
 	"no-duplicate-selectors": null,
 	"scss/at-extend-no-missing-placeholder": null,
-	"scss/at-import-partial-extension": null,
+	"scss/load-partial-extension": null,
 	"scss/at-mixin-pattern": null,
 	"scss/comment-no-empty": null,
 	"scss/dollar-variable-pattern": null,

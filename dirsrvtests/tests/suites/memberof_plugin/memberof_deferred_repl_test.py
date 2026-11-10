@@ -11,16 +11,18 @@ import pytest
 import os
 import time
 from lib389._constants import DEFAULT_SUFFIX, AGMT_ATTR_LIST
-from lib389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_m2 as topo_m2
 from lib389.agreement import Agreements
 from lib389.replica import Replicas
 from lib389.plugins import MemberOfPlugin
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
+from lib389.utils import get_default_db_lib
 
 log = logging.getLogger(__name__)
 
 
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_repl_deferred_updates(topo_m2):
     """Test memberOf plugin deferred updates work in different types of
     replicated environments

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -13,8 +13,8 @@ from lib389.backend import Backend
 from lib389.replica import Replicas
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m4 as topo_m4
-from lib389.topologies import topology_m2 as topo_m2
+from test389.topologies import topology_m4 as topo_m4
+from test389.topologies import topology_m2 as topo_m2
 from . import get_repl_entries
 from lib389.idm.user import UserAccount
 from lib389.replica import ReplicationManager, Changelog
@@ -452,6 +452,13 @@ def test_multi_subsuffix_replication(topo_m4):
                             f"User {user_dn} on supplier {user_obj._instance.serverid} "
                             f"still has 'Description {j}'"
                         )
+
+        # Check there are no decoding errors
+        assert not topo_m4.ms["supplier1"].ds_error_log.match('.*decoding failed.*')
+        assert not topo_m4.ms["supplier2"].ds_error_log.match('.*decoding failed.*')
+        assert not topo_m4.ms["supplier3"].ds_error_log.match('.*decoding failed.*')
+        assert not topo_m4.ms["supplier4"].ds_error_log.match('.*decoding failed.*')
+
     finally:
         for suffix, test_users in test_users_by_suffix.items():
             for user in test_users:
@@ -505,6 +512,7 @@ def test_new_suffix(topo_m4, new_suffix):
 
     repl.remove_supplier(m1)
     repl.remove_supplier(m2)
+
 
 def test_many_attrs(topo_m4, create_entry):
     """Check a replication with many attributes (add and delete)
@@ -588,7 +596,7 @@ def test_double_delete(topo_m4, create_entry):
         time.sleep(5)
     else:
         time.sleep(1)
-        
+
     log.info('Make searches to check if server is alive')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
     assert not entries, "Entry deletion {} wasn't replicated successfully".format(TEST_ENTRY_DN)
@@ -608,13 +616,19 @@ def test_password_repl_error(topo_m4, create_entry):
 
     m1 = topo_m4.ms["supplier1"]
     m2 = topo_m4.ms["supplier2"]
+    m3 = topo_m4.ms["supplier3"]
+    m4 = topo_m4.ms["supplier4"]
     TEST_ENTRY_NEW_PASS = 'new_{}'.format(TEST_ENTRY_NAME)
 
     log.info('Clean the error log')
     m2.deleteErrorLogs()
 
     log.info('Set replication loglevel')
+    m1.config.loglevel((ErrorLog.REPLICA,))
     m2.config.loglevel((ErrorLog.REPLICA,))
+    m3.config.loglevel((ErrorLog.REPLICA,))
+    m4.config.loglevel((ErrorLog.REPLICA,))
+
 
     log.info('Modifying entry {} - change userpassword on supplier 2'.format(TEST_ENTRY_DN))
     test_user_m1 = UserAccount(topo_m4.ms["supplier1"], TEST_ENTRY_DN)
@@ -679,7 +693,23 @@ def test_invalid_agmt(topo_m4):
         assert False
 
 
-def test_warining_for_invalid_replica(topo_m4):
+def test_reject_self_referential_agmt(topo_m4):
+    """Test that creating a replication agreement pointing to self is rejected
+
+    :id: 7df2f91a-878b-4a7e-86f7-4f72ef5726c6
+    :setup: MMR with four suppliers
+    :steps:
+        1. Try to add an agreement on supplier1 that points to supplier1 host/port
+    :expectedresults:
+        1. Agreement creation should fail with UNWILLING_TO_PERFORM
+    """
+    m1 = topo_m4.ms["supplier1"]
+
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        m1.agreement.create(suffix=DEFAULT_SUFFIX, host=m1.host, port=m1.port)
+
+
+def test_warning_for_invalid_replica(topo_m4):
     """Testing logs to indicate the inconsistency when configuration is performed.
 
     :id: dd689d03-69b8-4bf9-a06e-2acd19d5e2c8
@@ -702,6 +732,7 @@ def test_warining_for_invalid_replica(topo_m4):
     replica.remove_all('nsds5ReplicaBackoffMin')
     log.info('Check the error log for the error')
     assert topo_m4.ms["supplier1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
+
 
 def test_csnpurge_large_valueset(topo_m2):
     """Test csn generator test
@@ -815,7 +846,7 @@ def test_urp_trigger_substring_search(topo_m2):
 
     # check that M2 access logs does not "(&(objectclass=nstombstone)(nscpentrydn=uid=asterisk_*_in_value,dc=example,dc=com))"
     log.info('Check that on M2, URP as not triggered such internal search')
-    pattern = ".*\(Internal\).*SRCH.*\(&\(objectclass=nstombstone\)\(nscpentrydn=uid=asterisk_\*_in_value,dc=example,dc=com.*"
+    pattern = r".*\(Internal\).*SRCH.*\(&\(objectclass=nstombstone\)\(nscpentrydn=uid=asterisk_\*_in_value,dc=example,dc=com.*"
     found = m2.ds_access_log.match(pattern)
     log.info("found line: %s" % found)
     assert not found

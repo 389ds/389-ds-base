@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,11 +10,12 @@ import os
 import logging
 import pytest
 import time
+from lib389._mapped_object import DSLdapObject
 from lib389.utils import *
 from lib389.dseldif import DSEldif
-from lib389.config import BDB_LDBMConfig, LDBMConfig, Config
+from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig, LDBMConfig, Config
 from lib389.backend import Backends
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389._constants import DEFAULT_SUFFIX, PASSWORD, DN_DM
 
@@ -27,6 +28,8 @@ DEBUGGING = os.getenv("DEBUGGING", default=False)
 CUSTOM_MEM = '9100100100'
 IDLETIMEOUT = 5
 DN_TEST_USER = f'uid={TEST_USER_PROPERTIES["uid"]},ou=People,{DEFAULT_SUFFIX}'
+
+RO_ATTR = 'nsslapd-readonly'
 
 
 @pytest.fixture(scope="module")
@@ -83,7 +86,12 @@ def test_set_cachememsize_to_custom_value(topo):
         4. nsslapd-cachememsize is successfully set
     """
 
-    config_ldbm = LDBMConfig(topo.standalone)
+    if get_default_db_lib() == "bdb":
+        config_ldbm = BDB_LDBMConfig(topo.standalone)
+        config_ldbm.set('nsslapd-dbcachesize', '0')
+    else:
+        config_ldbm = LMDB_LDBMConfig(topo.standalone)
+
     backends = Backends(topo.standalone)
     userroot_ldbm = backends.get("userroot")
 
@@ -188,3 +196,61 @@ def test_idletimeout(idletimeout_topo, dn, expected_result):
     except ldap.SERVER_DOWN:
         result = True
     assert expected_result == result
+
+
+def test_instance_readonly_mode(topo):
+    """Check that readonly mode is supported
+
+    :id: 34d2e28e-04d7-11f0-b0cf-482ae39447e5
+    :setup: Standalone Instance
+    :steps:
+        1. Set readonly mode
+        2. Stop the instance
+        3. Get dse.ldif modification time
+        4. Start the instance
+        5. Get dse.ldif modification time
+        6. Check that modification time has not changed
+        7. Check that readonly mode is set
+        8. Try to modify another config attribute
+        9. Unset readonly mode
+        10. Restart the instance
+        11. Check that modification time has not changed
+        12. Check that modification time has changed
+        13. Check that readonly mode is unset
+        14. Try to modify another config attribute
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Should get ldap.UNWILLING_TO_PERFORM exception
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
+    """
+
+    inst = topo.standalone
+    dse_path = f'{topo.standalone.get_config_dir()}/dse.ldif'
+    inst.config.replace(RO_ATTR, 'on')
+    inst.stop()
+    dse_mtime = os.stat(dse_path).st_mtime
+    inst.start()
+    new_dse_mtime = os.stat(dse_path).st_mtime
+    assert dse_mtime == new_dse_mtime
+    assert inst.config.get_attr_val_utf8(RO_ATTR) == "on"
+    attr = 'nsslapd-errorlog-maxlogsize'
+    val = inst.config.get_attr_val_utf8(attr)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        inst.config.replace(attr, val)
+    inst.config.replace(RO_ATTR, 'off')
+    inst.restart()
+    new_dse_mtime = os.stat(dse_path).st_mtime
+    assert dse_mtime != new_dse_mtime
+    assert inst.config.get_attr_val_utf8(RO_ATTR) == "off"
+    inst.config.replace(attr, val)

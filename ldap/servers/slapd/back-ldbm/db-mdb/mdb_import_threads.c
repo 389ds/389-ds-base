@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -31,6 +31,7 @@
 #include <time.h>
 
 #define CV_TIMEOUT    10000000  /* 10 milli seconds timeout */
+#define BULK_IMPORT_WAIT_LOG_LIMIT 10
 
 /* Value to determine when to wait before adding item to write queue and
  * when to wait until having enough item in queue to start emptying it
@@ -59,9 +60,9 @@
 
 
 /* import thread usage statistics */
-#define MDB_STAT_INIT(stats)    { mdb_stat_collect(&stats, MDB_STAT_RUN, 1); }
-#define MDB_STAT_END(stats)     { mdb_stat_collect(&stats, MDB_STAT_RUN, 0); }
-#define MDB_STAT_STEP(stats, step)    { mdb_stat_collect(&stats, (step), 0); }
+#define MDB_STAT_INIT(stats, enabled)    { if (enabled) mdb_stat_collect(&stats, MDB_STAT_RUN, 1); }
+#define MDB_STAT_END(stats, enabled)     { if (enabled) mdb_stat_collect(&stats, MDB_STAT_RUN, 0); }
+#define MDB_STAT_STEP(stats, step, enabled)    { if (enabled) mdb_stat_collect(&stats, (step), 0); }
 
 typedef enum {
     MDB_STAT_RUN,
@@ -417,13 +418,15 @@ dbmdb_import_workerq_push(ImportQueue_t *q, WorkerQueueData_t *data)
             safe_cond_wait(&q->cv, &q->mutex);
         }
     }
-    pthread_mutex_unlock(&q->mutex);
     if (q->job->flags & FLAG_ABORT) {
         /* in this case worker thread does not free the data so we should do it */
         dbmdb_import_workerq_free_data(data);
+        pthread_mutex_unlock(&q->mutex);
         return -1;
     }
     dbmdb_dup_worker_slot(q, data, slot);
+    pthread_cond_broadcast(&q->cv);
+    pthread_mutex_unlock(&q->mutex);
     return 0;
 }
 
@@ -610,9 +613,19 @@ dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
 {
     const char *uniqueid = slapi_entry_get_uniqueid(e);
     int rc = UID_SUCCESS;
+    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
     if (!uniqueid && (job->uuid_gen_type != SLAPI_UNIQUEID_GENERATE_NONE)) {
         char *newuniqueid;
+
+        /* With 'mdb' we have several workers generating nsuniqueid
+         * we need to serialize them to prevent generating duplicate value
+         * From performance pov it only impacts import
+         * The default value is SLAPI_UNIQUEID_GENERATE_TIME_BASED so
+         * the only syscall is clock_gettime and then string formating
+         * that should limit contention
+         */
+        pthread_mutex_lock(&mutex);
 
         /* generate id based on dn */
         if (job->uuid_gen_type == SLAPI_UNIQUEID_GENERATE_NAME_BASED) {
@@ -624,6 +637,7 @@ dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
             /* time based */
             rc = slapi_uniqueIDGenerateString(&newuniqueid);
         }
+        pthread_mutex_unlock(&mutex);
 
         if (rc == UID_SUCCESS) {
             slapi_entry_set_uniqueid(e, newuniqueid);
@@ -735,8 +749,13 @@ get_entry_type(WorkerQueueData_t *wqelmt, Slapi_DN *sdn)
     int len = SLAPI_ATTR_UNIQUEID_LENGTH;
     const char *ndn = slapi_sdn_get_ndn(sdn);
 
-    if (slapi_be_issuffix(be, sdn) && (wqelmt->wait_id == 1)) {
-        return DNRC_SUFFIX;
+    if (slapi_be_issuffix(be, sdn)) {
+        /* Is this the root suffix entry */
+        if (wqelmt->wait_id == 1) {
+            return DNRC_SUFFIX;
+        }
+        /* Duplicate root suffix entry. */
+        return DNRC_BAD_SUFFIX_ID;
     }
     if (PL_strncasecmp(ndn, SLAPI_ATTR_UNIQUEID, len) || ndn[len] != '=') {
             return DNRC_OK;
@@ -844,6 +863,16 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
     }
 
     dnrc = get_entry_type(wqelmt, &param->sdn);
+    if (dnrc == DNRC_BAD_SUFFIX_ID && (param->flags & EIP_RDN)) {
+        /* In reindex mode the sdn contains only the RDN. A non-root record
+         * with an explicit parentid is therefore a regular entry even when
+         * its RDN equals a one-RDN suffix. */
+        char *pidstr = NULL;
+        if (get_value_from_string(wqelmt->data, "parentid", &pidstr) == 0) {
+            slapi_ch_free_string(&pidstr);
+            dnrc = DNRC_OK;
+        }
+    }
     if (dnrc == DNRC_SUFFIX) {
         if ( param->eid != 1) {
             dnrc = DNRC_BAD_SUFFIX_ID;
@@ -1099,17 +1128,34 @@ dbmdb_import_entry_info_by_backentry(mdb_privdb_t *db, BulkQueueData_t *bqdata, 
     param.eid = wqelmt->wait_id;
     param.flags = EIP_WAIT;
     dnrc = dbmdb_import_entry_info_by_param(&param, wqelmt);
+    slapi_ch_free(&bqdata->key.mv_data);
+    bqdata->key.mv_size = 0;
     if (dnrc == DNRC_WAIT) {
         dup_data(&bqdata->wait4key, &param.pkey);
     } else {
-        bqdata->wait4key.mv_data = NULL;
+        slapi_ch_free(&bqdata->wait4key.mv_data);
         bqdata->wait4key.mv_size = 0;
+        dup_data(&bqdata->key, &param.ekey);
     }
-    dup_data(&bqdata->key, &param.ekey);
     entryinfoparam_cleanup(&param);
     return dnrc;
 }
 
+/* Log wqelmt details */
+void
+log_wqelmt(int loglvl, char *fname, WorkerQueueData_t *wqelmt)
+{
+    if (wqelmt->dn) {
+        slapi_log_err(loglvl, fname, "log_wqelmt: dn=%s\n", wqelmt->dn);
+    }
+    if (wqelmt->filename && wqelmt->lineno) {
+        slapi_log_err(loglvl, fname, "log_wqelmt: ldif=%s[%d]\n", wqelmt->filename, wqelmt->lineno);
+    }
+    if (wqelmt->data) {
+        size_t len = wqelmt->datalen ? wqelmt->datalen : strlen(wqelmt->data);
+        slapi_log_hexadump(loglvl, "log_wqelmt:data", wqelmt->data, len);
+    }
+}
 
 /* producer thread for ldif import case:
  * read through the given file list, parsing entries (str2entry), assigning
@@ -1121,6 +1167,7 @@ dbmdb_import_entry_info_by_backentry(mdb_privdb_t *db, BulkQueueData_t *bqdata, 
 void
 dbmdb_import_producer(void *param)
 {
+    slapi_set_thread_name("import-prod");
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;
@@ -1242,6 +1289,7 @@ dbmdb_import_producer(void *param)
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_producer",
                                   "ns_slapd software error: unexpected dbmdb_import_entry_info return code: %d.",
                                   wqelmt.dnrc);
+                log_wqelmt(SLAPI_LOG_ERR, "dbmdb_import_producer", &wqelmt);
                 abort();
             case DNRC_OK:
             case DNRC_SUFFIX:
@@ -1400,7 +1448,7 @@ dbmdb_import_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
     } else {
         flags = ctx->wgc.str2entry_flags;
     }
-    if (!(ctx->wgc.str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR)) { /* subtree-rename: on */
+    if (!(ctx->wgc.str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR)) {
         char *dn = NULL;
         char *normdn = NULL;
         int rc = 0; /* estr should start with "dn: " or "dn:: " */
@@ -1430,6 +1478,9 @@ dbmdb_import_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
         slapi_ch_free_string(&dn);
         e = slapi_str2entry_ext(normdn, NULL, estr,
                                 flags | SLAPI_STR2ENTRY_NO_ENTRYDN);
+        if (slapi_entry_attr_get_ref(e, SLAPI_ATTR_DS_ENTRYDN) == NULL) {
+            slapi_entry_attr_set_charptr(e, SLAPI_ATTR_DS_ENTRYDN, normdn);
+        }
         slapi_ch_free_string(&normdn);
     } else {
         e = slapi_str2entry(estr, flags);
@@ -1745,6 +1796,7 @@ dbmdb_index_producer(void *param)
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_index_producer",
                                   "ns_slapd software error: unexpected dbmdb_import_entry_info return code: %d.",
                                   tmpslot.dnrc);
+                log_wqelmt(SLAPI_LOG_ERR, "dbmdb_index_producer", &tmpslot);
                 abort();
             case DNRC_OK:
             case DNRC_SUFFIX:
@@ -2084,103 +2136,93 @@ dbmdb_upgrade_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
         do_dn_norm_sp = 0;
         rdn_dbmdb_has_spaces = 0;
         dn_in_cache = 0;
-        if (entryrdn_get_switch()) {
 
-            /* original rdn is allocated in get_value_from_string */
-            rc = get_value_from_string(entry_str, "rdn", &rdn);
-            if (rc) {
-                /* data.dptr may not include rdn: ..., try "dn: ..." */
-                e = slapi_str2entry(entry_str, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
-            } else {
-                bdn = dncache_find_id(&inst->inst_dncache, temp_id);
-                if (bdn) {
-                    /* don't free normdn */
-                    normdn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
-                    CACHE_RETURN(&inst->inst_dncache, &bdn);
-                    dn_in_cache = 1;
-                } else {
-                    /* free normdn */
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id,
-                                            (char **)&normdn, NULL, NULL);
-                    if (rc) {
-                        /* We cannot use the entryrdn index;
-                         * Compose dn from the entries in id2entry */
-                        Slapi_RDN psrdn = {0};
-                        char *pid_str = NULL;
-                        char *pdn = NULL;
-
-                        slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
-                                      "entryrdn is not available; composing dn (rdn: %s, ID: %d)\n",
-                                      rdn, temp_id);
-                        rc = get_value_from_string(entry_str, LDBM_PARENTID_STR, &pid_str);
-                        if (rc) {
-                            rc = 0; /* assume this is a suffix */
-                        } else {
-                            pid = (ID)strtol(pid_str, (char **)NULL, 10);
-                            slapi_ch_free_string(&pid_str);
-                            /* if pid is larger than the current pid temp_id,
-                             * the parent entry hasn't */
-                            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, &db,dbc.txn,
-                                                                pid, &id, &psrdn, &curr_entry);
-                            if (rc) {
-                                slapi_log_err(SLAPI_LOG_ERR,
-                                              "upgradedn: Failed to compose dn for "
-                                              "(rdn: %s, ID: %d)\n",
-                                              rdn, temp_id);
-                                slapi_ch_free_string(&rdn);
-                                slapi_rdn_done(&psrdn);
-                                continue;
-                            }
-                            /* Generate DN string from Slapi_RDN */
-                            rc = slapi_rdn_get_dn(&psrdn, &pdn);
-                            slapi_rdn_done(&psrdn);
-                            if (rc) {
-                                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
-                                              "Failed to compose dn for (rdn: %s, ID: %d) from Slapi_RDN\n",
-                                              rdn, temp_id);
-                                slapi_ch_free_string(&rdn);
-                                continue;
-                            }
-                        }
-                        /* free normdn */
-                        normdn = slapi_ch_smprintf("%s%s%s",
-                                                   rdn, pdn ? "," : "", pdn ? pdn : "");
-                        slapi_ch_free_string(&pdn);
-                    }
-                    if (is_dryrun) {
-                        /* if not dryrun, we may change the DN, In such case ,
-                         * we need to put the new value to cache.*/
-                        /* dn is dup'ed in slapi_sdn_new_dn_byval.
-                         * It's set to bdn and put in the dn cache. */
-                        /* normdn is allocated in this scope.
-                         * Thus, we can just passin. */
-                        sdn = slapi_sdn_new_normdn_passin(normdn);
-                        bdn = backdn_init(sdn, temp_id, 0);
-                        CACHE_ADD(&inst->inst_dncache, bdn, NULL);
-                        CACHE_RETURN(&inst->inst_dncache, &bdn);
-                        /* don't free this normdn  */
-                        normdn = (char *)slapi_sdn_get_dn(sdn);
-                        slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_upgradedn_producer",
-                                      "entryrdn_lookup_dn returned: %s, "
-                                      "and set to dn cache\n",
-                                      normdn);
-                        dn_in_cache = 1;
-                    }
-                }
-                e = slapi_str2entry_ext(normdn, NULL, entry_str,
-                                        SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
-                slapi_ch_free_string(&rdn);
-            }
-        } else {
+        /* original rdn is allocated in get_value_from_string */
+        rc = get_value_from_string(entry_str, "rdn", &rdn);
+        if (rc) {
+            /* data.dptr may not include rdn: ..., try "dn: ..." */
             e = slapi_str2entry(entry_str, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
-            rdn = slapi_ch_strdup(slapi_entry_get_rdn_const(e));
-            if (NULL == rdn) {
-                Slapi_RDN srdn;
-                slapi_rdn_init_dn(&srdn, slapi_entry_get_dn_const(e));
-                rdn = (char *)slapi_rdn_get_rdn(&srdn); /* rdn is allocated in
-                                                         * slapi_rdn_init_dn */
+        } else {
+            bdn = dncache_find_id(&inst->inst_dncache, temp_id);
+            if (bdn) {
+                /* don't free normdn */
+                normdn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+                dn_in_cache = 1;
+            } else {
+                /* free normdn */
+                rc = entryrdn_lookup_dn(be, rdn, temp_id,
+                                        (char **)&normdn, NULL, NULL);
+                if (rc) {
+                    /* We cannot use the entryrdn index;
+                     * Compose dn from the entries in id2entry */
+                    Slapi_RDN psrdn = {0};
+                    char *pid_str = NULL;
+                    char *pdn = NULL;
+
+                    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
+                                  "entryrdn is not available; composing dn (rdn: %s, ID: %d)\n",
+                                  rdn, temp_id);
+                    rc = get_value_from_string(entry_str, LDBM_PARENTID_STR, &pid_str);
+                    if (rc) {
+                        rc = 0; /* assume this is a suffix */
+                    } else {
+                        pid = (ID)strtol(pid_str, (char **)NULL, 10);
+                        slapi_ch_free_string(&pid_str);
+                        /* if pid is larger than the current pid temp_id,
+                         * the parent entry hasn't */
+                        rc = dbmdb_import_get_and_add_parent_rdns(info, inst, &db,dbc.txn,
+                                                                  pid, &id, &psrdn, &curr_entry);
+                        if (rc) {
+                            slapi_log_err(SLAPI_LOG_ERR,
+                                          "upgradedn: Failed to compose dn for "
+                                          "(rdn: %s, ID: %d)\n",
+                                          rdn, temp_id);
+                            slapi_ch_free_string(&rdn);
+                            slapi_rdn_done(&psrdn);
+                            continue;
+                        }
+                        /* Generate DN string from Slapi_RDN */
+                        rc = slapi_rdn_get_dn(&psrdn, &pdn);
+                        slapi_rdn_done(&psrdn);
+                        if (rc) {
+                            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
+                                          "Failed to compose dn for (rdn: %s, ID: %d) from Slapi_RDN\n",
+                                          rdn, temp_id);
+                            slapi_ch_free_string(&rdn);
+                            continue;
+                        }
+                    }
+                    /* free normdn */
+                    normdn = slapi_ch_smprintf("%s%s%s",
+                                               rdn, pdn ? "," : "", pdn ? pdn : "");
+                    slapi_ch_free_string(&pdn);
+                }
+                if (is_dryrun) {
+                    /* if not dryrun, we may change the DN, In such case ,
+                     * we need to put the new value to cache.*/
+                    /* dn is dup'ed in slapi_sdn_new_dn_byval.
+                     * It's set to bdn and put in the dn cache. */
+                    /* normdn is allocated in this scope.
+                     * Thus, we can just passin. */
+                    sdn = slapi_sdn_new_normdn_passin(normdn);
+                    bdn = backdn_init(sdn, temp_id, 0);
+                    CACHE_ADD(&inst->inst_dncache, bdn, NULL);
+                    CACHE_RETURN(&inst->inst_dncache, &bdn);
+                    /* don't free this normdn  */
+                    normdn = (char *)slapi_sdn_get_dn(sdn);
+                    slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_upgradedn_producer",
+                                  "entryrdn_lookup_dn returned: %s, "
+                                  "and set to dn cache\n",
+                                  normdn);
+                    dn_in_cache = 1;
+                }
             }
+            e = slapi_str2entry_ext(normdn, NULL, entry_str,
+                                    SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
+            slapi_ch_free_string(&rdn);
         }
+
         if (NULL == e) {
             if (job->task) {
                 slapi_task_log_notice(job->task,
@@ -2458,23 +2500,6 @@ dbmdb_upgrade_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
                             slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
                                           "%s: Found upgradedn candidate: %s (id %lu)\n",
                                           inst->inst_name, valueptr, (u_long)temp_id);
-                            if (!entryrdn_get_switch() && isentrydn) {
-                                /* entrydn format */
-                                /*
-                                 * In case entrydn is type="<DN>",<REST> or
-                                 *                    type=<\D\N>,<REST>,
-                                 * add the rdn value if it's not there.
-                                 */
-                                rc = slapi_entry_add_rdn_values(e);
-                                if (rc) {
-                                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
-                                                  "%s: Failed to add rdn values to an entry: %s (id %lu)\n",
-                                                  inst->inst_name, normdn, (u_long)temp_id);
-                                    slapi_entry_free(e);
-                                    e = NULL;
-                                    continue;
-                                }
-                            }
                             break;
                         }
                         /*
@@ -2723,8 +2748,7 @@ dbmdb_bulkimport_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
     }
 
     /* Now we have this new entry, all decoded
-     * Is subtree-rename on? And is this a tombstone?
-     * If so, need a special treatment */
+     * Is this a tombstone? If so, need a special treatment */
     if (ep->ep_entry->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
         char *tombstone_rdn =
             slapi_ch_strdup(slapi_entry_get_dn_const(ep->ep_entry));
@@ -2883,7 +2907,7 @@ look4indexinfo(ImportCtx_t *ctx, const char *attrname)
 {
     MdbIndexInfo_t searched_mii = {0};
     searched_mii.name = (char*) attrname;
-    return (MdbIndexInfo_t *)avl_find(ctx->indexes, &searched_mii, cmp_mii);
+    return (MdbIndexInfo_t *)avl_find(ctx->indexes, (caddr_t)&searched_mii, cmp_mii);
 }
 
 /* Prepare key and data for updating parentid or ancestorid indexes */
@@ -2916,6 +2940,7 @@ dbmdb_add_op_attrs(ImportJob *job, struct backentry *ep, ID pid)
     /* Get rid of attributes you're not allowed to specify yourself */
     slapi_entry_delete_values(ep->ep_entry, hassubordinates, NULL);
     slapi_entry_delete_values(ep->ep_entry, numsubordinates, NULL);
+    slapi_entry_delete_values(ep->ep_entry, tombstone_numsubordinates, NULL);
 
     /* Upgrade DN format only */
     /* Set current parentid to e_aux_attrs to remove it from the index file. */
@@ -3070,7 +3095,7 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
         add_update_entry_operational_attributes(ep, 0);
     }
 
-    if (ctx->ancestorid && wqelmnt->entry_info) {
+    if (ctx->ancestorid && wqelmnt->entry_info && wqelmnt->dnrc != DNRC_TOMBSTONE) {
         /* Update ancestorids */
         wqd.dbi = ctx->ancestorid->dbi;
         for (n=0; n<wqelmnt->entry_info[INFO_IDX_NB_ANCESTORS]; n++) {
@@ -3283,6 +3308,7 @@ init_pseudo_txn(ImportCtx_t *ctx)
 void
 dbmdb_import_worker(void *param)
 {
+    slapi_set_thread_name("import-worker");
     WorkerQueueData_t *wqelmnt = (WorkerQueueData_t*)param;
     ImportWorkerInfo *info = &wqelmnt->winfo;
     ImportJob *job = info->job;
@@ -3426,8 +3452,11 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
     if (ctx->role == IM_INDEX) {
         /* Required by CI test */
         if (a->flags & MII_NOATTR) {
+            if (job->task) {
+                slapi_task_log_notice(job->task, "%s: Indexing: %s", job->inst->inst_name, mii->name);
+            }
             slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
-                          "%s: Indexing %s\n", job->inst->inst_name, mii->name);
+                          "%s: Indexing: %s\n", job->inst->inst_name, mii->name);
         } else {
             if (ii->ai->ai_indexmask == INDEX_VLV) {
                 if (job->task) {
@@ -3447,7 +3476,7 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
 
     DBG_LOG(DBGMDB_LEVEL_OTHER,"Calling dbmdb_open_dbi_from_filename for %s flags = 0x%x", mii->name, dbi_flags);
     dbmdb_open_dbi_from_filename(&mii->dbi, job->inst->inst_be, mii->name, mii->ai, dbi_flags);
-    avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
+    avl_insert(&ctx->indexes, (caddr_t)mii, cmp_mii, NULL);
 }
 
 /*
@@ -3473,7 +3502,7 @@ dbmdb_open_redirect_db(ImportCtx_t *ctx)
     mii->ai = ai;
     mii->flags = MII_SKIP | MII_NOATTR;
     dbmdb_open_dbi_from_filename(&mii->dbi, be, mii->name, mii->ai, dbi_flags);
-    avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
+    avl_insert(&ctx->indexes, (caddr_t)mii, cmp_mii, NULL);
     ctx->redirect = mii;
 }
 
@@ -3519,11 +3548,13 @@ dbmdb_build_import_index_list(ImportCtx_t *ctx)
 
 }
 
-void
-free_ii(MdbIndexInfo_t *ii)
+static int32_t
+free_ii(caddr_t i)
 {
+    MdbIndexInfo_t *ii = (MdbIndexInfo_t *)i;
     slapi_ch_free_string(&ii->name);
     slapi_ch_free((void**)&ii);
+    return 0;
 }
 
 /*
@@ -3750,6 +3781,17 @@ out:
 }
 
 /*
+ * Helper function that removes attributes which may change,
+ * to ensure accurate comparison of config entries.
+ */
+static void
+clear_recomputed_attributes(Slapi_Entry *entry)
+{
+    entry_replace_values(entry, CONFIG_INSTANCE_CACHEMEMSIZE, NULL);
+    entry_replace_values(entry, CONFIG_INSTANCE_DNCACHEMEMSIZE, NULL);
+}
+
+/*
  * read the backed up index configuration
  * adjust them if the current configuration is different from it.
  * this function is called from dblayer_restore (archive2ldbm)
@@ -3783,6 +3825,12 @@ dbmdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, 
         goto out;
     }
 
+    for (Slapi_Entry **entry=curr_entries; *entry; entry++) {
+        clear_recomputed_attributes(*entry);
+    }
+    for (Slapi_Entry **entry=backup_entries; *entry; entry++) {
+        clear_recomputed_attributes(*entry);
+    }
     if (0 != slapi_entries_diff(backup_entries, curr_entries, 1 /* test_all */,
                                 log_str, force_update, li->li_identity)) {
         if (force_update) {
@@ -3901,6 +3949,7 @@ cmp_key_addr(const void *i1, const void *i2)
 void
 dbmdb_import_writer(void*param)
 {
+    slapi_set_thread_name("import-writer");
     ImportWorkerInfo *info = (ImportWorkerInfo*)param;
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;
@@ -3910,14 +3959,15 @@ dbmdb_import_writer(void*param)
     int count = 0;
     int rc = 0;
     mdb_stat_info_t stats = {0};
+    int stats_enabled = ctx->ctx->dsecfg.import_stats;
 
-    MDB_STAT_INIT(stats);
+    MDB_STAT_INIT(stats, stats_enabled);
     while (!rc && !info_is_finished(info)) {
-        MDB_STAT_STEP(stats, MDB_STAT_PAUSE);
+        MDB_STAT_STEP(stats, MDB_STAT_PAUSE, stats_enabled);
         wait_for_starting(info);
-        MDB_STAT_STEP(stats, MDB_STAT_READ);
+        MDB_STAT_STEP(stats, MDB_STAT_READ, stats_enabled);
         slot = dbmdb_import_q_getall(&ctx->writerq);
-        MDB_STAT_STEP(stats, MDB_STAT_RUN);
+        MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
         if (info_is_finished(info)) {
             dbmdb_import_q_flush(&ctx->writerq);
             break;
@@ -3928,14 +3978,33 @@ dbmdb_import_writer(void*param)
 
         for (; slot; slot = nextslot) {
             if (!txn) {
-                MDB_STAT_STEP(stats, MDB_STAT_TXNSTART);
+                MDB_STAT_STEP(stats, MDB_STAT_TXNSTART, stats_enabled);
                 rc = TXN_BEGIN(ctx->ctx->env, NULL, 0, &txn);
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                                  "Failed to begin a txn. Error is 0x%x: %s.\n",
+                                  rc, mdb_strerror(rc));
+                }
             }
             if (!rc) {
-                MDB_STAT_STEP(stats, MDB_STAT_WRITE);
+                MDB_STAT_STEP(stats, MDB_STAT_WRITE, stats_enabled);
                 rc = MDB_PUT(txn, slot->dbi->dbi, &slot->key, &slot->data, 0);
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                                  "Failed to write record in dbi %s. Error is 0x%x: %s.\n",
+                                  slot->dbi->dbname, rc, mdb_strerror(rc));
+                    /* The failure itself is always reported above at ERR;
+                     * the raw key/value bytes are large/binary and only
+                     * useful for low-level debugging, so keep them out of
+                     * the default-level error log and gate them behind
+                     * SLAPI_LOG_DEBUG instead. */
+                    slapi_log_hexadump(SLAPI_LOG_DEBUG, "dbmdb_import_writer:key",
+                                       slot->key.mv_data, slot->key.mv_size);
+                    slapi_log_hexadump(SLAPI_LOG_DEBUG, "dbmdb_import_writer:data",
+                                       slot->data.mv_data, slot->data.mv_size);
+                }
             }
-            MDB_STAT_STEP(stats, MDB_STAT_RUN);
+            MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
             nextslot = slot->next;
             slapi_ch_free((void**)&slot);
         }
@@ -3943,10 +4012,13 @@ dbmdb_import_writer(void*param)
             break;
         }
         if  (count++ >= WRITER_MAX_OPS_IN_TXN) {
-            MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP);
+            MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP, stats_enabled);
             rc = TXN_COMMIT(txn);
-            MDB_STAT_STEP(stats, MDB_STAT_RUN);
+            MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
             if (rc) {
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                              "Failed to commit the txn. Error is 0x%x: %s.\n",
+                              rc, mdb_strerror(rc));
                 break;
             }
             count = 0;
@@ -3954,32 +4026,40 @@ dbmdb_import_writer(void*param)
         }
     }
     if (txn && !rc) {
-        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP);
+        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP, stats_enabled);
         rc = TXN_COMMIT(txn);
-        MDB_STAT_STEP(stats, MDB_STAT_RUN);
+        MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
         if (!rc) {
             txn = NULL;
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                          "Failed to commit the txn. Error is 0x%x: %s.\n",
+                          rc, mdb_strerror(rc));
         }
     }
     if (txn) {
-        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP);
+        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP, stats_enabled);
         TXN_ABORT(txn);
-        MDB_STAT_STEP(stats, MDB_STAT_RUN);
+        MDB_STAT_STEP(stats, MDB_STAT_RUN, stats_enabled);
         txn = NULL;
     }
-    MDB_STAT_STEP(stats, MDB_STAT_WRITE);
+    MDB_STAT_STEP(stats, MDB_STAT_WRITE, stats_enabled);
     if (!rc) {
         /* Ensure that all data are written on disk */
         rc = mdb_env_sync(ctx->ctx->env, 1);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
+                          "mdb_env_sync failed. Error is 0x%x: %s.\n",
+                          rc, mdb_strerror(rc));
+        }
     }
-    MDB_STAT_END(stats);
+    MDB_STAT_END(stats, stats_enabled);
 
     if (rc) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
-                "Failed to write in the database. Error is 0x%x: %s.\n",
-                rc, mdb_strerror(rc));
+                "Aborting import after failure.\n");
         thread_abort(info);
-    } else {
+    } else if (stats_enabled) {
         char buf[200];
         char *summary = mdb_stat_summarize(&stats, buf, sizeof buf);
         if (summary) {
@@ -4064,6 +4144,7 @@ dbmdb_bulk_producer(void *param)
     BulkQueueData_t *entry = NULL;
     BulkQueueData_t **q, *e;
     WorkerQueueData_t tmpslot = {0};
+    MDB_val uuidkey = {0};
     mdb_privdb_t *dndb = NULL;
 
     PR_ASSERT(info != NULL);
@@ -4131,9 +4212,18 @@ dbmdb_bulk_producer(void *param)
                 thread_abort(info);
                 continue;
             case DNRC_BAD_SUFFIX_ID:
-                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
-                                  "Supplier's entry is inconsistent. (Suffix ID is %d instead of 1).", entry->id);
-                thread_abort(info);
+                import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_bulk_producer",
+                                  "Skipping duplicate suffix entry \"%s\" (wire import id %d).",
+                                  slapi_entry_get_dn(entry->ep->ep_entry), entry->id);
+                free_bulk_queue_item(&entry);
+                entry = NULL;
+                continue;
+            case DNRC_NOPARENT_DN:
+                import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_bulk_producer",
+                                  "Skipping entry \"%s\" with no extractable parent DN (wire import id %d).",
+                                  slapi_entry_get_dn(entry->ep->ep_entry), entry->id);
+                free_bulk_queue_item(&entry);
+                entry = NULL;
                 continue;
             case DNRC_NOPARENT_ID:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
@@ -4156,9 +4246,25 @@ dbmdb_bulk_producer(void *param)
                 entry = NULL;
                 continue;
         }
-        /* Let move the entries that are waiting for this entry into processing queue */
+        /* Let move the entries that are waiting for this entry into
+         * processing queue.  A tombstone child waits on its parent's
+         * nsuniqueid while a regular entry's own key is its ndn, so
+         * match waiters against both keys.
+         * Note: dnrc == DNRC_OK/DNRC_SUFFIX here implies that the
+         * nsuniqueid private-db registration succeeded (a failed put
+         * mutates dnrc to DNRC_DUP/DNRC_ERROR, which the switch above
+         * diverts before reaching this loop), so this guard mirrors
+         * the registration condition exactly. */
+        uuidkey.mv_data = NULL;
+        uuidkey.mv_size = 0;
+        if ((tmpslot.dnrc == DNRC_OK || tmpslot.dnrc == DNRC_SUFFIX) &&
+            entry->ep->ep_entry->e_uniqueid) {
+            uuidkey.mv_data = entry->ep->ep_entry->e_uniqueid;
+            uuidkey.mv_size = strlen(uuidkey.mv_data) + 1;
+        }
         for (q = &waitingq; *q;) {
-            if (cmp_data(&(*q)->wait4key, &entry->key) == 0) {
+            if (cmp_data(&(*q)->wait4key, &entry->key) == 0 ||
+                (uuidkey.mv_data && cmp_data(&(*q)->wait4key, &uuidkey) == 0)) {
                 e = *q;
                 slapi_ch_free(&e->wait4key.mv_data);
                 e->wait4key.mv_size = 0;
@@ -4175,6 +4281,32 @@ dbmdb_bulk_producer(void *param)
         entry->ep = NULL; /* Should not free the backentry which is now owned by worker queue */
         free_bulk_queue_item(&entry);
         pthread_cond_broadcast(&ctx->workerq.cv);
+    }
+    if (waitingq && !info_is_finished(info)) {
+        size_t waiting_count = 0;
+        size_t waiting_logged = 0;
+
+        /* Clean end of the import with entries still waiting for a parent
+         * that never arrived: log a bounded sample and abort rather than
+         * freeing them silently (= losing entries without a trace). */
+        for (e = waitingq; e; e = e->next) {
+            if (waiting_logged < BULK_IMPORT_WAIT_LOG_LIMIT) {
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
+                                  "Bulk import entry \"%s\" (wire import id %d) was never "
+                                  "imported: its parent was not found in the import stream.",
+                                  e->ep ? slapi_entry_get_dn(e->ep->ep_entry) : "(unknown)",
+                                  e->id);
+                waiting_logged++;
+            }
+            waiting_count++;
+        }
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
+                          "Aborting bulk import: %lu entries had no parent in the import stream; "
+                          "logged %lu and omitted %lu additional entries.",
+                          (long unsigned int)waiting_count,
+                          (long unsigned int)waiting_logged,
+                          (long unsigned int)(waiting_count - waiting_logged));
+        thread_abort(info);
     }
     free_bulk_queue_list(&processingq);
     free_bulk_queue_list(&waitingq);
@@ -4323,9 +4455,11 @@ dbmdb_free_import_ctx(ImportJob *job)
         slapi_ch_free((void**)&ctx->workerq.slots);
         dbmdb_import_q_destroy(&ctx->writerq);
         dbmdb_import_q_destroy(&ctx->bulkq);
-        slapi_ch_free((void**)&ctx->id2entry->name);
-        slapi_ch_free((void**)&ctx->id2entry);
-        avl_free(ctx->indexes, (IFP) free_ii);
+        if (ctx->id2entry) {
+            slapi_ch_free((void**)&ctx->id2entry->name);
+            slapi_ch_free((void**)&ctx->id2entry);
+        }
+        avl_free(ctx->indexes, free_ii);
         ctx->indexes = NULL;
         charray_free(ctx->indexAttrs);
         charray_free(ctx->indexVlvs);

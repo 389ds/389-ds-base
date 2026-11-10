@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -10,7 +10,18 @@
 #include "../back-ldbm.h"
 #include "../dblayer.h"
 #include "../import.h"
+#ifdef WITH_LIBBDB_RO
+#include "bdb_bdbreader_db.h"
+#else
 #include <db.h>
+#endif
+
+#ifndef DB_FAST_STAT
+/* The read-only BDB reader shim (bdb_bdbreader_db.h, used when built
+ * --with-libbdb-ro) doesn't define this flag. Fall back to 0 (full stat)
+ * for that build - callers that pass this flag only use it best-effort. */
+#define DB_FAST_STAT 0
+#endif
 
 #define BDB_CONFIG(li) ((bdb_config *)(li)->li_dblayer_config)
 
@@ -91,8 +102,9 @@ typedef struct bdb_config
     int bdb_previous_lock_config;  /* Max lock count when we last shut down--
                                       * used to determine if we delete the mpool */
     u_int32_t bdb_deadlock_policy; /* i.e. the atype to DB_ENV->lock_detect in bdb_deadlock_threadmain */
-    int bdb_compactdb_interval;    /* interval to execute compact id2entry dbs */
-    char *bdb_compactdb_time;       /* time of day to execute compact id2entry dbs */
+    int bdb_compactdb_interval;       /* interval to execute compact id2entry dbs */
+    char *bdb_compactdb_time;         /* time of day to execute compact id2entry dbs */
+    uint64_t bdb_compactdb_starttime; /* the time the interval was started */
 } bdb_config;
 
 int bdb_init(struct ldbminfo *li, config_info *config_array);
@@ -149,6 +161,8 @@ dblayer_dbi_txn_begin_fn_t bdb_dbi_txn_begin;
 dblayer_dbi_txn_commit_fn_t bdb_dbi_txn_commit;
 dblayer_dbi_txn_abort_fn_t bdb_dbi_txn_abort;
 dblayer_get_entries_count_fn_t bdb_get_entries_count;
+int bdb_get_entries_count_fast(dbi_db_t *db, int *count);
+dblayer_get_inst_entries_count_fn_t bdb_get_inst_entries_count;
 dblayer_cursor_get_count_fn_t bdb_public_cursor_get_count;
 dblayer_private_open_fn_t bdb_public_private_open;
 dblayer_private_close_fn_t bdb_public_private_close;
@@ -196,6 +210,9 @@ int bdb_delete_indices(ldbm_instance *inst);
 uint32_t bdb_get_optimal_block_size(struct ldbminfo *li);
 int bdb_copyfile(char *source, char *destination, int overwrite, int mode);
 int bdb_delete_instance_dir(backend *be);
+int bdb_import_backup_create(backend *be);
+int bdb_import_backup_discard(backend *be);
+int bdb_import_backup_restore(backend *be);
 int bdb_database_size(struct ldbminfo *li, unsigned int *size);
 int bdb_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase, int apply);
 int bdb_set_batch_txn_min_sleep(void *arg, void *value, char *errorbuf, int phase, int apply);
@@ -209,8 +226,6 @@ void bdb_restore_file_update(struct ldbminfo *li, const char *directory);
 int bdb_import_file_init(ldbm_instance *inst);
 void bdb_import_file_update(ldbm_instance *inst);
 int bdb_import_file_check(ldbm_instance *inst);
-int bdb_import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count);
-int bdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id);
 void bdb_import_configure_index_buffer_size(size_t size);
 size_t bdb_import_get_index_buffer_size(void);
 int bdb_ldbm_back_wire_import(Slapi_PBlock *pb);
@@ -226,9 +241,11 @@ int bdb_dse_conf_verify(struct ldbminfo *li, char *src_dir);
 int bdb_import_file_check_fn_t(ldbm_instance *inst);
 dbi_dbslist_t *bdb_list_dbs(const char *dbhome);
 int bdb_public_in_import(ldbm_instance *inst);
-int bdb_dblayer_cursor_iterate(dbi_cursor_t *cursor, 
+int bdb_dblayer_cursor_iterate(dbi_cursor_t *cursor,
                            int (*action_cb)(dbi_val_t *key, dbi_val_t *data, void *ctx),
                            const dbi_val_t *startingkey, void *ctx);
+dbi_error_t bdb_map_error(const char *funcname, int err);
+uint32_t bdb_get_inst_page_count(struct ldbminfo *li, ldbm_instance *inst);
 
 
 /* dbimpl helpers */

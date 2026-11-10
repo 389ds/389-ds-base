@@ -15,6 +15,9 @@ from lib389._constants import DSRC_HOME
 MUST_ATTRIBUTES = [
     'cn',
 ]
+MAY_ATTRIBUTES = [
+    'description'
+]
 RDN = 'cn'
 DEFAULT_BASEDN_RDN = 'ou=Groups'
 DEFAULT_BASEDN_RDN_ADMIN_GROUPS = 'ou=People'
@@ -127,6 +130,12 @@ class UniqueGroup(DSLdapObject):
         if not ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('nsMemberOf')
         self._protected = False
+
+    def list_members(self):
+        """List the members of this group.
+
+        """
+        return self.get_attr_vals_utf8('uniquemember')
 
     def is_member(self, dn):
         # Check if dn is a member

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,12 +10,14 @@ import pytest, time
 import os
 import glob
 import ldap
+import pwd
 from shutil import copyfile, rmtree
 from datetime import datetime
 from contextlib import contextmanager, suppress
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2, topology_st
+from lib389.dseutils import get_ldapurl_from_serverid
+from test389.topologies import topology_m2, topology_st
 from lib389.replica import *
 from lib389._constants import *
 from lib389.properties import TASK_WAIT
@@ -366,7 +368,14 @@ def freeipa(topology_st):
         with open(target, 'a') as fout:
             fout.write(fin.read())
     # import ipaca
-    file = f'{datadir}/ipaca.ldif'
+    # Make the ldif filke readable by ns-slapd process
+    file_ref = f'{datadir}/ipaca.ldif'
+    file = f'{inst.ds_paths.ldif_dir}/ipaca.ldif'
+    log.info(f'Copying ldif {file_ref} to {file}')
+    copyfile(file_ref, file)
+    dirsrv = pwd.getpwnam('dirsrv')
+    os.chown(file, dirsrv.pw_uid, dirsrv.pw_gid)
+    # Then import it
     log.info(f'Importing ldif {file} to ipaca')
     assert inst.ldif2db('ipaca', None, None, None, file)
     # restart instance
@@ -767,6 +776,7 @@ def test_vlv_reindex(topology_st, prefix, basedn):
     """Test VLV reindexing.
 
     :id: d5dc0d8e-cbe6-11ee-95b1-482ae39447e5
+    :parametrized: yes
     :setup: Standalone instance.
     :steps:
         1. Cleanup leftover from previous tests
@@ -822,6 +832,7 @@ def test_vlv_offline_import(topology_st, prefix, basedn):
     """Test VLV after off line import.
 
     :id: 8732d7a8-e851-11ee-9d63-482ae39447e5
+    :parametrized: yes
     :setup: Standalone instance.
     :steps:
         1. Cleanup leftover from previous tests
@@ -1162,6 +1173,117 @@ def test_vlv_with_mr(vlv_setup_with_uid_mr):
     user = users.create(properties=user_properties)
     user.delete()
     assert inst.status()
+
+
+
+@pytest.mark.skipif(get_default_db_lib() == "bdb", reason="Hangs on BDB")
+def test_vlv_long_attribute_value(topology_st, request):
+    """
+    Test VLV with an entry containing a very long attribute value (2K).
+
+    :id: 99126fa4-003e-11f1-b7d6-c85309d5c3e3
+    :setup: Standalone instance.
+    :steps:
+        1. Cleanup leftover from previous tests
+        2. Create VLV search and index on cn attribute
+        3. Reindex VLV
+        4. Add an entry with a cn attribute having 2K character value
+        5. Verify the entry was added successfully
+        6. Perform a VLV search to ensure it still works
+        7. Add another entry with a cn attribute having 2K character value
+        8. Verify the entry was added successfully
+        9. Perform a VLV search to ensure it still works
+    :expectedresults:
+        1. Should Success.
+        2. Should Success.
+        3. Should Success.
+        4. Should Success.
+        5. Should Success.
+        6. Should Success.
+        7. Should Success.
+        8. Should Success.
+        9. Should Success.
+    """
+    inst = topology_st.standalone
+    reindex_task = Tasks(inst)
+
+    users_to_delete = []
+
+    def fin():
+        cleanup(inst)
+        # Clean the added users
+        for user in users_to_delete:
+            user.delete()
+
+    if not DEBUGGING:
+        request.addfinalizer(fin)
+
+    # Clean previous tests leftover
+    fin()
+
+    # Create VLV search and index
+    vlv_search, vlv_index = create_vlv_search_and_index(inst)
+    assert reindex_task.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname=vlv_index.rdn,
+        args={TASK_WAIT: True},
+        vlv=True
+    ) == 0
+
+    # Add a few regular users first
+    add_users(inst, 10)
+
+    # Create a very long cn value (2K characters)
+    long_cn_value = 'a' * 2048 + '1'
+
+    # Add an entry with the long cn attribute
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_properties = {
+        'uid': 'longcnuser1',
+        'cn': long_cn_value,
+        'sn': 'user1',
+        'uidNumber': '99999',
+        'gidNumber': '99999',
+        'homeDirectory': '/home/longcnuser1'
+    }
+    user = users.create(properties=user_properties)
+    users_to_delete.append(user);
+
+    # Verify the entry was created and has the long cn value
+    entry = user.get_attr_vals_utf8('cn')
+    assert entry[0] == long_cn_value
+    log.info(f'Successfully created user with cn length: {len(entry[0])}')
+
+    # Perform VLV search to ensure VLV still works with long attribute values
+    conn = open_new_ldapi_conn(inst.serverid)
+    count = len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)"))
+    assert count > 0
+    log.info(f'VLV search successful with {count} entries including entry with 2K cn value')
+
+    # Add another entry with the long cn attribute
+    long_cn_value = 'a' * 2048 + '2'
+
+    user_properties = {
+        'uid': 'longcnuser2',
+        'cn': long_cn_value,
+        'sn': 'user2',
+        'uidNumber': '99998',
+        'gidNumber': '99998',
+        'homeDirectory': '/home/longcnuser2'
+    }
+    user = users.create(properties=user_properties)
+    users_to_delete.append(user);
+
+    # Verify the entry was created and has the long cn value
+    entry = user.get_attr_vals_utf8('cn')
+    assert entry[0] == long_cn_value
+    log.info(f'Successfully created user with cn length: {len(entry[0])}')
+
+    # Perform VLV search to ensure VLV still works with long attribute values
+    conn = open_new_ldapi_conn(inst.serverid)
+    count = len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)"))
+    assert count > 1
+    log.info(f'VLV search successful with {count} entries including entry with 2K cn value')
 
 
 

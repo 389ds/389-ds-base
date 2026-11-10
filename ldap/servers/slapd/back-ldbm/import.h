@@ -117,7 +117,6 @@ typedef struct _ImportJob
                                     * another pass */
     int uuid_gen_type;             /* kind of uuid to generate */
     char *uuid_namespace;          /* namespace for name-generated uuid */
-    import_subcount_stuff *mothers;
     double average_progress_rate;
     double recent_progress_rate;
     double cache_hit_ratio;
@@ -141,6 +140,11 @@ typedef struct _ImportJob
     int numsubordinates;
     int all_vlv_init;        /* Tells if can bypass vlv initialization */
     void *writer_ctx;        /* Context used to push data in worker thread */
+    int nosync_set;          /* Track whether we set MDB_NOSYNC during online import */
+    int has_backup;          /* Set if a pre-import backup of the backend was
+                              * taken (bdb_import_backup_create()/
+                              * dbmdb_import_backup_create()) and is still
+                              * available to restore from on failure */
 } ImportJob;
 
 #define FLAG_INDEX_ATTRS 0x01         /* should we index the attributes? */
@@ -209,6 +213,9 @@ struct _import_worker_info
 /* import.c */
 void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *format, ...);
 int import_main_offline(void *arg);
+int import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, size_t t_sub_count, int isencrypted, back_txn *txn);
+bool db2ldif_is_suffix_in_ldif(Slapi_PBlock *pb, ldbm_instance *inst);
+
 
 /* ldif2ldbm.c */
 void reset_progress(void);

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2024 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,14 +8,16 @@
 #
 
 import pytest
+import json
 import logging
 import os
 
 from lib389 import DEFAULT_SUFFIX
-from lib389.cli_idm.group import list, get, get_dn, create, delete, modify, rename
-from lib389.topologies import topology_st
+from lib389.cli_idm.group import (list, get, get_dn, create, delete, modify, rename,
+                                  members, add_member, remove_member)
+from test389.topologies import topology_st
 from lib389.cli_base import FakeArgs
-from lib389.utils import ds_is_older, ensure_str
+from lib389.utils import ds_is_older, ensure_str, is_a_dn
 from lib389.idm.group import Groups
 from . import check_value_in_log_and_reset
 
@@ -78,6 +80,7 @@ def test_dsidm_group_create(topology_st):
 
     args = FakeArgs()
     args.cn = group_name
+    args.description = "my description"
 
     log.info('Test dsidm group create')
     create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -87,6 +90,7 @@ def test_dsidm_group_create(topology_st):
     groups = Groups(standalone, DEFAULT_SUFFIX)
     new_group = groups.get(group_name)
     assert new_group.exists()
+    assert new_group.present('description', 'my description')
 
     log.info('Clean up for next test')
     new_group.delete()
@@ -194,6 +198,7 @@ def test_dsidm_group_list(topology_st, create_test_group):
     standalone = topology_st.standalone
     args = FakeArgs()
     args.json = False
+    args.full_dn = False
     json_list = ['type',
                  'list',
                  'items']
@@ -210,12 +215,21 @@ def test_dsidm_group_list(topology_st, create_test_group):
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=json_list, check_value=group_name)
 
+    log.info('Test full_dn option with list')
+    args.full_dn = True
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert is_a_dn(json_result['items'][0])
+    args.full_dn = False
+
     log.info('Delete the group')
     groups = Groups(standalone, DEFAULT_SUFFIX)
     testgroup = groups.get(group_name)
     testgroup.delete()
 
     log.info('Test empty dsidm group list with json')
+    topology_st.logcap.flush()
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=json_list, check_value_not=group_name)
 
@@ -412,6 +426,76 @@ def test_dsidm_group_rename_keep_old_rdn(topology_st, create_test_group, add_des
 
     log.info('Clean up')
     new_group.delete()
+
+
+@pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
+def test_dsidm_group_members_add_remove(topology_st, create_test_group):
+    """ Test dsidm group members, add_member and remove_members options
+
+    :id: c0839a0a-5519-4762-927c-6cb2accff2fe
+    :setup: Standalone instance
+    :steps:
+        1. Show members of a group using dsidm group members
+        2. Add member to the group using dsidm group add_member
+        3. Verify the added member is associated with the group using dsidm group member
+        4. Remove the member from the group using dsidm group remove_member
+        5. Verify the member is no longer associated with the group using dsidm group member
+    :expectedresults:
+        1. Group has no members
+        2. Member is successfully added
+        3. Shows previously added member
+        4. Member is successfully removed
+        5. Group has no members
+    """
+
+    standalone = topology_st.standalone
+
+    member = 'uid=new_member'
+    output_no_member = 'No members to display'
+    output_with_member = 'dn: {}'.format(member)
+    output_add_member = 'added member: {}'.format(member)
+    output_remove_member = 'removed member: {}'.format(member)
+
+    args = FakeArgs()
+    args.cn = group_name
+    args.json = False
+
+    log.info('Test dsidm group members to show no associated members')
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_no_member)
+
+    log.info('Test dsidm group add_member')
+    args.dn = member
+    add_member(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_add_member)
+
+    log.info('Verify the added member is associated with the group')
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_with_member)
+
+    # Test json
+    args.json = True
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert len(json_result['members']) == 1
+    args.json = False
+
+    log.info('Test dsidm group remove_member')
+    remove_member(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_remove_member)
+
+    log.info('Verify the added member is no longer associated with the group')
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_no_member)
+
+    # Test json
+    args.json = True
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert len(json_result['members']) == 0
+    args.json = False
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import {
     Grid,
@@ -120,7 +120,7 @@ export class Plugins extends React.Component {
         ];
         log_cmd("getSchema", "Plugins Get attrs", attr_cmd);
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(attr_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
                     const attrs = [];
@@ -138,7 +138,7 @@ export class Plugins extends React.Component {
                     ];
                     log_cmd("getSchema", "Get objectClasses", oc_cmd);
                     cockpit
-                            .spawn(oc_cmd, { superuser: true, err: "message" })
+                            .spawn(oc_cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const ocContent = JSON.parse(content);
                                 const ocs = [];
@@ -151,8 +151,8 @@ export class Plugins extends React.Component {
                                 });
                             })
                             .fail(err => {
-                                const errMsg = JSON.parse(err);
-                                this.props.addNotification("error", cockpit.format(_("Failed to get objectClasses - $0"), errMsg.desc));
+                                const errMsg = getApiErrorMessage(err);
+                                this.props.addNotification("error", cockpit.format(_("Failed to get objectClasses - $0"), errMsg));
                             });
                 });
     }
@@ -185,7 +185,7 @@ export class Plugins extends React.Component {
 
         log_cmd("pluginList", "Get plugins for table rows", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const pluginTableKey = this.state.pluginTableKey + 1;
@@ -207,10 +207,10 @@ export class Plugins extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("$0 error during plugin loading"), errMsg.desc)
+                        cockpit.format(_("$0 error during plugin loading"), errMsg)
                     );
                 });
     }
@@ -255,7 +255,7 @@ export class Plugins extends React.Component {
 
         log_cmd("savePlugin", "Edit the plugin", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     basicPluginSuccess = true;
@@ -268,13 +268,13 @@ export class Plugins extends React.Component {
                     this.toggleLoading();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    if (errMsg.desc.indexOf("nothing to set") >= 0) {
+                    const errMsg = getApiErrorMessage(err);
+                    if (errMsg.indexOf("nothing to set") >= 0) {
                         nothingToSetErr = true;
                     } else {
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("$0 error during $1 modification"), errMsg.desc, data.name)
+                            cockpit.format(_("$0 error during $1 modification"), errMsg, data.name)
                         );
                     }
                     this.closePluginModal();
@@ -290,7 +290,7 @@ export class Plugins extends React.Component {
                         );
                         cockpit
                                 .spawn(data.specificPluginCMD, {
-                                    superuser: true,
+                                    superuser: "require",
                                     err: "message"
                                 })
                                 .done(content => {
@@ -306,10 +306,10 @@ export class Plugins extends React.Component {
                                     console.info("savePlugin", "Result", content);
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     if (
-                                        (errMsg.desc.indexOf("nothing to set") >= 0 && nothingToSetErr) ||
-                                errMsg.desc.indexOf("nothing to set") < 0
+                                        (errMsg.indexOf("nothing to set") >= 0 && nothingToSetErr) ||
+                                errMsg.indexOf("nothing to set") < 0
                                     ) {
                                         if (basicPluginSuccess) {
                                             this.props.addNotification(
@@ -320,7 +320,7 @@ export class Plugins extends React.Component {
                                         }
                                         this.props.addNotification(
                                             "error",
-                                            cockpit.format(_("$0 error during $1 modification"), errMsg.desc, data.name)
+                                            cockpit.format(_("$0 error during $1 modification"), errMsg, data.name)
                                         );
                                     }
                                     this.toggleLoading();
@@ -364,7 +364,7 @@ export class Plugins extends React.Component {
         this.setState({ modalSpinning: true });
         log_cmd("togglePlugin", "Switch plugin states from the plugin tab", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     this.pluginList();
@@ -378,10 +378,10 @@ export class Plugins extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during $0 plugin modification - $1"), this.state.togglePluginName, errMsg.desc)
+                        cockpit.format(_("Error during $0 plugin modification - $1"), this.state.togglePluginName, errMsg)
                     );
                     // toggleLoadingHandler();
                     this.setState({
@@ -680,7 +680,7 @@ export class Plugins extends React.Component {
                             <Nav key={this.state.pluginTableKey} theme="light" onSelect={(event, item) => this.handleSelect(event, item)}>
                                 <NavList>
                                     {Object.entries(selectPlugins).map(([id, item]) => (
-                                        <NavItem key={item.name} itemId={item.name} isActive={this.state.activePlugin === item.name}>
+                                        <NavItem key={item.name} itemId={item.name} ouiaId={id} isActive={this.state.activePlugin === item.name}>
                                             {item.icon}
                                         </NavItem>
                                     ))}

@@ -16,7 +16,7 @@ from lib389 import DirSrv
 from lib389.utils import *
 from lib389.tasks import *
 from lib389.tools import DirSrvTools
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.plugins import RootDNAccessControlPlugin
 

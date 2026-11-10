@@ -10,7 +10,7 @@
 import pytest
 import ldap
 
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 
 from lib389.backend import Backends
 from lib389.index import Indexes

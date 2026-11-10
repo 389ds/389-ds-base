@@ -9,7 +9,7 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2c2 as topo
+from test389.topologies import topology_m2c2 as topo
 
 from lib389._constants import (PLUGIN_ACCT_POLICY, DN_PLUGIN, DN_CONFIG, DN_DM, PASSWORD,
                               DEFAULT_SUFFIX, SUFFIX)

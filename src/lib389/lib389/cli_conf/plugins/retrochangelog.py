@@ -8,6 +8,8 @@
 from lib389.plugins import RetroChangelogPlugin
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add_attr, generic_object_del_attr
 from lib389.cli_base import CustomHelpFormatter
+from lib389.utils import validate_max_age
+
 
 arg_to_attr = {
     'is_replicated': 'isReplicated',
@@ -21,12 +23,16 @@ arg_to_attr = {
 
 def retrochangelog_edit(inst, basedn, log, args):
     log = log.getChild('retrochangelog_edit')
+    if args.max_age:
+        validate_max_age(args.max_age, ignore_value="0")
     plugin = RetroChangelogPlugin(inst)
     generic_object_edit(plugin, log, args, arg_to_attr)
 
 
 def retrochangelog_add(inst, basedn, log, args):
     log = log.getChild('retrochangelog_add')
+    if args.max_age:
+        validate_max_age(args.max_age, ignore_value="0")
     plugin = RetroChangelogPlugin(inst)
     generic_object_add_attr(plugin, log, args, arg_to_attr)
 
@@ -46,16 +52,17 @@ def _add_parser_args(parser):
                         help='Specifies the name of the directory in which the changelog database '
                              'is created the first time the plug-in is run')
     parser.add_argument('--max-age',
-                        help='Specifies the maximum age of any entry in the changelog.  Used to trim the '
-                            'changelog (nsslapd-changelogmaxage)')
+                        help='Specifies the maximum age of any entry in the changelog. '
+                             'The value must be a number followed by a duration unit [sSmMhHdDwW]. '
+                             'Used to trim the changelog (nsslapd-changelogmaxage)')
     parser.add_argument('--trim-interval',
                         help='. nsslapd-changelog-trim-interval)')
     parser.add_argument('--exclude-suffix', nargs='*',
                         help='Specifies the suffix which will be excluded from the scope of the plugin '
-                            '(nsslapd-exclude-suffix)')
+                             '(nsslapd-exclude-suffix)')
     parser.add_argument('--exclude-attrs', nargs='*',
                         help='Specifies the attributes which will be excluded from the scope of the plugin '
-                            '(nsslapd-exclude-attrs)')
+                             '(nsslapd-exclude-attrs)')
 
 
 def create_parser(subparsers):

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2023 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -77,9 +77,7 @@ ldbm_temporary_close_all_instances(Slapi_PBlock *pb)
         }
         slapi_mtn_be_disable(inst->inst_be);
         cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
-        if (entryrdn_get_switch()) {
-            cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
-        }
+        cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
     }
     plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN);
     /* now we know nobody's using any of the backend instances, so we
@@ -168,7 +166,13 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
         return -1;
     }
 
-    directory = rel2abspath(rawdirectory);
+    if(!is_abspath(rawdirectory)) {
+        char *bakdir = config_get_bakdir();
+        directory = slapi_ch_smprintf("%s/%s", bakdir, rawdirectory);
+        slapi_ch_free_string(&bakdir);
+    } else {
+        directory = slapi_ch_strdup(rawdirectory);
+    }
 
     /* No ldbm be's exist until we process the config information. */
     if (run_from_cmdline) {
@@ -311,7 +315,13 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
     }
 
     /* Initialize directory */
-    directory = rel2abspath(rawdirectory);
+    if (!is_abspath(rawdirectory)) {
+        char *bakdir = config_get_bakdir();
+        directory = slapi_ch_smprintf("%s/%s", bakdir, rawdirectory);
+        slapi_ch_free_string(&bakdir);
+    } else {
+        directory = slapi_ch_strdup(rawdirectory);
+    }
 
     if (stat(directory, &sbuf) == 0) {
         if (slapd_comp_path(directory, li->li_directory) == 0) {

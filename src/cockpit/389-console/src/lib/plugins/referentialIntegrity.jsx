@@ -12,14 +12,10 @@ import {
 	NumberInput,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { listsEqual, log_cmd, valid_dn, file_is_path } from "../tools.jsx";
+import { listsEqual, log_cmd, valid_dn, file_is_path, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -94,21 +90,9 @@ class ReferentialIntegrity extends React.Component {
 
         // Config Membership Attribute
         this.handleConfigMembershipAttrSelect = (event, selection) => {
-            if (this.state.configMembershipAttr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        configMembershipAttr: prevState.configMembershipAttr.filter((item) => item !== selection),
-                        isConfigMembershipAttrOpen: false
-                    }), () => { this.validateModal() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        configMembershipAttr: [...prevState.configMembershipAttr, selection],
-                        isConfigMembershipAttrOpen: false
-                    }), () => { this.validateModal() }
-                );
-            }
+            this.setState({
+                configMembershipAttr: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateModal() });
         };
         this.handleConfigMembershipAttrToggle = (_event, isConfigMembershipAttrOpen) => {
             this.setState({
@@ -124,22 +108,9 @@ class ReferentialIntegrity extends React.Component {
 
         // Membership Attribute
         this.handleMembershipAttrSelect = (event, selection) => {
-            if (this.state.membershipAttr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        membershipAttr: prevState.membershipAttr.filter((item) => item !== selection),
-                        isMembershipAttrOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        membershipAttr: [...prevState.membershipAttr, selection],
-                        isMembershipAttrOpen: false
-                    }),
-                    () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                membershipAttr: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleMembershipAttrToggle = (_event, isMembershipAttrOpen) => {
             this.setState({
@@ -387,7 +358,7 @@ class ReferentialIntegrity extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -402,11 +373,11 @@ class ReferentialIntegrity extends React.Component {
                     this.props.pluginListHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    let errMsg = getApiErrorMessage(err);
                     if ('info' in errMsg) {
-                        errMsg = errMsg.desc + " " + errMsg.info;
+                        errMsg = errMsg + " " + errMsg.info;
                     } else {
-                        errMsg = errMsg.desc;
+                        errMsg = errMsg;
                     }
                     this.props.addNotification(
                         "error", cockpit.format(_("Error during update - $0"), errMsg)
@@ -456,7 +427,7 @@ class ReferentialIntegrity extends React.Component {
             log_cmd("handleOpenModal", "Fetch the Referential Integrity Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -615,23 +586,23 @@ class ReferentialIntegrity extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
                     console.info("referintOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        cockpit.format(_("Config entry $0 was successfully $1ed"), configDN, action)
+                        cockpit.format(_("Config entry $0 was successfully $1"), configDN, action + "ed")
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg)
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
@@ -655,7 +626,7 @@ class ReferentialIntegrity extends React.Component {
         log_cmd("deleteConfig", "Delete the Referential Integrity Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -669,10 +640,10 @@ class ReferentialIntegrity extends React.Component {
                     this.handleCloseModal();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg)
                     );
                     this.props.pluginListHandler();
                     this.closeConfirmDelete();
@@ -871,9 +842,11 @@ class ReferentialIntegrity extends React.Component {
                                     validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
                                     isDisabled={!newEntry}
                                 />
-                                <FormHelperText  >
-                                    {_("Value must be a valid DN")}
-                                </FormHelperText>
+                                {newEntry &&
+                                    <FormHelperText>
+                                        {_("Value must be a valid DN")}
+                                    </FormHelperText>
+                                }
                             </GridItem>
                         </Grid>
                         <Grid title={_("Specifies attributes to check for and update (referint-membership-attr)")}>
@@ -881,26 +854,19 @@ class ReferentialIntegrity extends React.Component {
                                 {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an attribute"
-                                    onToggle={(event, isOpen) => this.handleConfigMembershipAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={configMembershipAttr}
                                     onSelect={this.handleConfigMembershipAttrSelect}
                                     onClear={this.handleConfigMembershipAttrClear}
-                                    selections={configMembershipAttr}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isConfigMembershipAttrOpen}
-                                    aria-labelledby="typeAhead-config-membership-attr"
-                                    placeholderText={_("Type an attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    onToggle={this.handleConfigMembershipAttrToggle}
+                                    placeholder={_("Type an attribute...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute"
                                     validated={errorModal.configMembershipAttr ? 'error' : 'default'}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    isMulti={true}
+                                />
                                 <FormHelperText  >
                                     {_("At least one attribute must be specified")}
                                 </FormHelperText>
@@ -981,7 +947,7 @@ class ReferentialIntegrity extends React.Component {
                                     onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configLogFile ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText  >
+                                <FormHelperText>
                                     {_("Invalid log file name")}
                                 </FormHelperText>
                             </GridItem>
@@ -1027,27 +993,20 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Membership Attribute")}
                             </GridItem>
-                            <GridItem span={7}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an attribute"
-                                    onToggle={(event, isOpen) => this.handleMembershipAttrToggle(event, isOpen)}
+                            <GridItem span={8}>
+                                <TypeaheadSelect
+                                    selected={membershipAttr}
                                     onSelect={this.handleMembershipAttrSelect}
                                     onClear={this.handleMembershipAttrClear}
-                                    selections={membershipAttr}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isMembershipAttrOpen}
-                                    aria-labelledby="typeAhead-membership-attr"
-                                    placeholderText={_("Type an attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    onToggle={this.handleMembershipAttrToggle}
+                                    placeholder={_("Type an attribute...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute"
                                     validated={error.membershipAttr ? 'error' : 'default'}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    isMulti={true}
+                                />
                                 <FormHelperText  >
                                     {_("At least one attribute needs to be specified")}
                                 </FormHelperText>
@@ -1057,7 +1016,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Entry Scope")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <TextInput
                                     value={entryScope}
                                     type="text"
@@ -1076,7 +1035,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Exclude Entry Scope")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <TextInput
                                     value={excludeEntryScope}
                                     type="text"
@@ -1095,7 +1054,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Container Scope")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <TextInput
                                     value={containerScope}
                                     type="text"
@@ -1117,7 +1076,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Logfile")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <TextInput
                                     value={logFile}
                                     type="text"
@@ -1128,7 +1087,7 @@ class ReferentialIntegrity extends React.Component {
                                     validated={error.logFile ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText  >
-                                    {_("Invalid log nameN")}
+                                    {_("Invalid log name")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
@@ -1136,7 +1095,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Update Delay")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <NumberInput
                                     value={updateDelay}
                                     min={-1}
@@ -1157,27 +1116,24 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Shared Config Entry")}
                             </GridItem>
-                            <GridItem span={7}>
-                                <TextInput
-                                    value={referintConfigEntry}
-                                    type="text"
-                                    id="referintConfigEntry"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="referintConfigEntry"
-                                    onChange={(e, str) => { this.handleFieldChange(e) }}
-                                    validated={error.referintConfigEntry ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
-                                <FormHelperText  >
-                                    {_("The value must be a valid DN")}
-                                </FormHelperText>
-                            </GridItem>
-                            <GridItem span={1}>
+                            {this.state.referintConfigEntry !== "" &&
+                                <GridItem className="ds-right-margin" span={6}>
+                                    <TextInput
+                                        value={referintConfigEntry}
+                                        type="text"
+                                        id="referintConfigEntry"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="referintConfigEntry"
+                                        readOnlyVariant={'plain'}
+                                    />
+                                </GridItem>
+                            }
+                            <GridItem span={2}>
                                 <Button
-                                    className="ds-left-margin"
                                     variant="primary"
                                     onClick={this.handleOpenModal}
                                 >
-                                    {_("Manage")}
+                                    {this.state.referintConfigEntry !== "" ? _("Manage Config") : _("Create Config")}
                                 </Button>
                             </GridItem>
                         </Grid>

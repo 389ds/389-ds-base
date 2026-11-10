@@ -195,17 +195,17 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
     slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc);
     if (argc == 0) {
         /* This is new config style
-                 * uniqueness-attribute-name: uid
-                 * uniqueness-subtrees: dc=people,dc=example,dc=com
-                 * uniqueness-subtrees: dc=sales, dc=example,dc=com
-                 * uniqueness-across-all-subtrees: on
-                 *
-                 * or
-                 *
-                 * uniqueness-attribute-name: uid
-                 * uniqueness-top-entry-oc: organizationalUnit
-                 * uniqueness-subtree-entries-oc: person
-                 */
+         * uniqueness-attribute-name: uid
+         * uniqueness-subtrees: dc=people,dc=example,dc=com
+         * uniqueness-subtrees: dc=sales, dc=example,dc=com
+         * uniqueness-across-all-subtrees: on
+         *
+         * or
+         *
+         * uniqueness-attribute-name: uid
+         * uniqueness-top-entry-oc: organizationalUnit
+         * uniqueness-subtree-entries-oc: person
+         */
 
         /* Attribute name of the attribute we are going to check value uniqueness */
         values = slapi_entry_attr_get_charray(config_entry, ATTR_UNIQUENESS_ATTRIBUTE_NAME);
@@ -293,16 +293,15 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
         }
         if (UNTAGGED_PARAMETER == result) {
             /* This is
-                         * nsslapd-pluginarg0: uid
-                         * nsslapd-pluginarg1: dc=people,dc=example,dc=com
-                         * nsslapd-pluginarg2: dc=sales, dc=example,dc=com
-                         *
-                         * config attribute are in argc/argv
-                         *
-                         * attrName is set
-                         * markerObjectClass/requiredObjectClass are NOT set
-                         */
-
+             * nsslapd-pluginarg0: uid
+             * nsslapd-pluginarg1: dc=people,dc=example,dc=com
+             * nsslapd-pluginarg2: dc=sales, dc=example,dc=com
+             *
+             * config attribute are in argc/argv
+             *
+             * attrName is set
+             * markerObjectClass/requiredObjectClass are NOT set
+             */
             if (slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc) || slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv)) {
                 slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "uniqueness_entry_to_config - "
                                                              "Only attribute name is valid\n");
@@ -1031,7 +1030,14 @@ preop_add(Slapi_PBlock *pb)
     }
 
     for (i = 0; attrNames && attrNames[i]; i++) {
+        char *attr_match = (char *)strchr(attrNames[i], ':');
+        if (attr_match != NULL) {
+            attr_match[0] = '\0';
+        }
         err = slapi_entry_attr_find(e, attrNames[i], &attr);
+        if (attr_match != NULL) {
+            attr_match[0] = ':';
+        }
         if (!err) {
             /*
                  * Passed all the requirements - this is an operation we
@@ -1172,6 +1178,10 @@ preop_modify(Slapi_PBlock *pb)
     for (; mods && *mods; mods++) {
         mod = *mods;
         for (i = 0; attrNames && attrNames[i]; i++) {
+            char *attr_match = (char *)strchr(attrNames[i], ':');
+            if (attr_match != NULL) {
+                attr_match[0] = '\0';
+            }
             if ((slapi_attr_type_cmp(mod->mod_type, attrNames[i], 1) == 0) && /* mod contains target attr */
                 (mod->mod_op & LDAP_MOD_BVALUES) &&                           /* mod is bval encoded (not string val) */
                 (mod->mod_bvalues && mod->mod_bvalues[0]) &&                  /* mod actually contains some values */
@@ -1179,6 +1189,9 @@ preop_modify(Slapi_PBlock *pb)
                  SLAPI_IS_MOD_REPLACE(mod->mod_op)))                          /* mod is replace */
             {
                 addMod(&checkmods, &checkmodsCapacity, &modcount, mod);
+            }
+            if (attr_match != NULL) {
+                attr_match[0] = ':';
             }
         }
     }
@@ -1329,8 +1342,13 @@ preop_modrdn(Slapi_PBlock *pb)
      * its current level in the tree.  Use the source SDN for
      * determining which managed tree this belongs to
      */
-    if (!destinationSDN)
+    if (!destinationSDN) {
+        destinationSDN = slapi_sdn_new();
+    }
+    if (slapi_sdn_get_dn(destinationSDN) == NULL) {
+        /* If no superior was specified fall back to the parent of source */
         slapi_sdn_get_parent(sourceSDN, destinationSDN);
+    }
 
     /* Get the new RDN - this has the attribute values */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);

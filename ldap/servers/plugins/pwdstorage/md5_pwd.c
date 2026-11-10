@@ -63,9 +63,9 @@ md5_pw_cmp(const char *userpwd, const char *dbpwd)
     binary_item.len = outLen;
     bver = NSSBase64_EncodeItem(NULL, (char *)b2a_out, sizeof b2a_out, &binary_item);
     /* bver points to b2a_out upon success */
-    if (bver) {
+    if (bver && strlen(bver) == dbpwd_len) {
         rc = slapi_ct_memcmp(bver, dbpwd, dbpwd_len);
-    } else {
+    } else if (!bver) {
         slapi_log_err(SLAPI_LOG_PLUGIN, MD5_SUBSYSTEM_NAME,
                       "Could not base64 encode hashed value for password compare");
     }

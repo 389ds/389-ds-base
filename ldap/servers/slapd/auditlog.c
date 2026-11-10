@@ -12,6 +12,7 @@
 #endif
 
 #include "slap.h"
+#include <plbase64.h>
 
 /*
  * JCM - The audit log might be better implemented as a post-op plugin.
@@ -38,6 +39,107 @@ static void write_audit_file(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
                              int flag, time_t curtime, int rc, int sourcelog);
 
 static const char *modrdn_changes[4];
+
+/* Helper function to check if an attribute is a password that needs masking */
+static int
+is_password_attribute(const char *attr_name)
+{
+    return (strcasecmp(attr_name, SLAPI_USERPWD_ATTR) == 0 ||
+            strcasecmp(attr_name, CONFIG_ROOTPW_ATTRIBUTE) == 0 ||
+            strcasecmp(attr_name, SLAPI_MB_CREDENTIALS) == 0 ||
+            strcasecmp(attr_name, SLAPI_REP_CREDENTIALS) == 0 ||
+            strcasecmp(attr_name, SLAPI_REP_BOOTSTRAP_CREDENTIALS) == 0);
+}
+
+/* Helper function to create a masked string representation of an entry */
+static char *
+create_masked_entry_string(Slapi_Entry *original_entry, int *len)
+{
+    Slapi_Attr *attr = NULL;
+    char *entry_str = NULL;
+    char *current_pos = NULL;
+    char *line_start = NULL;
+    char *next_line = NULL;
+    char *colon_pos = NULL;
+    int has_password_attrs = 0;
+
+    if (original_entry == NULL) {
+        return NULL;
+    }
+
+    /* Single pass through attributes to check for password attributes */
+    for (slapi_entry_first_attr(original_entry, &attr); attr != NULL;
+         slapi_entry_next_attr(original_entry, attr, &attr)) {
+
+        char *attr_name = NULL;
+        slapi_attr_get_type(attr, &attr_name);
+
+        if (is_password_attribute(attr_name)) {
+            has_password_attrs = 1;
+            break;
+        }
+    }
+
+    /* If no password attributes, return original string - no masking needed */
+    entry_str = slapi_entry2str(original_entry, len);
+    if (!has_password_attrs) {
+        return entry_str;
+    }
+
+    /* Process the string in-place, replacing password values */
+    current_pos = entry_str;
+    while ((line_start = current_pos) != NULL && *line_start != '\0') {
+        /* Find the end of current line */
+        next_line = strchr(line_start, '\n');
+        if (next_line != NULL) {
+            *next_line = '\0';  /* Temporarily terminate line */
+            current_pos = next_line + 1;
+        } else {
+            current_pos = NULL;  /* Last line */
+        }
+
+        /* Find the colon that separates attribute name from value */
+        colon_pos = strchr(line_start, ':');
+        if (colon_pos != NULL) {
+            char saved_colon = *colon_pos;
+            *colon_pos = '\0';  /* Temporarily null-terminate attribute name */
+
+            /* Check if this is a password attribute that needs masking */
+            if (is_password_attribute(line_start)) {
+                const char mask[] = " **********************";
+                size_t mask_len = (sizeof mask)-1;
+                size_t avail = 0;
+
+                /* Calculate available space from colon_pos+1 to end of value */
+                if (next_line != NULL) {
+                    avail = (size_t)(next_line - (colon_pos + 1));
+                } else {
+                    avail = strlen(colon_pos + 1);
+                }
+
+                if (mask_len <= avail) {
+                    memcpy(colon_pos + 1, mask, mask_len);
+                    /* Space-fill remaining space to avoid leaking original value */
+                    memset(colon_pos + 1 + mask_len, ' ', avail - mask_len);
+                } else {
+                    /* Mask is longer than available space -- truncate mask */
+                    memcpy(colon_pos + 1, mask, avail);
+                }
+            }
+
+            *colon_pos = saved_colon;  /* Restore colon */
+        }
+
+        /* Restore newline if it was there */
+        if (next_line != NULL) {
+            *next_line = '\n';
+        }
+    }
+
+    /* Update length since we may have shortened the string */
+    *len = strlen(entry_str);
+    return entry_str;  /* Return the modified original string */
+}
 
 void
 write_audit_log_entry(Slapi_PBlock *pb)
@@ -282,10 +384,31 @@ add_entry_attrs_ext(Slapi_Entry *entry, lenstr *l, PRBool use_json, json_object 
         {
             slapi_entry_attr_find(entry, req_attr, &entry_attr);
             if (entry_attr) {
-                if (use_json) {
-                    log_entry_attr_json(entry_attr, req_attr, id_list);
+                if (strcmp(req_attr, PSEUDO_ATTR_UNHASHEDUSERPASSWORD) == 0) {
+                    /* Do not write the unhashed clear-text password */
+                    continue;
+                }
+
+                /* Check if this is a password attribute that needs masking */
+                if (is_password_attribute(req_attr)) {
+                    /* userpassword/rootdn password - mask the value */
+                    if (use_json) {
+                        json_object *secret_obj = json_object_new_object();
+                        json_object_object_add(secret_obj, req_attr,
+                                               json_object_new_string("**********************"));
+                        json_object_array_add(id_list, secret_obj);
+                    } else {
+                        addlenstr(l, "#");
+                        addlenstr(l, req_attr);
+                        addlenstr(l, ": **********************\n");
+                    }
                 } else {
-                    log_entry_attr(entry_attr, req_attr, l);
+                    /* Regular attribute - log normally */
+                    if (use_json) {
+                        log_entry_attr_json(entry_attr, req_attr, id_list);
+                    } else {
+                        log_entry_attr(entry_attr, req_attr, l);
+                    }
                 }
             }
         }
@@ -300,9 +423,7 @@ add_entry_attrs_ext(Slapi_Entry *entry, lenstr *l, PRBool use_json, json_object 
                 continue;
             }
 
-            if (strcasecmp(attr, SLAPI_USERPWD_ATTR) == 0 ||
-                strcasecmp(attr, CONFIG_ROOTPW_ATTRIBUTE) == 0)
-            {
+            if (is_password_attribute(attr)) {
                 /* userpassword/rootdn password - mask the value */
                 if (use_json) {
                     json_object *secret_obj = json_object_new_object();
@@ -312,7 +433,7 @@ add_entry_attrs_ext(Slapi_Entry *entry, lenstr *l, PRBool use_json, json_object 
                 } else {
                     addlenstr(l, "#");
                     addlenstr(l, attr);
-                    addlenstr(l, ": ****************************\n");
+                    addlenstr(l, ": **********************\n");
                 }
                 continue;
             }
@@ -459,7 +580,7 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
     add_entry_attrs_json(entry, log_json);
 
     switch (optype) {
-        case SLAPI_OPERATION_MODIFY:
+        case SLAPI_OPERATION_MODIFY: {
             json_object *mod_list = json_object_new_array();
             mods = change;
             for (size_t j = 0; (mods != NULL) && (mods[j] != NULL); j++) {
@@ -480,6 +601,9 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
                         break;
                     }
                 }
+
+                /* Check if this is a password attribute that needs masking */
+                int is_password_attr = is_password_attribute(mods[j]->mod_type);
 
                 mod = json_object_new_object();
                 switch (operationtype) {
@@ -502,23 +626,58 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
                 json_object_object_add(mod, "attr", json_object_new_string(mods[j]->mod_type));
 
                 if (operationtype != LDAP_MOD_IGNORE) {
-                    json_object *val_list = NULL;
-                    val_list = json_object_new_array();
+                    json_object *val_list = json_object_new_array();
+                    json_object *val_encoded_list = json_object_new_array();
                     for (size_t i = 0; mods[j]->mod_bvalues != NULL && mods[j]->mod_bvalues[i] != NULL; i++) {
-                        json_object_array_add(val_list, json_object_new_string(mods[j]->mod_bvalues[i]->bv_val));
+                        if (is_password_attr) {
+                            /* Mask password values */
+                            json_object_array_add(val_list, json_object_new_string("**********************"));
+                        } else {
+                            if (ldif_is_not_printable(mods[j]->mod_bvalues[i]->bv_val,
+                                                      mods[j]->mod_bvalues[i]->bv_len) != 0)
+                            {
+                                /* Need to base64 encode this value */
+                                char *buf = PL_Base64Encode(mods[j]->mod_bvalues[i]->bv_val,
+                                                            mods[j]->mod_bvalues[i]->bv_len,
+                                                            NULL);
+                                if (buf) {
+                                    json_object_array_add(val_encoded_list, json_object_new_string(buf));
+                                    slapi_ch_free_string(&buf);
+                                } else {
+                                    json_object_array_add(val_list, json_object_new_string("[VALUE IS NOT PRINTABLE]"));
+                                }
+                            } else {
+                                /* Value is printable, so we can log it as is */
+                                json_object_array_add(val_list, json_object_new_string(mods[j]->mod_bvalues[i]->bv_val));
+                            }
+                        }
                     }
-                    json_object_object_add(mod, "values", val_list);
+                    if (json_object_array_length(val_list) > 0) {
+                        json_object_object_add(mod, "values", val_list);
+                    } else {
+                        /* Free the val_list object if it is empty */
+                        json_object_put(val_list);
+                    }
+                    if (json_object_array_length(val_encoded_list) > 0) {
+                        json_object_object_add(mod, "values_encoded", val_encoded_list);
+                    } else {
+                        /* Free the val_encoded_list object if it is empty */
+                        json_object_put(val_encoded_list);
+                    }
                 }
                 json_object_array_add(mod_list, mod);
             }
             /* Add entire mod list to the main object */
             json_object_object_add(log_json, "modify", mod_list);
             break;
-
-        case SLAPI_OPERATION_ADD:
+        }
+        case SLAPI_OPERATION_ADD: {
             int len;
+
             e = change;
-            tmp = slapi_entry2str(e, &len);
+
+            /* Create a masked string representation for password attributes */
+            tmp = create_masked_entry_string(e, &len);
             tmpsave = tmp;
             while ((tmp = strchr(tmp, '\n')) != NULL) {
                 tmp++;
@@ -529,20 +688,14 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
             json_object_object_add(log_json, "add", json_object_new_string(tmp));
             slapi_ch_free_string(&tmpsave);
             break;
-
-        case SLAPI_OPERATION_DELETE:
-            tmp = change;
+        }
+        case SLAPI_OPERATION_DELETE: {
             del_obj = json_object_new_object();
-            if (tmp && tmp[0]) {
-                json_object_object_add(del_obj, "dn", json_object_new_string(target_dn));
-                json_object_object_add(log_json, "delete", del_obj);
-            } else {
-                json_object_object_add(del_obj, "dn", json_object_new_string(target_dn));
-                json_object_object_add(log_json, "delete", del_obj);
-            }
+            json_object_object_add(del_obj, "dn", json_object_new_string(target_dn));
+            json_object_object_add(log_json, "delete", del_obj);
             break;
-
-        case SLAPI_OPERATION_MODDN:
+        }
+        case SLAPI_OPERATION_MODDN: {
             newrdn = ((char **)change)[0];
             modrdn_obj = json_object_new_object();
             json_object_object_add(modrdn_obj, attr_newrdn, json_object_new_string(newrdn));
@@ -554,6 +707,7 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
             }
             json_object_object_add(log_json, "modrdn", modrdn_obj);
             break;
+        }
     }
 
     msg = (char *)json_object_to_json_string_ext(log_json, log_format);
@@ -670,6 +824,10 @@ write_audit_file(
                     break;
                 }
             }
+
+            /* Check if this is a password attribute that needs masking */
+            int is_password_attr = is_password_attribute(mods[j]->mod_type);
+
             switch (operationtype) {
             case LDAP_MOD_ADD:
                 addlenstr(l, "add: ");
@@ -694,21 +852,30 @@ write_audit_file(
                 break;
             }
             if (operationtype != LDAP_MOD_IGNORE) {
-                for (i = 0; mods[j]->mod_bvalues != NULL && mods[j]->mod_bvalues[i] != NULL; i++) {
-                    char *buf, *bufp;
-                    len = strlen(mods[j]->mod_type);
-                    len = LDIF_SIZE_NEEDED(len, mods[j]->mod_bvalues[i]->bv_len) + 1;
-                    buf = slapi_ch_malloc(len);
-                    bufp = buf;
-                    slapi_ldif_put_type_and_value_with_options(&bufp, mods[j]->mod_type,
-                                                               mods[j]->mod_bvalues[i]->bv_val,
-                                                               mods[j]->mod_bvalues[i]->bv_len, 0);
-                    *bufp = '\0';
-                    addlenstr(l, buf);
-                    slapi_ch_free((void **)&buf);
+                if (is_password_attr) {
+                    /* Add masked password */
+                    for (i = 0; mods[j]->mod_bvalues != NULL && mods[j]->mod_bvalues[i] != NULL; i++) {
+                        addlenstr(l, mods[j]->mod_type);
+                        addlenstr(l, ": **********************\n");
+                    }
+                } else {
+                    /* Add actual values for non-password attributes */
+                    for (i = 0; mods[j]->mod_bvalues != NULL && mods[j]->mod_bvalues[i] != NULL; i++) {
+                        char *buf, *bufp;
+                        len = strlen(mods[j]->mod_type);
+                        len = LDIF_SIZE_NEEDED(len, mods[j]->mod_bvalues[i]->bv_len) + 1;
+                        buf = slapi_ch_malloc(len);
+                        bufp = buf;
+                        slapi_ldif_put_type_and_value_with_options(&bufp, mods[j]->mod_type,
+                                                                   mods[j]->mod_bvalues[i]->bv_val,
+                                                                   mods[j]->mod_bvalues[i]->bv_len, 0);
+                        *bufp = '\0';
+                        addlenstr(l, buf);
+                        slapi_ch_free((void **)&buf);
+                    }
                 }
+                addlenstr(l, "-\n");
             }
-            addlenstr(l, "-\n");
         }
         break;
 
@@ -716,7 +883,7 @@ write_audit_file(
         e = change;
         addlenstr(l, attr_changetype);
         addlenstr(l, ": add\n");
-        tmp = slapi_entry2str(e, &len);
+        tmp = create_masked_entry_string(e, &len);
         tmpsave = tmp;
         while ((tmp = strchr(tmp, '\n')) != NULL) {
             tmp++;

@@ -44,8 +44,7 @@ cb_config_add_dse_entries(cb_backend *cb, char **entries, char *string1, char *s
         slapi_pblock_get(util_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
         if (LDAP_SUCCESS != res && LDAP_ALREADY_EXISTS != res) {
             slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-                          "cb_config_add_dse_entries - Unable to add config entry (%s) to the DSE: %s\n",
-                          slapi_entry_get_dn(e),
+                          "cb_config_add_dse_entries - Unable to add config entry to the DSE: %s\n",
                           ldap_err2string(res));
             rc = res;
             slapi_pblock_destroy(util_pb);

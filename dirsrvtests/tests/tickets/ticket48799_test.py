@@ -9,7 +9,7 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m1c1
+from test389.topologies import topology_m1c1
 
 pytestmark = pytest.mark.tier2
 

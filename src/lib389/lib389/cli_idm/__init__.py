@@ -1,6 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2024 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -74,7 +74,7 @@ def _get_basedn_arg(inst, args, basedn, log, msg=None):
 
 
 # This is really similar to get_args, but generates from an array
-def _get_attributes(args, attrs):
+def _get_attributes(args, attrs, optional_attrs=None):
     kwargs = {}
     for attr in attrs:
         # Python can't represent a -, so it replaces it to _
@@ -87,6 +87,13 @@ def _get_attributes(args, attrs):
                 kwargs[attr] = getpass("Enter value for %s : " % attr)
             else:
                 kwargs[attr] = input("Enter value for %s : " % attr)
+
+    if optional_attrs is not None:
+        for attr in optional_attrs:
+            attr_normal = attr.replace('-', '_')
+            if hasattr(args, attr_normal) and getattr(args, attr_normal) is not None:
+                kwargs[attr] = getattr(args, attr_normal)
+
     return kwargs
 
 
@@ -100,7 +107,10 @@ def _warn(data, msg=None):
 
 def _generic_list(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
-    ol = mc.list()
+    full_dn = False
+    if hasattr(args, 'full_dn') and getattr(args, 'full_dn') is not None:
+        full_dn = args.full_dn
+    ol = mc.list(full_dn=full_dn)
     if len(ol) == 0:
         if args and args.json:
             log.info(json.dumps({"type": "list", "items": []}, indent=4))
@@ -111,7 +121,10 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
         if args and args.json:
             json_result = {"type": "list", "items": []}
         for o in ol:
-            o_str = o.__unicode__()
+            if full_dn:
+                o_str = o  # Already a string
+            else:
+                o_str = o.get_rdn_from_dn(o.dn)
             if args and args.json:
                 json_result['items'].append(o_str)
             else:
@@ -140,9 +153,12 @@ def _generic_get(inst, basedn, log, manager_class, selector, args=None):
 
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     mc = manager_class(inst, basedn)
-    o = mc.get(dn=dn)
-    o_str = o.__unicode__()
-    log.info(o_str)
+    if args is not None and args.json:
+        o = mc.get(dn=dn, json=True)
+        log.info(o)
+    else:
+        o = mc.get(dn=dn)
+        log.info(o.display())
 
 
 def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
@@ -152,8 +168,8 @@ def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     except ldap.NO_SUCH_OBJECT:
         raise ValueError(f'The base DN "{mc._basedn}" does not exist')
 
-    o_str = o.__unicode__()
-    log.info('Successfully created %s' % o_str)
+    rdn_value = o.get_rdn_from_dn(o.dn)
+    log.info('Successfully created %s' % rdn_value)
 
 
 def _generic_delete(inst, basedn, log, object_class, dn, args=None):
@@ -173,8 +189,18 @@ def _generic_rename_inner(log, o, new_rdn, newsuperior=None, deloldrdn=None):
         arguments['newsuperior'] = newsuperior
     if deloldrdn is not None:
         arguments['deloldrdn'] = deloldrdn
+
+    # Store original state for comparison
+    old_dn = o.dn
+
+    # Perform the rename operation
     o.rename(**arguments)
-    log.info('Successfully renamed to %s' % o.dn)
+
+    # Check if anything actually changed
+    if old_dn == o.dn:
+        log.info('No changes made - entry already has this name')
+    else:
+        log.info('Successfully renamed to %s' % o.dn)
 
 
 def _generic_rename(inst, basedn, log, manager_class, selector, args=None):
@@ -183,12 +209,16 @@ def _generic_rename(inst, basedn, log, manager_class, selector, args=None):
     # Here, we should have already selected the type etc. mc should be a
     # type of DSLdapObjects (plural)
     mc = manager_class(inst, basedn)
-    # Get the object singular by selector
     try:
-        o = mc.get(selector)
+        rdn_attr = mc._childobject(inst)._rdn_attribute
+        entry_dn = f"{rdn_attr}={selector},{mc._basedn}"
+        o = mc._childobject(inst, dn=entry_dn)
+
+        if not o.exists():
+            raise ldap.NO_SUCH_OBJECT()
     except ldap.NO_SUCH_OBJECT:
         raise ValueError(f'The entry does not exist')
-    rdn_attr = ldap.dn.str2dn(o.dn)[0][0][0]
+
     arguments = {'new_rdn': f'{rdn_attr}={args.new_name}'}
     if args.keep_old_rdn:
         arguments['deloldrdn'] = False

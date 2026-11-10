@@ -23,6 +23,7 @@
 
 #include "repl5.h"
 #include "repl5_prot_private.h"
+#include "slap.h"
 
 #define PROTOCOL_5_INCREMENTAL 1
 #define PROTOCOL_5_TOTAL 2
@@ -225,6 +226,7 @@ finished                (any)                   finished
 static void
 prot_thread_main(void *arg)
 {
+    slapi_set_thread_name("repl-prot");
     Repl_Protocol *rp = (Repl_Protocol *)arg;
     int done;
     Repl_Agmt *agmt = NULL;
@@ -236,6 +238,8 @@ prot_thread_main(void *arg)
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "prot_thread_main - Missing replication agreement\n");
         return;
     }
+
+    g_incr_active_threadcnt();
 
     set_thread_private_agmtname(agmt_get_long_name(agmt));
 
@@ -301,6 +305,8 @@ prot_thread_main(void *arg)
             done = 1;
         }
     }
+
+    g_decr_active_threadcnt();
 }
 
 /*

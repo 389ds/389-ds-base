@@ -11,7 +11,7 @@ import pytest
 import os
 import time
 from lib389._constants import *
-from lib389.topologies import topology_st as topo, set_timeout
+from test389.topologies import topology_st as topo, set_timeout
 
 logging.basicConfig(format='%(asctime)s %(message)s', force=True)
 log = logging.getLogger(__name__)

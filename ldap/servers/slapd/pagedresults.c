@@ -34,9 +34,9 @@ pageresult_lock_cleanup()
     slapi_ch_free((void**)&lock_hash);
 }
 
-/* Beware to the lock order with c_mutex:
- * c_mutex is sometime locked while holding pageresult_lock
- * ==> Do not lock pageresult_lock when holing c_mutex
+/* Lock ordering constraint with c_mutex:
+ * c_mutex is sometimes locked while holding pageresult_lock.
+ * Therefore: DO NOT acquire pageresult_lock when holding c_mutex.
  */
 pthread_mutex_t *
 pageresult_lock_get_addr(Connection *conn)
@@ -44,11 +44,14 @@ pageresult_lock_get_addr(Connection *conn)
     return &lock_hash[(((size_t)conn)/sizeof (Connection))%LOCK_HASH_SIZE];
 }
 
-/* helper function to clean up one prp slot */
+/* helper function to clean up one prp slot
+ *
+ * NOTE: This function must be called while holding the pageresult_lock
+ * (via pageresult_lock_get_addr(conn)) to ensure thread-safe cleanup.
+ */
 static void
 _pr_cleanup_one_slot(PagedResults *prp)
 {
-    PRLock *prmutex = NULL;
     if (!prp) {
         return;
     }
@@ -56,13 +59,17 @@ _pr_cleanup_one_slot(PagedResults *prp)
         /* sr is left; release it. */
         prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
     }
+
     /* clean up the slot */
-    if (prp->pr_mutex) {
-        /* pr_mutex is reused; back it up and reset it. */
-        prmutex = prp->pr_mutex;
-    }
-    memset(prp, '\0', sizeof(PagedResults));
-    prp->pr_mutex = prmutex;
+    prp->pr_current_be = NULL;
+    prp->pr_search_result_set = NULL;
+    prp->pr_search_result_count = 0;
+    prp->pr_search_result_set_size_estimate = 0;
+    prp->pr_sort_result_code = 0;
+    prp->pr_timelimit_hr.tv_sec = 0;
+    prp->pr_timelimit_hr.tv_nsec = 0;
+    prp->pr_flags = 0;
+    prp->pr_msgid = 0;
 }
 
 /*
@@ -121,20 +128,33 @@ pagedresults_parse_control_value(Slapi_PBlock *pb,
     if (ber_scanf(ber, "{io}", pagesize, &cookie) == LBER_ERROR) {
         slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
                       "<= corrupted control value\n");
+        ber_free(ber, 1);
         return LDAP_PROTOCOL_ERROR;
     }
     if (!maxreqs) {
         slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
                       "Simple paged results requests per conn exceeded the limit: %d\n",
                       maxreqs);
+        ber_free(ber, 1);
+        slapi_ch_free_string(&cookie.bv_val);
         return LDAP_UNWILLING_TO_PERFORM;
     }
 
+    /* Acquire hash-based lock for paged results list access
+     * IMPORTANT: Never acquire this lock when holding c_mutex */
     pthread_mutex_lock(pageresult_lock_get_addr(conn));
     /* the ber encoding is no longer needed */
     ber_free(ber, 1);
     if (cookie.bv_len <= 0) {
         /* first time? */
+        if (be == NULL) {
+            slapi_log_err(SLAPI_LOG_WARNING, "pagedresults_parse_control_value",
+                          "Paged results request has no backend defined, "
+                          "no paged-results slot will be created\n");
+            slapi_ch_free((void **)&cookie.bv_val);
+            pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+            return LDAP_PROTOCOL_ERROR;
+        }
         int maxlen = conn->c_pagedresults.prl_maxlen;
         if (conn->c_pagedresults.prl_count == maxlen) {
             if (0 == maxlen) { /* first time */
@@ -178,10 +198,6 @@ pagedresults_parse_control_value(Slapi_PBlock *pb,
             goto bail;
         }
 
-        if ((*index > -1) && (*index < conn->c_pagedresults.prl_maxlen) &&
-            !conn->c_pagedresults.prl_list[*index].pr_mutex) {
-            conn->c_pagedresults.prl_list[*index].pr_mutex = PR_NewLock();
-        }
         conn->c_pagedresults.prl_count++;
     } else {
         /* Repeated paged results request.
@@ -321,8 +337,14 @@ bailout:
                   "<= idx=%d\n", index);
 }
 
+/*
+ * Free one paged result entry by index.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 int
-pagedresults_free_one(Connection *conn, Operation *op, int index)
+pagedresults_free_one(Connection *conn, Operation *op, bool locked, int index)
 {
     int rc = -1;
 
@@ -332,7 +354,9 @@ pagedresults_free_one(Connection *conn, Operation *op, int index)
     slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_free_one",
                   "=> idx=%d\n", index);
     if (conn && (index > -1)) {
-        pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        }
         if (conn->c_pagedresults.prl_count <= 0) {
             slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_free_one",
                           "conn=%" PRIu64 " paged requests list count is %d\n",
@@ -343,7 +367,9 @@ pagedresults_free_one(Connection *conn, Operation *op, int index)
             conn->c_pagedresults.prl_count--;
             rc = 0;
         }
-        pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        }
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_free_one", "<= %d\n", rc);
@@ -351,21 +377,28 @@ pagedresults_free_one(Connection *conn, Operation *op, int index)
 }
 
 /*
- * Used for abandoning - pageresult_lock_get_addr(conn) is already locked in do_abandone.
+ * Free one paged result entry by message ID.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
  */
 int
-pagedresults_free_one_msgid(Connection *conn, ber_int_t msgid, pthread_mutex_t *mutex)
+pagedresults_free_one_msgid(Connection *conn, ber_int_t msgid, bool locked)
 {
     int rc = -1;
     int i;
+    pthread_mutex_t *lock = NULL;
 
     if (conn && (msgid > -1)) {
         if (conn->c_pagedresults.prl_maxlen <= 0) {
             ; /* Not a paged result. */
         } else {
             slapi_log_err(SLAPI_LOG_TRACE,
-                          "pagedresults_free_one_msgid_nolock", "=> msgid=%d\n", msgid);
-            pthread_mutex_lock(mutex);
+                          "pagedresults_free_one_msgid", "=> msgid=%d\n", msgid);
+            lock = pageresult_lock_get_addr(conn);
+            if (!locked) {
+                pthread_mutex_lock(lock);
+            }
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
                 if (conn->c_pagedresults.prl_list[i].pr_msgid == msgid) {
                     PagedResults *prp = conn->c_pagedresults.prl_list + i;
@@ -376,13 +409,19 @@ pagedresults_free_one_msgid(Connection *conn, ber_int_t msgid, pthread_mutex_t *
                     }
                     prp->pr_flags |= CONN_FLAG_PAGEDRESULTS_ABANDONED;
                     prp->pr_flags &= ~CONN_FLAG_PAGEDRESULTS_PROCESSING;
+                    if (conn->c_pagedresults.prl_count > 0) {
+                        _pr_cleanup_one_slot(prp);
+                        conn->c_pagedresults.prl_count--;
+                    }
                     rc = 0;
                     break;
                 }
             }
-            pthread_mutex_unlock(mutex);
+            if (!locked) {
+                pthread_mutex_unlock(lock);
+            }
             slapi_log_err(SLAPI_LOG_TRACE,
-                          "pagedresults_free_one_msgid_nolock", "<= %d\n", rc);
+                          "pagedresults_free_one_msgid", "<= %d\n", rc);
         }
     }
 
@@ -408,29 +447,43 @@ pagedresults_get_current_be(Connection *conn, int index)
     return be;
 }
 
+/*
+ * Set current backend for a paged result entry.
+ *
+ * Locking: If locked=false, acquires pageresult_lock. If locked=true, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 int
-pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, int nolock)
+pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, bool locked)
 {
     int rc = -1;
     slapi_log_err(SLAPI_LOG_TRACE,
                   "pagedresults_set_current_be", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
-        if (!nolock)
+        if (!locked) {
             pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        }
         if (index < conn->c_pagedresults.prl_maxlen) {
             conn->c_pagedresults.prl_list[index].pr_current_be = be;
         }
         rc = 0;
-        if (!nolock)
+        if (!locked) {
             pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        }
     }
     slapi_log_err(SLAPI_LOG_TRACE,
                   "pagedresults_set_current_be", "<= %d\n", rc);
     return rc;
 }
 
+/*
+ * Get search result set for a paged result entry.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 void *
-pagedresults_get_search_result(Connection *conn, Operation *op, int locked, int index)
+pagedresults_get_search_result(Connection *conn, Operation *op, bool locked, int index)
 {
     void *sr = NULL;
     if (!op_is_pagedresults(op)) {
@@ -455,8 +508,14 @@ pagedresults_get_search_result(Connection *conn, Operation *op, int locked, int 
     return sr;
 }
 
+/*
+ * Set search result set for a paged result entry.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 int
-pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, int locked, int index)
+pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, bool locked, int index)
 {
     int rc = -1;
     if (!op_is_pagedresults(op)) {
@@ -484,8 +543,14 @@ pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, int lo
     return rc;
 }
 
+/*
+ * Get search result count for a paged result entry.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 int
-pagedresults_get_search_result_count(Connection *conn, Operation *op, int index)
+pagedresults_get_search_result_count(Connection *conn, Operation *op, bool locked, int index)
 {
     int count = 0;
     if (!op_is_pagedresults(op)) {
@@ -494,19 +559,29 @@ pagedresults_get_search_result_count(Connection *conn, Operation *op, int index)
     slapi_log_err(SLAPI_LOG_TRACE,
                   "pagedresults_get_search_result_count", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
-        pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        }
         if (index < conn->c_pagedresults.prl_maxlen) {
             count = conn->c_pagedresults.prl_list[index].pr_search_result_count;
         }
-        pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        }
     }
     slapi_log_err(SLAPI_LOG_TRACE,
                   "pagedresults_get_search_result_count", "<= %d\n", count);
     return count;
 }
 
+/*
+ * Set search result count for a paged result entry.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 int
-pagedresults_set_search_result_count(Connection *conn, Operation *op, int count, int index)
+pagedresults_set_search_result_count(Connection *conn, Operation *op, int count, bool locked, int index)
 {
     int rc = -1;
     if (!op_is_pagedresults(op)) {
@@ -515,11 +590,15 @@ pagedresults_set_search_result_count(Connection *conn, Operation *op, int count,
     slapi_log_err(SLAPI_LOG_TRACE,
                   "pagedresults_set_search_result_count", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
-        pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        }
         if (index < conn->c_pagedresults.prl_maxlen) {
             conn->c_pagedresults.prl_list[index].pr_search_result_count = count;
         }
-        pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        }
         rc = 0;
     }
     slapi_log_err(SLAPI_LOG_TRACE,
@@ -527,9 +606,16 @@ pagedresults_set_search_result_count(Connection *conn, Operation *op, int count,
     return rc;
 }
 
+/*
+ * Get search result set size estimate for a paged result entry.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 int
 pagedresults_get_search_result_set_size_estimate(Connection *conn,
                                                  Operation *op,
+                                                 bool locked,
                                                  int index)
 {
     int count = 0;
@@ -540,11 +626,15 @@ pagedresults_get_search_result_set_size_estimate(Connection *conn,
                   "pagedresults_get_search_result_set_size_estimate",
                   "=> idx=%d\n", index);
     if (conn && (index > -1)) {
-        pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        }
         if (index < conn->c_pagedresults.prl_maxlen) {
             count = conn->c_pagedresults.prl_list[index].pr_search_result_set_size_estimate;
         }
-        pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        }
     }
     slapi_log_err(SLAPI_LOG_TRACE,
                   "pagedresults_get_search_result_set_size_estimate", "<= %d\n",
@@ -552,10 +642,17 @@ pagedresults_get_search_result_set_size_estimate(Connection *conn,
     return count;
 }
 
+/*
+ * Set search result set size estimate for a paged result entry.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 int
 pagedresults_set_search_result_set_size_estimate(Connection *conn,
                                                  Operation *op,
                                                  int count,
+                                                 bool locked,
                                                  int index)
 {
     int rc = -1;
@@ -566,11 +663,15 @@ pagedresults_set_search_result_set_size_estimate(Connection *conn,
                   "pagedresults_set_search_result_set_size_estimate",
                   "=> idx=%d\n", index);
     if (conn && (index > -1)) {
-        pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        }
         if (index < conn->c_pagedresults.prl_maxlen) {
             conn->c_pagedresults.prl_list[index].pr_search_result_set_size_estimate = count;
         }
-        pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        }
         rc = 0;
     }
     slapi_log_err(SLAPI_LOG_TRACE,
@@ -579,8 +680,14 @@ pagedresults_set_search_result_set_size_estimate(Connection *conn,
     return rc;
 }
 
+/*
+ * Get with_sort flag for a paged result entry.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 int
-pagedresults_get_with_sort(Connection *conn, Operation *op, int index)
+pagedresults_get_with_sort(Connection *conn, Operation *op, bool locked, int index)
 {
     int flags = 0;
     if (!op_is_pagedresults(op)) {
@@ -589,19 +696,29 @@ pagedresults_get_with_sort(Connection *conn, Operation *op, int index)
     slapi_log_err(SLAPI_LOG_TRACE,
                   "pagedresults_get_with_sort", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
-        pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        }
         if (index < conn->c_pagedresults.prl_maxlen) {
             flags = conn->c_pagedresults.prl_list[index].pr_flags & CONN_FLAG_PAGEDRESULTS_WITH_SORT;
         }
-        pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        }
     }
     slapi_log_err(SLAPI_LOG_TRACE,
                   "pagedresults_get_with_sort", "<= %d\n", flags);
     return flags;
 }
 
+/*
+ * Set with_sort flag for a paged result entry.
+ *
+ * Locking: If locked=0, acquires pageresult_lock. If locked=1, assumes
+ * caller already holds pageresult_lock. Never call when holding c_mutex.
+ */
 int
-pagedresults_set_with_sort(Connection *conn, Operation *op, int flags, int index)
+pagedresults_set_with_sort(Connection *conn, Operation *op, int flags, bool locked, int index)
 {
     int rc = -1;
     if (!op_is_pagedresults(op)) {
@@ -610,14 +727,18 @@ pagedresults_set_with_sort(Connection *conn, Operation *op, int flags, int index
     slapi_log_err(SLAPI_LOG_TRACE,
                   "pagedresults_set_with_sort", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
-        pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_lock(pageresult_lock_get_addr(conn));
+        }
         if (index < conn->c_pagedresults.prl_maxlen) {
             if (flags & OP_FLAG_SERVER_SIDE_SORTING) {
                 conn->c_pagedresults.prl_list[index].pr_flags |=
                     CONN_FLAG_PAGEDRESULTS_WITH_SORT;
             }
         }
-        pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        if (!locked) {
+            pthread_mutex_unlock(pageresult_lock_get_addr(conn));
+        }
         rc = 0;
     }
     slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_set_with_sort", "<= %d\n", rc);
@@ -792,9 +913,6 @@ pagedresults_cleanup(Connection *conn, int needlock)
             rc = 1;
         }
         prp->pr_current_be = NULL;
-        if (prp->pr_mutex) {
-            PR_DestroyLock(prp->pr_mutex);
-        }
         memset(prp, '\0', sizeof(PagedResults));
     }
     conn->c_pagedresults.prl_count = 0;
@@ -829,9 +947,6 @@ pagedresults_cleanup_all(Connection *conn, int needlock)
                 i < conn->c_pagedresults.prl_maxlen;
          i++) {
         prp = conn->c_pagedresults.prl_list + i;
-        if (prp->pr_mutex) {
-            PR_DestroyLock(prp->pr_mutex);
-        }
         if (prp->pr_current_be && prp->pr_search_result_set &&
             prp->pr_current_be->be_search_results_release) {
             prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
@@ -936,7 +1051,9 @@ pagedresults_is_timedout_nolock(Connection *conn)
             return 1;
         }
     }
+
     slapi_log_err(SLAPI_LOG_TRACE, "<-- pagedresults_is_timedout", "<= false 2\n");
+
     return 0;
 }
 
@@ -996,46 +1113,12 @@ op_set_pagedresults(Operation *op)
     op->o_flags |= OP_FLAG_PAGED_RESULTS;
 }
 
-/*
- * pagedresults_lock/unlock -- introduced to protect search results for the
- * asynchronous searches.
- */
-void
-pagedresults_lock(Connection *conn, int index)
-{
-    PagedResults *prp;
-    if (!conn || (index < 0) || (index >= conn->c_pagedresults.prl_maxlen)) {
-        return;
-    }
-    pthread_mutex_lock(pageresult_lock_get_addr(conn));
-    prp = conn->c_pagedresults.prl_list + index;
-    pthread_mutex_unlock(pageresult_lock_get_addr(conn));
-    if (prp->pr_mutex) {
-        PR_Lock(prp->pr_mutex);
-    }
-    return;
-}
-
-void
-pagedresults_unlock(Connection *conn, int index)
-{
-    PagedResults *prp;
-    if (!conn || (index < 0) || (index >= conn->c_pagedresults.prl_maxlen)) {
-        return;
-    }
-    pthread_mutex_lock(pageresult_lock_get_addr(conn));
-    prp = conn->c_pagedresults.prl_list + index;
-    pthread_mutex_unlock(pageresult_lock_get_addr(conn));
-    if (prp->pr_mutex) {
-        PR_Unlock(prp->pr_mutex);
-    }
-    return;
-}
-
 int
-pagedresults_is_abandoned_or_notavailable(Connection *conn, int locked, int index)
+pagedresults_is_abandoned_or_notavailable(Connection *conn, bool locked, int index)
 {
     PagedResults *prp;
+    int32_t result;
+
     if (!conn || (index < 0) || (index >= conn->c_pagedresults.prl_maxlen)) {
         return 1; /* not abandoned, but do not want to proceed paged results op. */
     }
@@ -1043,14 +1126,15 @@ pagedresults_is_abandoned_or_notavailable(Connection *conn, int locked, int inde
         pthread_mutex_lock(pageresult_lock_get_addr(conn));
     }
     prp = conn->c_pagedresults.prl_list + index;
+    result = prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED;
     if (!locked) {
         pthread_mutex_unlock(pageresult_lock_get_addr(conn));
     }
-    return prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED;
+    return result;
 }
 
 int
-pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, int locked)
+pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, bool locked)
 {
     int rc = -1;
     Connection *conn = NULL;

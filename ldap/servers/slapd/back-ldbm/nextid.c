@@ -155,7 +155,21 @@ get_ids_from_disk(backend *be)
         if (0 == return_value) {
             return_value = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_LAST, &key, &value);
             if ((0 == return_value) && (NULL != key.dptr)) {
-                inst->inst_nextid = id_stored_to_internal(key.dptr) + 1;
+                ID id = id_stored_to_internal(key.dptr);
+                int32_t count = 0;
+
+                if (dblayer_get_entries_count(be, id2entrydb, NULL, &count) == 0 &&
+                    count == 1 &&
+                    id == 2)
+                {
+                    /* This can only happen if the only entry in the db is the
+                     * RUV entry (which has ID 2). Set the nextid to 1 for when
+                     * we add the suffix entry */
+                    inst->inst_nextid = 1;
+                    inst->inst_ruv_inserted_first = true;
+                } else {
+                    inst->inst_nextid = id + 1;
+                }
             } else {
                 inst->inst_nextid = 1; /* error case: set 1 */
             }

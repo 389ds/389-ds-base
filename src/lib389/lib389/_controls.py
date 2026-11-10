@@ -238,3 +238,119 @@ class SSSResponseControl(ResponseControl):
         self.result_code = p.getComponentByName('sortResult').prettyOut(self.result)
         self.attribute_type_error = p.getComponentByName('attributeType')
 
+
+class AURCMoreInfo(univ.Sequence):
+    componentType = namedtype.NamedTypes(
+        namedtype.DefaultedNamedType('accountIsInactive', univ.Boolean(False).subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
+        namedtype.DefaultedNamedType('mustChangePassword', univ.Boolean(False).subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1))),
+        namedtype.DefaultedNamedType('passwordIsExpired', univ.Boolean(False).subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 2))),
+        namedtype.OptionalNamedType('remainingGraceLogins', univ.Integer().subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 3))),
+        namedtype.OptionalNamedType('secondsUntilUnlock', univ.Integer().subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 4))),
+    )
+
+
+class AURC(univ.Choice):
+    """
+     Account Usability Response Control:
+
+     ACCOUNT_USABLE_RESPONSE ::= CHOICE {
+       isUsable     [0] INTEGER, -- Seconds until password expiration --
+       isNotUsable  [1] MORE_INFO }
+
+     MORE_INFO ::= SEQUENCE {
+       accountIsInactive     [0] BOOLEAN DEFAULT FALSE,
+       mustChangePassword    [1] BOOLEAN DEFAULT FALSE,
+       passwordIsExpired     [2] BOOLEAN DEFAULT FALSE,
+       remainingGraceLogins  [3] INTEGER OPTIONAL,
+       secondsUntilUnlock    [4] INTEGER OPTIONAL }
+    """
+
+    componentType = namedtype.NamedTypes(
+        namedtype.NamedType('isUsable', univ.Integer().subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
+        namedtype.NamedType('isNotUsable', AURCMoreInfo().subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1))),
+    )
+
+
+class AccountUsabilityControl(RequestControl):
+    controlType = '1.3.6.1.4.1.42.2.27.9.5.8'
+    booleanvals = [ 'accountIsInactive', 'mustChangePassword', 'passwordIsExpired' ]
+
+    def __init__(
+            self,
+            criticality=True,
+    ):
+        RequestControl.__init__(self, self.controlType, criticality)
+
+    def decodeResponseControl(self, encodedValue):
+        """Return a dict representing the control response """
+        decoded_data, remainder = decoder.decode(encodedValue, asn1Spec=AURC())
+        choice_name = decoded_data.getName()
+        choice_value = decoded_data.getComponent()
+        if choice_name == 'isUsable':
+            return { 'usable': True, 'secondsBeforeExpiration': int(choice_value) }
+        result = { 'usable': False }
+        for name in choice_value.componentType:
+            val = choice_value.getComponentByName(name)
+            if val.hasValue():
+                if name in self.booleanvals:
+                    result[name] = val.prettyPrint() != "False"
+                else:
+                    result[name] = int(val.prettyPrint())
+        return result
+
+    def registerClass(self, responseControlClasses):
+        responseControlClasses[self.controlType] = ResponseControl
+
+
+class UseOneBackendControl(RequestControl):
+    """Route a search to a single named backend instance.
+
+    This is a 389 DS-specific control (OID 2.16.840.1.113730.3.4.14).
+    The control value must be the backend instance name (e.g. 'userRoot').
+
+    Example::
+
+        >>> ctrl = UseOneBackendControl(criticality=True, backend_name='userRoot')
+    """
+    controlType = CONTROL_USE_ONE_BACKEND
+
+    def __init__(self, criticality=True, backend_name=None):
+        RequestControl.__init__(self, self.controlType, criticality)
+        if backend_name is None:
+            raise ValueError("backend_name is required for UseOneBackendControl")
+        self.backend_name = backend_name
+
+    def encodeControlValue(self):
+        return self.backend_name.encode('utf-8')
+
+
+class UseOneBackendExtControl(RequestControl):
+    """Route a search to a single backend instance (extended version).
+
+    This is the "smart" variant of UseOneBackendControl
+    (OID 2.16.840.1.113730.3.4.20). If a backend_name is supplied it is
+    used directly; if omitted or ``None`` the server auto-selects the
+    backend from the search base DN.
+
+    Example::
+
+        >>> ctrl = UseOneBackendExtControl(criticality=True, backend_name='userRoot')
+        >>> ctrl = UseOneBackendExtControl(criticality=True)  # auto-select
+    """
+    controlType = CONTROL_USE_ONE_BACKEND_EXT
+
+    def __init__(self, criticality=True, backend_name=None):
+        RequestControl.__init__(self, self.controlType, criticality)
+        self.backend_name = backend_name
+
+    def encodeControlValue(self):
+        if self.backend_name:
+            return self.backend_name.encode('utf-8')
+        return b''

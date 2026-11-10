@@ -15,7 +15,7 @@ import {
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
     WrenchIcon,
 } from '@patternfly/react-icons';
@@ -80,7 +80,7 @@ class USNPlugin extends React.Component {
         ];
         log_cmd("loadSuffixList", "Get a list of all the suffixes", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const suffixList = JSON.parse(content);
                     this.setState({
@@ -113,7 +113,7 @@ class USNPlugin extends React.Component {
         this.setState({ disableSwitch: true });
         log_cmd("handleSwitchChange", "Switch global USN mode from the USN plugin tab", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     this.updateSwitch();
@@ -125,10 +125,10 @@ class USNPlugin extends React.Component {
                     this.setState({ disableSwitch: false });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     addNotification(
                         "error",
-                        cockpit.format(_("Error during global USN mode modification - $0"), errMsg.desc)
+                        cockpit.format(_("Error during global USN mode modification - $0"), errMsg)
                     );
                     toggleLoadingHandler();
                     this.setState({ disableSwitch: false });
@@ -157,7 +157,7 @@ class USNPlugin extends React.Component {
         this.props.toggleLoadingHandler();
         log_cmd("updateSwitch", "Get global USN status", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const usnGlobalAttr = myObject.attrs["nsslapd-entryusn-global"][0];
@@ -170,8 +170,8 @@ class USNPlugin extends React.Component {
                 })
                 .fail(err => {
                     if (err !== 0) {
-                        const errMsg = JSON.parse(err);
-                        console.log("Get global USN failed", errMsg.desc);
+                        const errMsg = getApiErrorMessage(err);
+                        console.log("Get global USN failed", errMsg);
                     }
                     this.setState({
                         disableSwitch: false
@@ -212,7 +212,7 @@ class USNPlugin extends React.Component {
             log_cmd("handleRunCleanup", "Run cleanup USN tombstones", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -226,10 +226,10 @@ class USNPlugin extends React.Component {
                         });
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Cleanup USN Tombstones task has failed $0"), errMsg.desc)
+                            cockpit.format(_("Cleanup USN Tombstones task has failed $0"), errMsg)
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({

@@ -11,7 +11,7 @@ import sys
 import io
 from lib389.cli_base import LogCapture
 from lib389._constants import *
-from lib389.topologies import create_topology, DEBUGGING
+from lib389.tests.topologies import create_topology, DEBUGGING
 from lib389.configurations import get_sample_entries
 
 

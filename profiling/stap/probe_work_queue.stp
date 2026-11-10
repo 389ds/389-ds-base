@@ -1,0 +1,52 @@
+#!/bin/env stap
+# Work-queue and worker-thread observability.
+# Usage: stap probe_work_queue.stp /usr/sbin/ns-slapd
+#
+# work_q__enqueue(connid, opid, depth)
+# work_q__dequeue(connid, opid, depth)
+# worker__busy(connid, opid, op_tag, turbo_flag)   -- not used here
+# worker__idle(thread_idx)
+# work__blocked(connid, opid)                      -- not used here
+
+global queue_depth
+global wait_us
+global idle_counts
+
+global enqueue_us%
+
+probe process(@1).mark("work_q__enqueue") {
+    queue_depth <<< $arg3
+    enqueue_us[$arg1, $arg2] = gettimeofday_us()
+}
+
+probe process(@1).mark("work_q__dequeue") {
+    if ([$arg1, $arg2] in enqueue_us) {
+        wait_us <<< gettimeofday_us() - enqueue_us[$arg1, $arg2]
+        delete enqueue_us[$arg1, $arg2]
+    }
+}
+
+probe process(@1).mark("worker__idle") {
+    idle_counts[$arg1] <<< 1
+}
+
+function report() {
+    printf("Distribution of work-queue depth at enqueue time (samples=%d)\n", @count(queue_depth))
+    if (@count(queue_depth) > 0) {
+        printf("max/avg/min: %d/%d/%d\n", @max(queue_depth), @avg(queue_depth), @min(queue_depth))
+        print(@hist_log(queue_depth))
+    }
+
+    printf("Distribution of enqueue-to-dequeue wait latencies (microseconds) for %d samples\n", @count(wait_us))
+    if (@count(wait_us) > 0) {
+        printf("max/avg/min: %d/%d/%d\n", @max(wait_us), @avg(wait_us), @min(wait_us))
+        print(@hist_log(wait_us))
+    }
+
+    printf("Worker idle counts (per thread index):\n")
+    foreach (idx in idle_counts) {
+        printf("  thread %d: %d idle waits\n", idx, @count(idle_counts[idx]))
+    }
+}
+
+probe end { report() }

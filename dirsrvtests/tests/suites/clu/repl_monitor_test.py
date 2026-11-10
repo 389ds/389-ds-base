@@ -14,7 +14,7 @@ import re
 from lib389.cli_conf.replication import get_repl_monitor_info
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389.cli_base import FakeArgs
 from lib389.cli_base.dsrc import dsrc_arg_concat
 from lib389.cli_base import connect_instance

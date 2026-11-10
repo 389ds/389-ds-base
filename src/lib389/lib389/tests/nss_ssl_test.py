@@ -12,7 +12,7 @@ import pytest
 import os
 import logging
 
-from lib389.topologies import topology_st as topo
+from lib389.tests.topologies import topology_st as topo
 
 from lib389.nss_ssl import NssSsl
 

@@ -109,7 +109,15 @@ class AddLdapEntry extends React.Component {
             });
             // The function updateValuesTableRows() is called upon new seletion(s)
             // Make sure the values table is updated in case no selection was made.
-            if (id === 3) {
+            if (id === 2) {
+                // Ok we can get our single-valued attributes now
+                if (this.singleValuedAttributes.length === 0) {
+                    getSingleValuedAttributes(this.props.editorLdapServer,
+                                              (myAttrs) => {
+                                                  this.singleValuedAttributes = [...myAttrs];
+                                             });
+                }
+            } else if (id === 3) {
                 // Just call this function in order to make sure the values table is up-to-date
                 // even after navigating back and forth.
                 this.updateAttributeTableRows();
@@ -285,10 +293,6 @@ class AddLdapEntry extends React.Component {
 
     componentDidMount () {
         const ocArray = [];
-        getSingleValuedAttributes(this.props.editorLdapServer,
-                                  (myAttrs) => {
-                                      this.singleValuedAttributes = [...myAttrs];
-                                  });
 
         this.props.allObjectclasses.map(oc => {
             let selectionDisabled = false;
@@ -783,7 +787,7 @@ class AddLdapEntry extends React.Component {
                                             }}
                                         />
                                         {row.cells.map((cell, cellIndex) => (
-                                            <Td 
+                                            <Td
                                                 key={`${rowIndex}_${cellIndex}`}
                                                 dataLabel={columnsOc[cellIndex]?.title || columnsOc[cellIndex]}
                                             >
@@ -854,7 +858,7 @@ class AddLdapEntry extends React.Component {
                                     }}
                                 />
                                 {row.cells.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={`${rowIndex}_${cellIndex}`}
                                         dataLabel={columnsAttr[cellIndex]?.title || columnsAttr[cellIndex]}
                                     >
@@ -902,7 +906,7 @@ class AddLdapEntry extends React.Component {
         );
 
         const ldifListItems = cleanLdifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -1003,7 +1007,7 @@ class AddLdapEntry extends React.Component {
                 component: entryReviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 6,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding,
             }
         ];

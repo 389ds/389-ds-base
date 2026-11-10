@@ -10,19 +10,21 @@
 #
 # PYTHON_ARGCOMPLETE_OK
 
-import argparse, argcomplete
+import argparse
 import argcomplete
 import datetime
-import optparse
 import os
 import re
 import sys
 import uuid
-from lib389 import topologies
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
+
+from test389 import topologies
 
 """This script generates a template test script that handles the
 non-interesting parts of a test script:
-- topology fixture that doesn't exist in in lib389/topologies.py
+- topology fixture that doesn't exist in in test389/topologies.py
 - test function (to be completed by the user),
 - run-isolated function
 """
@@ -43,25 +45,9 @@ def display_usage():
           ' can not mix "-i" with the replication options (-m, -h , -c).  ' +
           'There is a maximum of 99 suppliers, 99 hubs, and 99 consumers.')
     print('If "-s|--suite" option was chosen, then no topology would be added ' +
-          'to the test script. You can find predefined fixtures in the lib389/topologies.py ' +
+          'to the test script. You can find predefined fixtures in the test389/topologies.py ' +
           'and use them or write a new one if you have a special case.')
     exit(1)
-
-
-def write_finalizer():
-    """Write the finalizer function - delete/stop each instance"""
-
-    def writeInstanceOp(action):
-        TEST.write('            map(lambda inst: inst.{}(), topology.all_insts.values())\n'.format(action))
-
-    TEST.write('\n    def fin():\n')
-    TEST.write('        """If we are debugging just stop the instances, otherwise remove them"""\n\n')
-    TEST.write('        if DEBUGGING:\n')
-    writeInstanceOp('stop')
-    TEST.write('        else:\n')
-    writeInstanceOp('delete')
-    TEST.write('\n    request.addfinalizer(fin)')
-    TEST.write('\n\n')
 
 
 def get_existing_topologies(inst, suppliers, hubs, consumers):
@@ -123,7 +109,7 @@ def check_id_uniqueness(id_value):
     with a 'tests' dir.
     """
 
-    tests_dir = os.path.join(os.getcwd(), 'tests')
+    tests_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tests')
     for root, dirs, files in os.walk(tests_dir):
         for name in files:
             if name.endswith('.py'):
@@ -260,16 +246,22 @@ if len(sys.argv) > 0:
 
     # Write the imports
     if my_topology[0]:
-        topology_import = 'from lib389.topologies import {} as topo\n'.format(my_topology[1])
+        topology_import = 'from test389.topologies import {} as topo\n'.format(my_topology[1])
     else:
-        topology_import = 'from lib389.topologies import create_topology\n'
+        topology_import = 'from test389.topologies import create_topology\n'
 
     TEST.write('import logging\nimport pytest\nimport os\n')
     TEST.write('from lib389._constants import *\n')
     TEST.write('{}\n'.format(topology_import))
+    TEST.write('pytestmark = pytest.mark.tier1\n\n')
+    TEST.write('DEBUGGING = os.getenv("DEBUGGING", default=False)\n')
+    TEST.write('if DEBUGGING:\n')
+    TEST.write('    logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
+    TEST.write('else:\n')
+    TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n')
     TEST.write('log = logging.getLogger(__name__)\n\n')
 
-    # Add topology function for non existing (in lib389/topologies.py) topologies only
+    # Add topology function for non existing (in test389/topologies.py) topologies only
     if not my_topology[0]:
         # Write the replication or standalone classes
         topologies_str = ""
@@ -295,13 +287,12 @@ if len(sys.argv) > 0:
             TEST.write('        ReplicaRole.CONSUMER: {},\n'.format(consumers))
         if instances > 0:
             TEST.write('        ReplicaRole.STANDALONE: {},\n'.format(instances))
-        TEST.write('        })\n')
+        TEST.write('        }, request=request)\n')
 
         TEST.write('    # You can write replica test here. Just uncomment the block and choose instances\n')
         TEST.write('    # replicas = Replicas(topology.ms["supplier1"])\n')
         TEST.write('    # replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])\n')
 
-        write_finalizer()
         TEST.write('    return topology\n\n')
 
     tc_id = '0'
@@ -324,7 +315,7 @@ if len(sys.argv) > 0:
     TEST.write('    """\n\n')
     TEST.write('    # If you need any test suite initialization,\n')
     TEST.write('    # please, write additional fixture for that (including finalizer).\n'
-               '    # Topology for suites are predefined in lib389/topologies.py.\n\n')
+               '    # Topology for suites are predefined in test389/topologies.py.\n\n')
     TEST.write('    # If you need host, port or any other data about instance,\n')
     TEST.write('    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)\n\n\n')
 

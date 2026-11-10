@@ -12,14 +12,10 @@ import {
 	TextInput,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import {
     DoubleConfirmModal,
     WarningModal
@@ -254,7 +250,7 @@ class AccountPolicy extends React.Component {
             log_cmd("sharedConfigExists", "Check if Account Policy config entry exists", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -313,7 +309,7 @@ class AccountPolicy extends React.Component {
             log_cmd("handleOpenModal", "Fetch the Account Policy Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
@@ -501,7 +497,7 @@ class AccountPolicy extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -523,10 +519,10 @@ class AccountPolicy extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg)
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
@@ -576,7 +572,7 @@ class AccountPolicy extends React.Component {
         log_cmd("deleteConfig", "Delete the Account Policy Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -590,10 +586,10 @@ class AccountPolicy extends React.Component {
                     this.handleCloseModal();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg)
                     );
                     this.props.pluginListHandler();
                     this.closeConfirmDelete();
@@ -739,7 +735,7 @@ class AccountPolicy extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -755,11 +751,11 @@ class AccountPolicy extends React.Component {
                     this.props.pluginListHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    let errMsg = getApiErrorMessage(err);
                     if ('info' in errMsg) {
-                        errMsg = errMsg.desc + " " + errMsg.info;
+                        errMsg = errMsg + " " + errMsg.info;
                     } else {
-                        errMsg = errMsg.desc;
+                        errMsg = errMsg;
                     }
                     this.props.addNotification(
                         "error", cockpit.format(_("Error during update - $0"), errMsg)
@@ -802,7 +798,7 @@ class AccountPolicy extends React.Component {
         let modalButtons = [];
         if (!newEntry) {
             modalButtons = [
-                <Button key="del" variant="primary" onClick={this.handleDeleteConfig}>
+                <Button key="del" variant="primary" onClick={this.handleShowConfirmDelete}>
                     {_("Delete Config")}
                 </Button>,
                 <Button
@@ -863,11 +859,13 @@ class AccountPolicy extends React.Component {
                                     name="configDN"
                                     onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
-                                    isDisabled
+                                    isDisabled={!newEntry}
                                 />
-                                <FormHelperText  >
-                                    {_("Value must be a valid DN")}
-                                </FormHelperText>
+                                {newEntry &&
+                                    <FormHelperText>
+                                        {_("Value must be a valid DN")}
+                                    </FormHelperText>
+                                }
                             </GridItem>
                         </Grid>
                         <Grid title={_("Specifies the attribute to store the time of the last successful login in this attribute in the users directory entry (alwaysRecordLoginAttr)")}>
@@ -875,25 +873,17 @@ class AccountPolicy extends React.Component {
                                 {_("Always Record Login Attribute")}
                             </GridItem>
                             <GridItem span={4}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleRecordLoginToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={alwaysRecordLoginAttr}
                                     onSelect={this.handleRecordLoginSelect}
                                     onClear={this.handleRecordLoginClear}
-                                    selections={alwaysRecordLoginAttr}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isRecordLoginOpen}
-                                    aria-labelledby="typeAhead-record-login"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleRecordLoginToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                />
                             </GridItem>
                             <GridItem span={4}>
                                 <Checkbox
@@ -911,25 +901,17 @@ class AccountPolicy extends React.Component {
                                 {_("Specific Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleSpecificAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={specAttrName}
                                     onSelect={this.handleSpecificAttrSelect}
                                     onClear={this.handleSpecificAttrClear}
-                                    selections={specAttrName}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isSpecificAttrOpen}
-                                    aria-labelledby="typeAhead-specific-attr"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {this.props.attributes.map((attr) => (
-                                        <SelectOption
-                                            key={attr}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleSpecificAttrToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)")}>
@@ -937,25 +919,17 @@ class AccountPolicy extends React.Component {
                                 {_("Limit Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleLimitAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={limitAttrName}
                                     onSelect={this.handleLimitAttrSelect}
                                     onClear={this.handleLimitAttrClear}
-                                    selections={limitAttrName}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isLimitAttrOpen}
-                                    aria-labelledby="typeAhead-limit-attr"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleLimitAttrToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title="Specifies the primary time attribute used to evaluate an account policy (stateAttrName)">
@@ -963,26 +937,18 @@ class AccountPolicy extends React.Component {
                                 {_("State Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleStateAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={stateAttrName}
                                     onSelect={this.handleStateAttrSelect}
                                     onClear={this.handleStateAttrClear}
-                                    selections={stateAttrName}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isStateAttrOpen}
-                                    aria-labelledby="typeAhead-state-attr"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleStateAttrToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                    isCreatable={true}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Provides a backup attribute to evaluate the expiration time if the main state attribute is not present (altStateAttrName)")}>
@@ -990,26 +956,18 @@ class AccountPolicy extends React.Component {
                                 {_("Alternative State Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleAlternativeStateToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={altStateAttrName}
                                     onSelect={this.handleAlternativeStateSelect}
                                     onClear={this.handleAlternativeStateClear}
-                                    selections={altStateAttrName}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isAltStateAttrOpen}
-                                    aria-labelledby="typeAhead-alt-state-attr"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleAlternativeStateToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                    isCreatable={true}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Check both the 'state attribute', and the 'alternate state attribute' regaredless if the main state attribute is present")}>
@@ -1045,23 +1003,20 @@ class AccountPolicy extends React.Component {
                             <GridItem span={3} className="ds-label">
                                 {_("Shared Config Entry")}
                             </GridItem>
-                            <GridItem span={7}>
-                                <TextInput
-                                    value={configArea}
-                                    type="text"
-                                    id="configArea"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="configArea"
-                                    onChange={(e, str) => { this.handleFieldChange(e) }}
-                                    validated={error.configArea ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
-                                <FormHelperText  >
-                                    {_("Value must be a valid DN")}
-                                </FormHelperText>
-                            </GridItem>
+                            {configArea !== "" &&
+                                <GridItem className="ds-right-margin" span={6}>
+                                    <TextInput
+                                        value={configArea}
+                                        type="text"
+                                        id="configArea"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="configArea"
+                                        readOnlyVariant={'plain'}
+                                    />
+                                </GridItem>
+                            }
                             <GridItem span={2}>
                                 <Button
-                                    className="ds-left-margin"
                                     key="manage"
                                     variant="primary"
                                     onClick={this.handleOpenModal}

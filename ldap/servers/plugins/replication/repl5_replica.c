@@ -68,6 +68,8 @@ struct replica
     uint64_t abort_session;            /* Abort the current replica session */
     cldb_Handle *cldb;                 /* database info for the changelog */
     int64_t keepalive_update_interval; /* interval to do dummy update to keep RUV fresh */
+    int repl_port;                     /* The port of the replica */
+    int repl_secure_port;              /* The secure port of the replica */
 };
 
 
@@ -146,11 +148,34 @@ replica_new(const Slapi_DN *root)
     return r;
 }
 
+static void
+reset_keepalive_timer(Replica *r)
+{
+    if (r->repl_eqcxt_ka_update != NULL) {
+        slapi_eq_cancel_rel(r->repl_eqcxt_ka_update);
+        r->repl_eqcxt_ka_update = NULL;
+    }
+    if (replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
+        int64_t interval = replica_get_keepalive_update_interval(r);
+        int64_t bomax = slapi_counter_get_value(r->backoff_max);
+        if (interval <= bomax) {
+            slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "Replica %s "
+                          "should have a keep alive interval greater than the "
+                          "maximum backoff timeout\n", r->repl_name);
+        }
+        r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
+                                                      slapi_current_rel_time_t() + interval,
+                                                      1000 * interval);
+    }
+}
+
+
 /* constructs the replica object from the newly added entry */
 int
 replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation, Replica **rp)
 {
     Replica *r;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int rc = LDAP_SUCCESS;
 
     if (e == NULL) {
@@ -250,11 +275,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
                                            RUV_SAVE_INTERVAL);
 
     /* create supplier update event */
-    if (r->repl_eqcxt_ka_update == NULL && replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
-        r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
-                                                      slapi_current_rel_time_t() + 30,
-                                                      1000 * replica_get_keepalive_update_interval(r));
-    }
+    reset_keepalive_timer(r);
 
     if (r->tombstone_reap_interval > 0) {
         /*
@@ -265,6 +286,10 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
                                                slapi_current_rel_time_t() + r->tombstone_reap_interval,
                                                1000 * r->tombstone_reap_interval);
     }
+
+    /* Set the host and port numbers for the replica */
+    r->repl_port = slapdFrontendConfig->port;
+    r->repl_secure_port = slapdFrontendConfig->secureport;
 
 done:
     if (rc != LDAP_SUCCESS && r) {
@@ -465,10 +490,10 @@ replica_subentry_create(const char *repl_root, ReplicaId rid)
     if (return_value != LDAP_SUCCESS &&
         return_value != LDAP_ALREADY_EXISTS &&
         return_value != LDAP_REFERRAL /* CONSUMER */) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_subentry_create - Unable to "
-                                                       "create replication keep alive entry %s: error %d - %s\n",
-                      slapi_entry_get_dn_const(e),
-                      return_value, ldap_err2string(return_value));
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_subentry_create - "
+                "Unable to create replication keep alive entry 'cn=%s %d,%s': error %d - %s\n",
+                KEEP_ALIVE_ENTRY, rid, repl_root,
+                return_value, ldap_err2string(return_value));
         rc = -1;
         goto done;
     }
@@ -1562,12 +1587,7 @@ replica_set_enabled(Replica *r, PRBool enable)
 
         }
         /* create supplier update event */
-        if (r->repl_eqcxt_ka_update == NULL && replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
-            /* Should not create local update before the replica get a chance to resync after a restore/import */
-            r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
-                                                       slapi_current_rel_time_t() + 2*PROTOCOL_BACKOFF_MAXIMUM,
-                                                       1000 * replica_get_keepalive_update_interval(r));
-        }
+        reset_keepalive_timer(r);
     } else /* disable */
     {
         if (r->repl_eqcxt_rs) /* event is still registerd */
@@ -3224,6 +3244,7 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
 static void
 _replica_reap_tombstones(void *arg)
 {
+    slapi_set_thread_name("tomb-reap");
     const char *replica_name = (const char *)arg;
     Slapi_PBlock *pb = NULL;
     Replica *replica = NULL;
@@ -3743,6 +3764,7 @@ replica_set_keepalive_update_interval(Replica *r, int64_t interval)
 {
     replica_lock(r->repl_lock);
     r->keepalive_update_interval = interval;
+    reset_keepalive_timer(r);
     replica_unlock(r->repl_lock);
 }
 
@@ -4288,6 +4310,9 @@ replica_add_session_abort_control(Slapi_PBlock *pb)
     bvp->bv_val = NULL;
     ber_bvfree(bvp);
     slapi_pblock_set(pb, SLAPI_ADD_RESCONTROL, &ctrl);
+    /* Free the control since slapi_pblock_set duplicates it */
+    slapi_ch_free_string(&ctrl.ldctl_oid);
+    slapi_ch_free_string(&ctrl.ldctl_value.bv_val);
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                   "add_session_abort_control - abort control successfully added to result\n");
@@ -4332,4 +4357,16 @@ replica_set_cl_info(Replica *r, void *cl)
 {
     r->cldb = (cldb_Handle *)cl;
     return 0;
+}
+
+int
+replica_get_port(Replica *r)
+{
+    return r->repl_port;
+}
+
+int
+replica_get_secure_port(Replica *r)
+{
+    return r->repl_secure_port;
 }

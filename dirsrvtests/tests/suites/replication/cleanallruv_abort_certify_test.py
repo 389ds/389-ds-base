@@ -11,7 +11,7 @@ import pytest
 import os
 import time
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_m4
+from test389.topologies import topology_m4
 from lib389.tasks import CleanAllRUVTask
 from lib389.replica import ReplicationManager, Replicas
 

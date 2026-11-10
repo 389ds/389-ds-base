@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "baseUrl": ".",
+    "paths": {
+      "_internal/*": ["pkg/lib/cockpit/_internal/*"],
+      "cockpit": ["pkg/lib/cockpit.d.ts"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "pkg/lib/**/*.ts",
+    "pkg/lib/**/*.tsx",
+    "pkg/lib/**/*.d.ts"
+  ]
+}

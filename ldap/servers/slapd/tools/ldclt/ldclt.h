@@ -326,7 +326,7 @@ typedef struct vers_object
     int attribsNb;
     vers_attribute *rdn; /* Object's rdn */ /*JLS 23-03-01*/
     char *rdnName; /* Attrib. name */       /*JLS 23-03-01*/
-    char *var[VAR_MAX - VAR_MIN];           /*JLS 21-03-01*/
+    char *var[VAR_MAX - VAR_MIN + 1];       /*25-08-07*/
     char *fname;                            /* Object definition */
 } vers_object;
 

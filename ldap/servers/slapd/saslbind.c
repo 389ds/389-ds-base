@@ -448,6 +448,7 @@ ids_sasl_canon_user(
 
     /* Need to set dn property to an empty string for the ANONYMOUS mechanism.  This
      * property determines what the bind identity will be if authentication succeeds. */
+    prop_erase(propctx, "dn");
     if (strcasecmp(mech, "ANONYMOUS") == 0) {
         if (prop_set(propctx, "dn", "", -1) != 0) {
             slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_canon_user", "prop_set(dn) failed\n");
@@ -487,12 +488,14 @@ ids_sasl_canon_user(
     if (clear) {
 /* older versions of sasl do not have SASL_AUX_PASSWORD_PROP, so omit it */
 #ifdef SASL_AUX_PASSWORD_PROP
+        prop_erase(propctx, SASL_AUX_PASSWORD_PROP);
         if (prop_set(propctx, SASL_AUX_PASSWORD_PROP, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
             /*slapi_log_err(SLAPI_LOG_CONNS, "prop_set(userpassword) failed\n", 0, 0, 0);
             goto fail */;
         }
 #endif /* SASL_AUX_PASSWORD_PROP */
+        prop_erase(propctx, SASL_AUX_PASSWORD);
         if (prop_set(propctx, SASL_AUX_PASSWORD, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
             /*slapi_log_err(SLAPI_LOG_CONNS, "prop_set(userpassword) failed\n", 0, 0, 0);
@@ -508,6 +511,13 @@ ids_sasl_canon_user(
     return SASL_OK;
 
 fail:
+    if (propctx) {
+        prop_erase(propctx, "dn");
+#ifdef SASL_AUX_PASSWORD_PROP
+        prop_erase(propctx, SASL_AUX_PASSWORD_PROP);
+#endif
+        prop_erase(propctx, SASL_AUX_PASSWORD);
+    }
     slapi_entry_free(entry);
     slapi_ch_free((void **)&user);
     slapi_ch_free((void **)&pw);
@@ -718,15 +728,17 @@ ids_sasl_server_new(Connection *conn)
                          &sasl_conn);
 
     if (rc != SASL_OK) {
-        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new", "%s (conn=%" PRIu64 ")\n",
+        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new",
+                      "sasl_server_new: %s (conn=%" PRIu64 ")\n",
                       sasl_errstring(rc, NULL, NULL), conn->c_connid);
+        conn->c_sasl_conn = NULL;
+        conn->c_sasl_ssf = 0;
+        return;
     }
 
-    if (rc == SASL_OK) {
-        propctx = sasl_auxprop_getctx(sasl_conn);
-        if (propctx != NULL) {
-            prop_request(propctx, dn_propnames);
-        }
+    propctx = sasl_auxprop_getctx(sasl_conn);
+    if (propctx != NULL) {
+        prop_request(propctx, dn_propnames);
     }
 
     /* Enable security for this connection */
@@ -741,8 +753,13 @@ ids_sasl_server_new(Connection *conn)
     rc = sasl_setprop(sasl_conn, SASL_SEC_PROPS, &secprops);
 
     if (rc != SASL_OK) {
-        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new", "sasl_setprop: %s (conn=%" PRIu64 ")\n",
+        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new",
+                      "sasl_setprop: %s (conn=%" PRIu64 ")\n",
                       sasl_errstring(rc, NULL, NULL), conn->c_connid);
+        sasl_dispose(&sasl_conn);
+        conn->c_sasl_conn = NULL;
+        conn->c_sasl_ssf = 0;
+        return;
     }
 
     conn->c_sasl_conn = sasl_conn;
@@ -924,12 +941,13 @@ ids_sasl_check_bind(Slapi_PBlock *pb)
     int rc, isroot;
     sasl_conn_t *sasl_conn;
     struct propctx *propctx;
-    sasl_ssf_t *ssfp;
+    sasl_ssf_t *ssfp = NULL;
+    sasl_ssf_t ssf = 0;
     char *activemech = NULL, *mech = NULL;
-    char *username, *dn = NULL;
+    char *username = NULL, *dn = NULL;
     const char *normdn = NULL;
     Slapi_DN *sdn = NULL;
-    const char *sdata, *errstr;
+    const char *sdata;
     unsigned slen;
     int continuing = 0;
     int pwresponse_requested = 0;
@@ -1017,12 +1035,15 @@ ids_sasl_check_bind(Slapi_PBlock *pb)
 
 sasl_start:
 
-    /* Check if we are already authenticated via sasl.  If so,
-     * dispose of the current sasl_conn and create a new one
-     * using the new mechanism.  We also need to do this if the
-     * mechanism changed in the middle of the SASL authentication
-     * process. */
-    if ((pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE) || continuing) {
+    /* Reset the SASL SSF so that a stale value from a prior successful
+     * SASL bind on this connection doesn't influence minSSF enforcement
+     * for the new exchange. */
+    pb_conn->c_sasl_ssf = 0;
+
+    /* If a prior SASL exchange completed, clear the flag and tear down
+     * the SASL I/O layer. The sasl_conn itself is always disposed and
+     * recreated unconditionally below. */
+    if (pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE) {
         Slapi_Operation *operation;
         slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
         slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
@@ -1034,18 +1055,18 @@ sasl_start:
 
         /* remove any SASL I/O from the connection */
         connection_set_io_layer_cb(pb_conn, NULL, sasl_io_cleanup, NULL);
+    }
 
-        /* dispose of sasl_conn and create a new sasl_conn */
-        sasl_dispose(&sasl_conn);
-        ids_sasl_server_new(pb_conn);
-        sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
+    /* Always dispose and recreate the sasl_conn when starting a new exchange */
+    sasl_dispose(&sasl_conn);
+    ids_sasl_server_new(pb_conn);
+    sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
 
-        if (sasl_conn == NULL) {
-            send_ldap_result(pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
-                             "sasl library unavailable", 0, NULL);
-            pthread_mutex_unlock(&(pb_conn->c_mutex)); /* BIG LOCK */
-            return;
-        }
+    if (sasl_conn == NULL) {
+        pthread_mutex_unlock(&(pb_conn->c_mutex)); /* BIG LOCK */
+        send_ldap_result(pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
+                         "sasl library unavailable", 0, NULL);
+        return;
     }
 
     rc = ids_sasl_server_start(pb_conn, mech, cred, &sdata, &slen);
@@ -1085,6 +1106,35 @@ sasl_check_result:
             break;
         }
 
+        /*
+         * Cross-validate the propctx DN against SASL_USERNAME.
+         * ids_sasl_canon_user sets username to "dn: <ndn>" for real users
+         * and "anonymous" for ANONYMOUS. Reject if they don't match.
+         */
+        if (username == NULL) {
+            goto sasl_dn_mismatch;
+        } else if (strncasecmp(username, "dn: ", 4) == 0) {
+            Slapi_DN username_sdn;
+            Slapi_DN prop_sdn;
+            int cmp;
+
+            slapi_sdn_init_dn_byval(&username_sdn, username + 4);
+            slapi_sdn_init_dn_byval(&prop_sdn, dn);
+            cmp = slapi_sdn_compare(&username_sdn, &prop_sdn);
+            slapi_sdn_done(&username_sdn);
+            slapi_sdn_done(&prop_sdn);
+            if (cmp != 0) {
+                goto sasl_dn_mismatch;
+            }
+        } else if (strcasecmp(username, "anonymous") == 0) {
+            if (dn[0] != '\0') {
+                goto sasl_dn_mismatch;
+            }
+        } else {
+            /* Unknown username format - reject */
+            goto sasl_dn_mismatch;
+        }
+
         /* clean up already set TARGET */
         slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
         slapi_sdn_free(&sdn);
@@ -1094,14 +1144,14 @@ sasl_check_result:
 
         slapi_pblock_set(pb, SLAPI_BIND_TARGET_SDN, sdn);
 
-        if ((sasl_getprop(sasl_conn, SASL_SSF,
-                          (const void **)&ssfp) == SASL_OK) &&
-            (*ssfp > 0)) {
+        if (sasl_getprop(sasl_conn, SASL_SSF,
+                         (const void **)&ssfp) == SASL_OK && ssfp != NULL) {
+            ssf = *ssfp;
+        }
+        if (ssf > 0) {
             slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
                           "sasl ssf=%u conn=%" PRIu64 "\n",
-                          (unsigned)*ssfp, pb_conn->c_connid);
-        } else {
-            *ssfp = 0;
+                          (unsigned)ssf, pb_conn->c_connid);
         }
 
         /* Set a flag to signify that sasl bind is complete */
@@ -1114,7 +1164,7 @@ sasl_check_result:
            encryption on the connection after the pre-bind
            plugin has been called, and sasl encryption fails
            and the operation returns an error */
-        pb_conn->c_sasl_ssf = (unsigned)*ssfp;
+        pb_conn->c_sasl_ssf = (unsigned)ssf;
 
         /* set the connection bind credentials */
         PR_snprintf(authtype, sizeof(authtype), "%s%s", SLAPD_AUTH_SASL, mech);
@@ -1152,9 +1202,7 @@ sasl_check_result:
         if (slapi_mapping_tree_select(pb, &be, &referral, NULL, 0) != LDAP_SUCCESS) {
             send_nobackend_ldap_result(pb);
             be = NULL;
-            slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
-                          "<= (conn=%" PRIu64 ")\n", pb_conn->c_connid);
-            return;
+            goto out;
         }
 
         if (referral) {
@@ -1180,7 +1228,7 @@ sasl_check_result:
         }
 
         /* see if we negotiated a security layer */
-        if (*ssfp > 0) {
+        if (ssf > 0) {
             /* Enable SASL I/O on the connection */
             pthread_mutex_lock(&(pb_conn->c_mutex));
             connection_set_io_layer_cb(pb_conn, sasl_io_enable, NULL, NULL);
@@ -1229,13 +1277,35 @@ sasl_check_result:
         break;
 
     default: /* other error */
-        errstr = sasl_errdetail(sasl_conn);
+        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_check_bind",
+                      "sasl bind failed mech=%s (conn=%" PRIu64 "): %s\n",
+                      mech ? mech : "unknown", pb_conn->c_connid,
+                      sasl_errdetail(sasl_conn));
+        sasl_dispose(&sasl_conn);
+        ids_sasl_server_new(pb_conn);
 
         pthread_mutex_unlock(&(pb_conn->c_mutex)); /* BIG LOCK */
-        slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, (void *)errstr);
         send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
         break;
     }
+
+    goto out;
+
+sasl_dn_mismatch:
+    slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_check_bind",
+                  "SASL identity mismatch - rejecting bind "
+                  "mech=%s (conn=%" PRIu64 ")\n",
+                  mech ? mech : "unknown", pb_conn->c_connid);
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+                  "propctx dn=\"%s\" username=\"%s\" "
+                  "(conn=%" PRIu64 ")\n",
+                  dn ? dn : "", username ? username : "",
+                  pb_conn->c_connid);
+    slapi_ch_free_string(&dn);
+    sasl_dispose(&sasl_conn);
+    ids_sasl_server_new(pb_conn);
+    pthread_mutex_unlock(&(pb_conn->c_mutex)); /* BIG LOCK */
+    send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
 
 out:
     if (referral)

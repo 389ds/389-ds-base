@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -11,23 +11,26 @@ import pytest
 import os
 import time
 import signal
+import threading
 import ldap
 from datetime import datetime
 from random import sample
 from lib389.utils import ds_is_older, ensure_list_bytes, ensure_bytes, ensure_str
-from lib389.topologies import topology_m1h1c1 as topo, topology_st, topology_m2 as topo_m2
+from test389.topologies import topology_m1h1c1 as topo, topology_st, topology_m2 as topo_m2
 from lib389._constants import *
-from lib389.plugins import MemberOfPlugin
+from lib389.plugins import MemberOfPlugin, RetroChangelogPlugin, USNPlugin
+from lib389.backend import Backends
+from lib389.mappingTree import MappingTrees
 from lib389 import Entry
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
-from lib389.idm.group import Groups, Group
+from lib389.idm.group import Groups, Group, UniqueGroups
 from lib389.replica import ReplicationManager
 from lib389.tasks import *
 from lib389.idm.nscontainer import nsContainers
 from lib389.idm.domain import Domain
 from lib389.dirsrv_log import DirsrvErrorLog
-from lib389.dseldif import DSEldif
-from contextlib import suppress
+from lib389.utils import get_default_db_lib
+from . import check_membership
 
 
 # Skip on older versions
@@ -48,12 +51,14 @@ else:
 log = logging.getLogger(__name__)
 
 
-def add_users(topo_m2, users_num, suffix):
+@pytest.fixture(scope="function")
+def users(request, topo_m2):
     """Add users to the default suffix
     Return the list of added user DNs.
     """
+    users_num = request.param
     users_list = []
-    users = UserAccounts(topo_m2.ms["supplier1"], suffix, rdn=None)
+    users = UserAccounts(topo_m2.ms["supplier1"], DEFAULT_SUFFIX, rdn=None)
     log.info('Adding %d users' % users_num)
     for num in sample(list(range(1000)), users_num):
         num_ran = int(round(num))
@@ -69,6 +74,12 @@ def add_users(topo_m2, users_num, suffix):
             'userpassword': 'pass%s' % num_ran,
         })
         users_list.append(user)
+
+    def fin():
+        for user in users_list:
+            user.delete()
+
+    request.addfinalizer(fin)
     return users_list
 
 
@@ -337,26 +348,25 @@ def test_scheme_violation_errors_logged(topo_m2):
     assert inst.ds_error_log.match(pattern)
 
 
-def test_memberof_with_changelog_reset(topo_m2):
+@pytest.mark.parametrize("users", [999], indirect=True)
+def test_memberof_with_changelog_reset(topo_m2, users):
     """Test that replication does not break, after DS stop-start, due to changelog reset
 
     :id: 60c11636-55a1-4704-9e09-2c6bcc828de4
-    :setup: 2 Suppliers
+    :setup: 2 Suppliers, 999 user entries on supplier 1 (created by users fixture)
     :steps:
         1. On M1 and M2, Enable memberof
-        2. On M1, add 999 entries allowing memberof
-        3. On M1, add a group with these 999 entries as members
-        4. Stop M1 in between,
-           when add the group memerof is called and before it is finished the
-           add, so step 4 should be executed after memberof has started and
+        2. On M1, add a group with these 999 user entries as members
+        3. Stop M1 in between,
+           when add the group memberof is called and before it is finished the
+           add, so step 3 should be executed after memberof has started and
            before the add has finished
-        5. Check that replication is working fine
+        4. Check that replication is working fine
     :expectedresults:
         1. memberof should be enabled
-        2. Entries should be added
-        3. Add operation should start
-        4. M1 should be stopped
-        5. Replication should be working fine
+        2. Add operation should start
+        3. M1 should be stopped
+        4. Replication should be working fine
     """
     m1 = topo_m2.ms["supplier1"]
     m2 = topo_m2.ms["supplier2"]
@@ -380,14 +390,11 @@ def test_memberof_with_changelog_reset(topo_m2):
     memberof.set_autoaddoc('nsMemberOf')
     m2.restart()
 
-    log.info("On M1, add 999 test entries allowing memberof")
-    users_list = add_users(topo_m2, 999, DEFAULT_SUFFIX)
-
     log.info("On M1, add a group with these 999 entries as members")
     dic_of_attributes = {'cn': ensure_bytes('testgroup'),
                          'objectclass': ensure_list_bytes(['top', 'groupOfNames'])}
 
-    for user in users_list:
+    for user in users:
         dic_of_attributes.setdefault('member', [])
         dic_of_attributes['member'].append(user.dn)
 
@@ -465,6 +472,21 @@ def _find_memberof_ext(server, user_dn=None, group_dn=None, find_result=True):
     else:
         assert (not found)
 
+def _check_membership(server, entry, expected_members, expected_memberof):
+    assert server
+    assert entry
+
+    memberof = entry.get_attr_vals('memberof')
+    member = entry.get_attr_vals('member')
+    assert len(member) == len(expected_members)
+    assert len(memberof) == len(expected_memberof)
+    for e in expected_members:
+        server.log.info("Checking %s has member %s" % (entry.dn, e.dn))
+        assert e.dn.encode() in member
+    for e in expected_memberof:
+        server.log.info("Checking %s is member of %s" % (entry.dn, e.dn))
+        assert e.dn.encode() in memberof
+
 
 def test_memberof_group(topology_st):
     """Test memberof does not fail if group is moved into scope
@@ -532,6 +554,254 @@ def test_memberof_group(topology_st):
     _find_memberof_ext(inst, dn1, g2n, True)
     _find_memberof_ext(inst, dn2, g2n, True)
 
+def test_multipaths(topology_st, request):
+    """Test memberof succeeds to update memberof when
+    there are multiple paths from a leaf to an intermediate node
+
+    :id: 35aa704a-b895-4153-9dcb-1e8a13612ebf
+
+    :setup: Single instance
+
+    :steps:
+         1. Create a graph G1->U1, G2->G21->U1
+         2. Add G2 as member of G1: G1->U1, G1->G2->G21->U1
+         3. Check members and memberof in entries G1,G2,G21,User1
+
+    :expectedresults:
+         1. Graph should be created
+         2. succeed
+         3. Membership is okay
+    """
+
+    inst = topology_st.standalone
+    memberof = MemberOfPlugin(inst)
+    memberof.enable()
+    memberof.replace('memberOfEntryScope', SUFFIX)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
+    inst.restart()
+
+    #
+    # Create the hierarchy
+    #
+    #
+    #  Grp1 ---------------> User1
+    #                           ^
+    #                          /
+    #  Grp2 ----> Grp21 ------/
+    #
+    users = UserAccounts(inst, SUFFIX, rdn=None)
+    user1 = users.create(properties={'uid': "user1",
+                             'cn': "user1",
+                             'sn': 'SN',
+                             'description': 'leaf',
+                             'uidNumber': '1000',
+                             'gidNumber': '2000',
+                             'homeDirectory': '/home/user1'
+                             })
+    group = Groups(inst, SUFFIX, rdn=None)
+    g0 = group.create(properties={'cn': 'group0',
+                             'description': 'group0'})
+    g1 = group.create(properties={'cn': 'group1',
+                             'member': user1.dn,
+                             'description': 'group1'})
+    g21 = group.create(properties={'cn': 'group21',
+                             'member': user1.dn,
+                             'description': 'group21'})
+    g2 = group.create(properties={'cn': 'group2',
+                             'member': [g21.dn],
+                             'description': 'group2'})
+
+    # Enable debug logs if necessary
+    #inst.config.replace('nsslapd-errorlog-level', '65536')
+    #inst.config.set('nsslapd-accesslog-level','260')
+    #inst.config.set('nsslapd-plugin-logging', 'on')
+    #inst.config.set('nsslapd-auditlog-logging-enabled','on')
+    #inst.config.set('nsslapd-auditfaillog-logging-enabled','on')
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #  Grp1 ----------------> User1
+    #    \                       ^
+    #     \                     /
+    #      --> Grp2 --> Grp21 --
+    #
+    g1.add_member(g2.dn)
+    time.sleep(delay)
+
+    #
+    # Check G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g1, expected_members=[g2, user1], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[g1])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g2, g1])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1])
+
+    #inst.config.replace('nsslapd-errorlog-level', '65536')
+    #inst.config.set('nsslapd-accesslog-level','260')
+    #inst.config.set('nsslapd-plugin-logging', 'on')
+    #inst.config.set('nsslapd-auditlog-logging-enabled','on')
+    #inst.config.set('nsslapd-auditfaillog-logging-enabled','on')
+    #
+    # Update the hierarchy
+    #
+    #
+    #  Grp1 ----------------> User1
+    #                            ^
+    #                           /
+    #          Grp2 --> Grp21 --
+    #
+    g1.remove_member(g2.dn)
+    time.sleep(delay)
+
+    #
+    # Check G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g1, expected_members=[user1], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #  Grp1 ----------------> User1
+    #      \__________         ^
+    #                 |       /
+    #                 v      /
+    #     Grp2 --> Grp21 ----
+    #
+    g1.add_member(g21.dn)
+    time.sleep(delay)
+
+    #
+    # Check G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g1, expected_members=[user1, g21], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g2, g1])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #  Grp1 ----------------> User1
+    #                            ^
+    #                           /
+    #          Grp2 --> Grp21 --
+    #
+    g1.remove_member(g21.dn)
+    time.sleep(delay)
+
+    #
+    # Check G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g1, expected_members=[user1], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #       Grp1 ----------------> User1
+    #                                 ^
+    #                                /
+    #   Grp0 ---> Grp2 ---> Grp21 ---
+    #
+    g0.add_member(g2.dn)
+    time.sleep(delay)
+
+    #
+    # Check G0,G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g0, expected_members=[g2], expected_memberof=[])
+    _check_membership(inst, g1, expected_members=[user1], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[g0])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g0, g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1, g0])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #       Grp1 ----------------> User1
+    #       ^                         ^
+    #      /                         /
+    #   Grp0 ---> Grp2 ---> Grp21 ---
+    #
+    g0.add_member(g1.dn)
+    time.sleep(delay)
+
+    #
+    # Check G0,G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g0, expected_members=[g1,g2], expected_memberof=[])
+    _check_membership(inst, g1, expected_members=[user1], expected_memberof=[g0])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[g0])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g0, g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1, g0])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #       Grp1 ----------------> User1
+    #       ^  \_____________        ^
+    #      /                 |       /
+    #     /                  V      /
+    #   Grp0 ---> Grp2 ---> Grp21 ---
+    #
+    g1.add_member(g21.dn)
+    time.sleep(delay)
+
+    #
+    # Check G0,G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g0, expected_members=[g1, g2], expected_memberof=[])
+    _check_membership(inst, g1, expected_members=[user1, g21], expected_memberof=[g0])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[g0])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g0, g1, g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1, g0])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #       Grp1 ----------------> User1
+    #       ^  \_____________        ^
+    #      /                 |       /
+    #     /                  V      /
+    #   Grp0 ---> Grp2      Grp21 ---
+    #
+    g2.remove_member(g21.dn)
+    time.sleep(delay)
+
+    #
+    # Check G0,G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g0, expected_members=[g1, g2], expected_memberof=[])
+    _check_membership(inst, g1, expected_members=[user1, g21], expected_memberof=[g0])
+    _check_membership(inst, g2, expected_members=[], expected_memberof=[g0])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g0, g1])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g1, g0])
+
+    def fin():
+        try:
+            user1.delete()
+            g1.delete()
+            g2.delete()
+            g21.delete()
+        except:
+            pass
+    request.addfinalizer(fin)
 
 def _config_memberof_entrycache_on_modrdn_failure(server):
 
@@ -1015,22 +1285,27 @@ def _kill_instance(inst, sig=signal.SIGTERM, delay=None):
         time.sleep(delay)
     os.kill(pid, signal.SIGKILL)
 
-def test_shutdown_on_deferred_memberof(topology_st):
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
+def test_shutdown_on_deferred_memberof(topology_st, request):
     """This test checks that shutdown is handled properly if memberof updayes are deferred.
 
     :id: c5629cae-15a0-11ee-8807-482ae39447e5
     :setup: Standalone Instance
     :steps:
         1. Enable memberof plugin to scope SUFFIX
-        2. create 1000 users
-        3. Create a large groups with 500 members
+        2. create 500 users
+        3. Create a large groups with 250 members
         4. Restart the instance (using the default 2 minutes timeout)
         5. Check that users memberof and group members are in sync.
-        6. Modify the group to have 10 members.
+        6. Modify the group to have 250 others members.
         7. Restart the instance with short timeout
-        8. Check that fixup task is in progress
-        9. Wait until fixup task is completed
-        10. Check that users memberof and group members are in sync.
+        8. Check that the instance needs fixup
+        9. Check that deferred thread did not run fixup
+        10. Allow deferred thread to run fixup
+        11. Modify the group to have 250 others members.
+        12. Restart the instance with short timeout
+        13. Check that the instance needs fixup
+        14. Check that deferred thread did run fixup
     :expectedresults:
         1. should succeed
         2. should succeed
@@ -1041,13 +1316,17 @@ def test_shutdown_on_deferred_memberof(topology_st):
         7. should succeed
         8. should succeed
         9. should succeed
-        10. should succeed
     """
 
     inst = topology_st.standalone
+    inst.stop()
+    lpath = inst.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    inst.start()
     inst.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
     errlog = DirsrvErrorLog(inst)
     test_timeout = 900
+
 
     # Step 1. Enable memberof plugin to scope SUFFIX
     memberof = MemberOfPlugin(inst)
@@ -1069,8 +1348,8 @@ def test_shutdown_on_deferred_memberof(topology_st):
     #Creates users and groups
     users_dn = []
 
-    # Step 2. create 1000 users
-    for i in range(1000):
+    # Step 2. create 500 users
+    for i in range(500):
         CN = '%s%d' % (USER_CN, i)
         users = UserAccounts(inst, SUFFIX)
         user_props = TEST_USER_PROPERTIES.copy()
@@ -1080,7 +1359,7 @@ def test_shutdown_on_deferred_memberof(topology_st):
 
     # Step 3. Create a large groups with 250 members
     groups = Groups(inst, SUFFIX)
-    testgroup = groups.create(properties={'cn': 'group500', 'member': users_dn[0:249]})
+    testgroup = groups.create(properties={'cn': 'group50', 'member': users_dn[0:249]})
 
     # Step 4. Restart the instance (using the default 2 minutes timeout)
     time.sleep(10)
@@ -1094,7 +1373,7 @@ def test_shutdown_on_deferred_memberof(topology_st):
     check_memberof_consistency(inst, testgroup)
 
     # Step 6. Modify the group to get another big group.
-    testgroup.replace('member', users_dn[500:999])
+    testgroup.replace('member', users_dn[250:499])
 
     # Step 7. Restart the instance with short timeout
     pattern = 'deferred_thread_func - thread has stopped'
@@ -1107,38 +1386,832 @@ def test_shutdown_on_deferred_memberof(topology_st):
     nbcleanstop = len(errlog.match(pattern))
     assert nbcleanstop == original_nbcleanstop
 
-    original_nbfixupmsg = count_global_fixup_message(errlog)
     log.info(f'Instance restarted after timeout at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     inst.restart()
     assert inst.status()
     log.info(f'Restart completed at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
+    # Step 9.
     # Check that memberofneedfixup is present
-    dse = DSEldif(inst)
-    assert dse.get(memberof.dn, 'memberofneedfixup', single=True)
+    # and fixup task was not launched because by default launch_fixup is no
+    memberof = MemberOfPlugin(inst)
+    memberof.set_memberofdeferredupdate("on")
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() != "on"):
+        pytest.skip("Memberof deferred update not enabled or not supported.");
+    else:
+        delay=10
+    value = memberof.get_memberofneedfixup()
+    assert ((str(value).lower() == "yes") or (str(value).lower() == "true"))
+    assert len(errlog.match('.*It is recommended to launch memberof fixup task.*')) == 1
 
-    # Step 8. Check that fixup task is in progress
-    # Note we have to wait as there may be some delay
-    elapsed_time = 0
-    nbfixupmsg = count_global_fixup_message(errlog)
-    while nbfixupmsg[0] == original_nbfixupmsg[0]:
-        assert elapsed_time <= test_timeout
-        assert inst.status()
-        time.sleep(5)
-        elapsed_time += 5
-        nbfixupmsg = count_global_fixup_message(errlog)
+    # Step 10. allow the server to launch the fixup task
+    inst.stop()
+    inst.deleteErrorLogs()
+    inst.start()
+    log.info(f'set memberoflaunchfixup=ON')
+    memberof.set_memberoflaunchfixup('on')
+    inst.restart()
 
-    # Step 9. Wait until fixup task is completed
-    while nbfixupmsg[1] == original_nbfixupmsg[1]:
-        assert elapsed_time <= test_timeout
-        assert inst.status()
-        time.sleep(10)
-        elapsed_time += 10
-        nbfixupmsg = count_global_fixup_message(errlog)
+    # Step 11. Modify the group to get another big group.
+    testgroup.replace('member', users_dn[250:499])
 
-    # Step 10. Check that users memberof and group members are in sync.
+    # Step 12. then kill/reset errorlog/restart
+    _kill_instance(inst, sig=signal.SIGKILL, delay=5)
+    log.info(f'Instance restarted after timeout at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    inst.restart()
+    assert inst.status()
+    log.info(f'Restart completed at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+
+    # step 13. Check that memberofneedfixup is present
+    memberof = MemberOfPlugin(inst)
+    value = memberof.get_memberofneedfixup()
+    assert ((str(value).lower() == "yes") or (str(value).lower() == "true"))
+
+    # step 14. Verify the global fixup started/finished messages
+    attribute_name = 'memberOf'
+    started_lines = errlog.match('.*Memberof plugin started the global fixup task for attribute .*')
+    assert len(started_lines) >= 1
+    for line in started_lines:
+        log.info(f'Started line: {line}')
+        assert f'attribute {attribute_name}' in line
+
+    # Wait for finished messages to appear, then verify no nulls are present
+    finished_lines = []
+    for _ in range(60):
+        finished_lines = errlog.match('.*Memberof plugin finished the global fixup task.*')
+        if finished_lines:
+            break
+        time.sleep(1)
+    assert len(finished_lines) >= 1
+    for line in finished_lines:
+        log.info(f'Finished line: {line}')
+        assert '(null)' not in line
+
+    # Check that users memberof and group members are in sync.
     time.sleep(delay)
     check_memberof_consistency(inst, testgroup)
+
+
+    def fin():
+
+        for dn in users_dn:
+            try:
+                inst.delete_s(dn)
+            except ldap.NO_SUCH_OBJECT:
+                pass
+
+        try:
+            inst.delete_s(testgroup.dn)
+        except ldap.NO_SUCH_OBJECT:
+                pass
+
+    request.addfinalizer(fin)
+
+
+def test_memberof_modrdn_to_itself(topology_st, user1, group1):
+    """Test that memberOf plugin correctly handles modrdn operations on groups
+
+    :id: a4c7f8e9-2f1a-11ef-8a3c-482ae39447e5
+    :setup: Standalone Instance with user1 and group1 fixtures
+    :steps:
+        1. Enable the memberOf plugin and restart the server
+        2. Verify user is not initially a member of the group
+        3. Add user to the group
+        4. Verify user is now a member of the group
+        5. Enable plugin logging to capture modrdn operations
+        6. Perform modrdn operation on group (rename to itself)
+        7. Verify user is still a member of the group after rename
+        8. Verify memberOf plugin logs skip message for identical src/dst rename
+    :expectedresults:
+        1. MemberOf plugin should be enabled successfully
+        2. User should not have memberOf attribute initially
+        3. User should be added to group successfully
+        4. User should have memberOf attribute pointing to group
+        5. Plugin logging should be enabled successfully
+        6. Modrdn operation should complete without errors
+        7. User should retain memberOf attribute after rename operation
+        8. Plugin should log that modrdn was skipped due to identical src/dst
+    """
+
+    # Enable the MemberOf plugin
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.remove_all_entryscope()
+    memberof.remove_all_excludescope()
+    memberof.remove_configarea()
+    memberof.remove_autoaddoc()
+    memberof.enable()
+    topology_st.standalone.restart()
+
+    # Verify that the user is not a member of the group
+    check_membership(user1, group1.dn, False)
+    # Add the user to the group
+    group1.add_member(user1.dn)
+    # Verify that the user is a member of the group
+    check_membership(user1, group1.dn, True)
+
+    # Enable the plugin log to capture memberof modrdn callback notification
+    topology_st.standalone.config.loglevel(vals=[LOG_PLUGIN, LOG_DEFAULT], service='error')
+
+    # Rename the group on itself
+    group1.rename('cn=group1')
+
+    # Verify that the user is still a member of the group
+    check_membership(user1, group1.dn, True)
+
+    # Verify that the memberof modrdn callback notification is logged
+    assert topology_st.standalone.ds_error_log.match('.*Skip modrdn operation because src/dst identical.*')
+
+
+def check_memberof_on_server(server, group, users, expected_present=True):
+    for user in users:
+        entry = server.getEntry(user.dn, ldap.SCOPE_BASE, "(objectclass=*)")
+        if expected_present:
+            assert entry.hasAttr('memberof') and ensure_str(entry.getValue('memberof')) == group.dn
+        else:
+            assert not entry.hasAttr('memberof')
+
+
+@pytest.mark.parametrize("users", [5], indirect=True)
+def test_memberof_total_init_with_fractional_replication(topo_m2, users):
+    """Test that memberOf attributes survive total initialization when configured
+    with fractional replication that excludes memberOf from regular updates but
+    NOT from total initialization.
+
+    :id: 2c3f1a88-1e4f-4a97-8b2a-1d5c6e7f8901
+    :setup: Two suppliers with memberOf plugin and fractional replication, 5 user entries created by fixture
+    :steps:
+        1. Configure memberOf plugin on supplier1 with fractional replication
+           (excludes memberOf from regular updates, includes in total init)
+        2. Enable memberOf plugin on supplier2
+        3. Wait for replication of users and verify they exist on supplier2
+        4. Create test group with all users as members on supplier1
+        5. Wait for group replication and verify group exists on supplier2
+        6. Verify memberOf attributes are present on both suppliers
+        7. Perform total initialization from supplier1 to supplier2
+        8. Verify memberOf attributes survive total initialization on both suppliers
+        9. Add new user and verify ongoing replication still works correctly
+        10. Reset replication agreement to plain replication and cleanup test objects
+    :expectedresults:
+        1. MemberOf plugin and fractional replication should be configured successfully
+        2. MemberOf plugin should be enabled on supplier2
+        3. Users should exist on both suppliers after replication
+        4. Test group should be created with members successfully
+        5. Group should replicate and exist on both suppliers
+        6. MemberOf attributes should be present on both suppliers before total init
+        7. Total initialization should complete successfully
+        8. MemberOf attributes should survive total initialization despite fractional exclusion
+        9. Post-init replication should work correctly with memberOf attributes
+        10. Replication agreement should be reset to prevent affecting other tests
+    """
+
+    supplier1 = topo_m2.ms["supplier1"]
+    supplier2 = topo_m2.ms["supplier2"]
+
+    # Enable memberOf plugin on supplier1 with fractional replication to exclude
+    # memberOf from regular updates but NOT from total initialization
+    config_memberof(supplier1)
+
+    # Enable memberOf plugin on supplier2
+    memberof2 = MemberOfPlugin(supplier2)
+    memberof2.enable()
+    supplier2.restart()
+
+    # Wait for replication of users (created by fixture)
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_while_replication_is_progressing(supplier1, supplier2)
+
+    # Verify users exist on supplier2
+    users2 = UserAccounts(supplier2, DEFAULT_SUFFIX)
+    for user in users:
+        user2 = users2.get(dn=user.dn)
+        assert user2.exists()
+        log.info(f'Verified user exists on supplier2: {user2.dn}')
+
+    # Create test group with members on supplier1
+    groups1 = Groups(supplier1, DEFAULT_SUFFIX)
+    group_props = {
+        'cn': 'testgroup',
+        'member': [user.dn for user in users]
+    }
+    group1 = groups1.create(properties=group_props)
+    log.info(f'Created group with members: {group1.dn}')
+
+    # Wait for replication of group
+    repl.wait_while_replication_is_progressing(supplier1, supplier2)
+
+    # Verify group exists on supplier2
+    groups2 = Groups(supplier2, DEFAULT_SUFFIX)
+    group2 = groups2.get('testgroup')
+    assert group2.exists()
+    log.info(f'Verified group exists on supplier2: {group2.dn}')
+
+    # Verify memberOf attributes are present on both suppliers
+    time.sleep(5)  # Allow time for memberOf plugin to process
+
+    check_memberof_on_server(supplier1, group1, users, True)
+    check_memberof_on_server(supplier2, group2, users, True)
+    log.info('MemberOf attributes verified on both suppliers before total init')
+
+    # Perform total initialization from supplier1 to supplier2
+    log.info('Starting total initialization from supplier1 to supplier2')
+    supplier1.agreement.init(DEFAULT_SUFFIX, supplier2.host, supplier2.port)
+    log.info('Total initialization initiated')
+
+    # Wait for total initialization to complete
+    supplier1.waitForReplInit(supplier1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn)
+    log.info('Total initialization completed')
+
+    # Verify memberOf attributes are still present on both suppliers after total init
+    time.sleep(5)  # Allow time for any post-init processing
+
+    check_memberof_on_server(supplier1, group1, users, True)
+    check_memberof_on_server(supplier2, group2, users, True)
+    log.info('MemberOf attributes verified on both suppliers after total init')
+
+    # Additional verification: ensure replication is still working
+    log.info('Verifying replication still works after total init')
+
+    # Add a new member to test ongoing replication
+    new_user_props = {
+        'uid': 'member',
+        'cn': 'member',
+        'sn': 'member',
+        'uidNumber': '1005',
+        'gidNumber': '2005',
+        'homeDirectory': '/home/member'
+    }
+    users1 = UserAccounts(supplier1, DEFAULT_SUFFIX)
+    new_user = users1.create(properties=new_user_props)
+    group1.add_member(new_user.dn)
+
+    # Wait for replication
+    repl.wait_while_replication_is_progressing(supplier1, supplier2)
+    time.sleep(5)
+
+    # Verify new member has memberOf on both suppliers
+    user1_new = users1.get('member')
+    user2_new = users2.get('member')
+
+    memberof1_new = user1_new.get_attr_vals_utf8('memberOf')
+    memberof2_new = user2_new.get_attr_vals_utf8('memberOf')
+
+    assert memberof1_new and group1.dn in memberof1_new
+    assert memberof2_new and group2.dn in memberof2_new
+
+    # Cleanup: Reset replication agreement to plain replication
+    agreements1 = supplier1.agreement.list(suffix=DEFAULT_SUFFIX)
+    if agreements1:
+        supplier1.agreement.setProperties(agmnt_dn=agreements1[0].dn,
+                                         properties={RA_FRAC_EXCLUDE: None,
+                                                   RA_FRAC_EXCLUDE_TOTAL_UPDATE: None})
+
+    # Cleanup test objects (users are cleaned up automatically by fixture)
+    new_user.delete()
+    group1.delete()
+    group2.delete()
+
+
+class ModifySecondBackendThread(threading.Thread):
+    """Thread class for continuously modifying entries in the second backend"""
+
+    def __init__(self, inst, second_suffix, timeout, num_operations=5000):
+        threading.Thread.__init__(self)
+        self.daemon = True
+        self.inst = inst
+        self.second_suffix = second_suffix
+        self.timeout = timeout
+        self.num_operations = num_operations
+
+    def run(self):
+        """Run continuous modifications on the second backend"""
+        try:
+            # Create a new connection for this thread
+            conn = self.inst.clone()
+            # Ensure the connection is properly opened
+            conn.open()
+
+            # Set timeout using a try/except to handle connection issues
+            try:
+                conn.set_option(ldap.OPT_TIMEOUT, self.timeout)
+            except (AttributeError, ldap.LDAPError):
+                # If setting timeout fails, continue without it
+                log.warning('Could not set LDAP timeout for thread connection')
+
+            log.info('Starting modifications on second backend...')
+
+            for x in range(self.num_operations):
+                try:
+                    conn.modify_s(self.second_suffix,
+                                 [(ldap.MOD_REPLACE, 'description',
+                                   ensure_bytes(f'modified description {x}'))])
+                except ldap.LDAPError as e:
+                    log.error(f'Failed to modify second suffix at iteration {x} - error: {e}')
+                    # Continue with remaining operations instead of failing completely
+                    continue
+
+        except Exception as e:
+            log.error(f'Thread connection error: {e}')
+            return
+        finally:
+            # Ensure connection is closed even if errors occur
+            try:
+                if 'conn' in locals():
+                    conn.close()
+            except:
+                pass
+
+        log.info('Finished modifying second backend')
+
+
+def test_memberof_retrocl_deadlock(topology_st):
+    """Test that memberOf and retrocl plugins do not deadlock in multi-backend scenario
+
+    :id: 47931f8c-e792-41bf-a3c0-b3b38391cb31
+    :setup: Standalone instance
+    :steps:
+        1. Configure memberOf plugin for uniqueMember attribute and enable
+        2. Configure retrocl plugin scoping to default backend only and enable
+        3. Restart instance to apply plugin configurations
+        4. Create a second backend for deadlock testing
+        5. Create a test group using UniqueGroups and 1500 test users
+        6. In parallel: add users to group (triggers memberOf) while modifying second backend
+        7. Verify no timeout/deadlock occurs during parallel operations
+        8. Clean up test entries and disable plugins
+    :expectedresults:
+        1. MemberOf plugin should be configured and enabled successfully
+        2. Retrocl plugin should be configured and enabled successfully
+        3. Instance restart should complete successfully
+        4. Second backend should be created successfully
+        5. Test group and users should be created successfully
+        6. Parallel operations should complete without deadlock/timeout
+        7. No LDAP timeout errors should occur
+        8. Cleanup should complete successfully
+    """
+
+    inst = topology_st.standalone
+
+    # Test constants
+    SECOND_BACKEND = "deadlock"
+    SECOND_SUFFIX = f"dc={SECOND_BACKEND}"
+    TIME_OUT = 5
+    NUM_USERS = 1500
+
+    log.info("Test memberOf and retrocl deadlock scenario")
+
+    # Enable memberOf and retrocl plugins
+    log.info("Enabling memberOf and retrocl plugins")
+    memberof_plugin = MemberOfPlugin(inst)
+    memberof_plugin.replace_groupattr('uniquemember')
+    memberof_plugin.enable()
+
+    retrocl_plugin = RetroChangelogPlugin(inst)
+    retrocl_plugin.replace('nsslapd-include-suffix', DEFAULT_SUFFIX)
+    retrocl_plugin.enable()
+
+    topology_st.standalone.restart()
+
+    # Create second backend
+    log.info("Creating second backend for deadlock testing")
+    backends = Backends(inst)
+    backend = backends.create(properties={
+        'cn': SECOND_BACKEND,
+        'nsslapd-suffix': SECOND_SUFFIX
+    })
+
+    # Create test group and users
+    log.info("Creating test group and users")
+
+    # Create group
+    groups = UniqueGroups(inst, DEFAULT_SUFFIX)
+    test_group = groups.create(properties={
+        'cn': 'testgroup',
+        'description': 'testgroup'
+    })
+
+    # Create 1500 test users
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_dns = []
+
+    log.info(f"Creating {NUM_USERS} test users...")
+    for idx in range(1, NUM_USERS + 1):
+        user_props = TEST_USER_PROPERTIES.copy()
+        user_props.update({
+            'uid': f'member{idx}',
+            'cn': f'member{idx}',
+            'sn': f'member{idx}',
+            'uidNumber': f'{idx}',
+            'gidNumber': f'{idx}',
+            'homeDirectory': f'/home/member{idx}'
+        })
+
+        try:
+            user = users.create(properties=user_props)
+            user_dns.append(user.dn)
+        except ldap.LDAPError as e:
+            log.error(f'Failed to create user member{idx}: {e}')
+            raise
+
+    log.info(f"Created {len(user_dns)} test users")
+
+    # Run parallel operations to test for deadlock
+    log.info("Starting parallel operations to test deadlock scenario")
+
+    # Start thread to continuously modify second backend
+    modify_thread = ModifySecondBackendThread(inst, SECOND_SUFFIX, TIME_OUT)
+    modify_thread.start()
+    time.sleep(1)  # Give thread time to start
+
+    # Add members to group with timeout detection
+    log.info("Adding members to group...")
+    inst.set_option(ldap.OPT_TIMEOUT, TIME_OUT)
+
+    try:
+        for idx, user_dn in enumerate(user_dns, 1):
+            try:
+                test_group.add('uniqueMember', user_dn)
+            except ldap.TIMEOUT:
+                log.error(f'DEADLOCK detected at member {idx}! Test FAILED.')
+                raise AssertionError("Deadlock detected - memberOf and retrocl plugins deadlocked")
+            except ldap.LDAPError as e:
+                log.error(f'Failed to add member {idx} (not a deadlock): {e}')
+                raise
+    finally:
+        # Wait for the modification thread to finish
+        modify_thread.join()
+
+    # Verify no deadlock occurred - if we reach here, test passed
+    log.info("SUCCESS: No deadlock detected between memberOf and retrocl plugins")
+
+    # Cleanup - disable plugins and remove second backend
+    try:
+        for user in user_dns:
+            user.delete()
+        test_group.delete()
+        memberof_plugin.disable()
+        retrocl_plugin.disable()
+        backend.delete()
+    except Exception as e:
+        log.warning(f"Cleanup warning: {e}")
+
+
+def test_replace_list_diff_correctness(topology_st, request):
+    """A group MOD_REPLACE produces the correct diff
+    across overlap, empty, and no-op transitions.
+
+    :id: 2ab5e1ed-7f40-4b4b-8d7e-5b1b5d5f9f7a
+    :setup: Standalone Instance, USN + memberOf enabled
+    :steps:
+        1. Create 60 users and a group with the first 40 as members
+        2. MOD_REPLACE the group to members[20:60]
+        3. MOD_REPLACE the group back to members[:40] using denormalized DNs
+        4. MOD_REPLACE the group to an empty member list
+        5. MOD_REPLACE the group to members[:2]
+        6. MOD_REPLACE the group to members[:2] again (no-op diff)
+    :expectedresults:
+        1. Users 0..39 have memberOf, 40..59 do not; entryUSN advanced
+           only for 0..39
+        2. Users 0..19 lost memberOf, 20..39 kept it, 40..59 gained it;
+           entryUSN advanced only for 0..19 and 40..59 (overlap members
+           20..39 must not be touched)
+        3. Users 0..39 have memberOf, 40..59 do not; entryUSN advanced
+           only for 0..19 and 40..59 (overlap members 20..39 must not be
+           touched, even with denormalized input DNs)
+        4. No user has memberOf; entryUSN advanced only for 0..39
+        5. Users 0..1 have memberOf, 2..59 do not; entryUSN advanced
+           only for 0..1
+        6. Users 0..1 have memberOf, 2..59 do not; no entryUSN advanced
+    """
+    inst = topology_st.standalone
+
+    USNPlugin(inst).enable()
+    memberof = MemberOfPlugin(inst)
+    memberof.set_attr('memberOf')
+    memberof.replace_groupattr('member')
+    memberof.remove_all_entryscope()
+    memberof.remove_all_excludescope()
+    memberof.remove_configarea()
+    memberof.set_autoaddoc('nsMemberOf')
+    memberof.enable()
+    deferred = memberof.get_memberofdeferredupdate()
+    delay = 3 if deferred and deferred.lower() == "on" else 0
+    inst.restart()
+
+    users_idm = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_list = []
+    group = None
+
+    def fin():
+        try:
+            if group is not None and group.exists():
+                group.delete()
+        except ldap.LDAPError as e:
+            log.warning('cleanup: group delete failed: %s', e)
+        for u in user_list:
+            try:
+                u.delete()
+            except ldap.NO_SUCH_OBJECT:
+                pass
+    request.addfinalizer(fin)
+
+    for i in range(60):
+        user_list.append(users_idm.create(properties={
+            'uid': 'diffuser%03d' % i,
+            'sn': 'diffuser%03d' % i,
+            'cn': 'diffuser%03d' % i,
+            'uidNumber': str(200000 + i),
+            'gidNumber': str(200000 + i),
+            'homeDirectory': '/home/diffuser%03d' % i,
+        }))
+
+    def read_entryusns():
+        return [u.get_attr_val_int('entryusn') for u in user_list]
+
+    def assert_usn(changed_indices, before, after, label):
+        changed = set(changed_indices)
+        for i in range(len(user_list)):
+            if i in changed:
+                assert after[i] > before[i], (
+                    '%s: user %d entryUSN should have advanced (%d -> %d)'
+                    % (label, i, before[i], after[i]))
+            else:
+                assert after[i] == before[i], (
+                    '%s: user %d entryUSN should not have changed '
+                    '(%d -> %d) but it did'
+                    % (label, i, before[i], after[i]))
+
+    def assert_members(expected_in, expected_out, label):
+        for u in expected_in:
+            assert group_dn_l in u.get_attr_vals_utf8_l('memberOf'), \
+                '%s: %s missing memberOf %s' % (label, u.dn, group.dn)
+        for u in expected_out:
+            assert group_dn_l not in u.get_attr_vals_utf8_l('memberOf'), \
+                '%s: %s still has memberOf %s' % (label, u.dn, group.dn)
+
+    usn_before = read_entryusns()
+    groups = Groups(inst, DEFAULT_SUFFIX, rdn=None)
+    group = groups.create(properties={
+        'cn': 'diff_bench_group',
+        'member': [u.dn for u in user_list[:40]],
+    })
+    group_dn_l = group.dn.lower()
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[:40], user_list[40:], 'initial')
+    assert_usn(range(40), usn_before, usn_after, 'initial')
+
+    usn_before = usn_after
+    group.replace('member', [u.dn for u in user_list[20:60]])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[20:60], user_list[:20], 'replace-overlap')
+    assert_usn(list(range(20)) + list(range(40, 60)),
+               usn_before, usn_after, 'replace-overlap')
+
+    def denorm(dn):
+        rdns = []
+        for rdn in dn.split(','):
+            attr, _, value = rdn.partition('=')
+            rdns.append('{} = {}'.format(attr.strip().upper(), value.strip()))
+        return ' , '.join(rdns)
+
+    usn_before = usn_after
+    group.replace('member', [denorm(u.dn) for u in user_list[:40]])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[:40], user_list[40:], 'replace-denormalized')
+    assert_usn(list(range(20)) + list(range(40, 60)),
+               usn_before, usn_after, 'replace-denormalized')
+
+    usn_before = usn_after
+    group.replace('member', [])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members([], user_list, 'replace-empty')
+    assert_usn(range(40), usn_before, usn_after, 'replace-empty')
+
+    usn_before = usn_after
+    group.replace('member', [u.dn for u in user_list[:2]])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[:2], user_list[2:], 'replace-from-empty')
+    assert_usn(range(2), usn_before, usn_after, 'replace-from-empty')
+
+    usn_before = usn_after
+    group.replace('member', [u.dn for u in user_list[:2]])
+    time.sleep(delay)
+    usn_after = read_entryusns()
+    assert_members(user_list[:2], user_list[2:], 'replace-noop')
+    assert_usn([], usn_before, usn_after, 'replace-noop')
+
+
+def test_replace_list_after_ldif_import(topology_st, request):
+    """An LDIF import of denormalized member DNs stores canonical values in the
+    valueset, and a subsequent group MOD_REPLACE produces correct memberOf.
+
+    :id: 1c742145-e967-4a9d-8d0d-29e92cd46078
+    :setup: Standalone Instance
+    :steps:
+        1. ldif2db an LDIF with 20 users and a group whose member values
+           are denormalized (uppercase attr types, whitespace padding)
+        2. Check stored member values no longer carry the padding
+        3. Run memberOf fixup
+        4. MOD_REPLACE the group's members to users[5:15]
+    :expectedresults:
+        1. Import succeeds
+        2. member values are canonical (no ' = ' or ' , ')
+        3. Users 0..9 have memberOf, 10..19 do not
+        4. Users 0..4 lost memberOf, 5..14 have it, 15..19 do not
+    """
+    inst = topology_st.standalone
+    memberof = MemberOfPlugin(inst)
+    memberof.set_attr('memberOf')
+    memberof.replace_groupattr('member')
+    memberof.remove_all_entryscope()
+    memberof.remove_all_excludescope()
+    memberof.remove_configarea()
+    memberof.set_autoaddoc('nsMemberOf')
+    memberof.enable()
+    deferred = memberof.get_memberofdeferredupdate()
+    delay = 3 if deferred and deferred.lower() == "on" else 0
+    inst.restart()
+
+    user_dns = ['uid=denormu%02d,ou=People,%s' % (i, DEFAULT_SUFFIX) for i in range(20)]
+    group_dn = 'cn=denorm_import_group,%s' % DEFAULT_SUFFIX
+
+    def denorm(dn):
+        rdns = []
+        for rdn in dn.split(','):
+            attr, _, value = rdn.partition('=')
+            rdns.append('{} = {}'.format(attr.strip().upper(), value.strip()))
+        return ' , '.join(rdns)
+
+    def fin():
+        try:
+            if not inst.status():
+                inst.start()
+            for dn in [group_dn] + user_dns:
+                try:
+                    inst.delete_s(dn)
+                except ldap.NO_SUCH_OBJECT:
+                    pass
+        except ldap.LDAPError as e:
+            log.warning('cleanup failed: %s', e)
+    request.addfinalizer(fin)
+
+    ldif_path = os.path.join(inst.get_ldif_dir(), 'memberof_denorm_import.ldif')
+    with open(ldif_path, 'w') as f:
+        f.write('dn: %s\nobjectClass: top\nobjectClass: domain\ndc: example\n\n'
+                % DEFAULT_SUFFIX)
+        f.write('dn: ou=People,%s\nobjectClass: top\n'
+                'objectClass: organizationalUnit\nou: People\n\n' % DEFAULT_SUFFIX)
+        for i, dn in enumerate(user_dns):
+            f.write('dn: %s\nobjectClass: top\nobjectClass: person\n'
+                    'objectClass: inetOrgPerson\nobjectClass: posixAccount\n'
+                    'objectClass: nsMemberOf\n'
+                    'uid: denormu%02d\ncn: denormu%02d\nsn: denormu%02d\n'
+                    'uidNumber: %d\ngidNumber: %d\nhomeDirectory: /home/denormu%02d\n\n'
+                    % (dn, i, i, i, 300000 + i, 300000 + i, i))
+        f.write('dn: %s\nobjectClass: top\nobjectClass: groupOfNames\n'
+                'cn: denorm_import_group\n' % group_dn)
+        for dn in user_dns[:10]:
+            f.write('member: %s\n' % denorm(dn))
+        f.write('\n')
+    os.chmod(ldif_path, 0o644)
+
+    inst.stop()
+    assert inst.ldif2db('userRoot', None, None, None, ldif_path), 'ldif2db failed'
+    inst.start()
+
+    stored = Group(inst, group_dn).get_attr_vals_utf8('member')
+    assert sorted(v.lower() for v in stored) == sorted(d.lower() for d in user_dns[:10]), \
+        'member values not normalized after ldif2db: %r' % stored
+    for v in stored:
+        assert ' = ' not in v and ' , ' not in v, \
+            'member value retains non-canonical whitespace: %r' % v
+
+    fixup_task = memberof.fixup(basedn=DEFAULT_SUFFIX)
+    fixup_task.wait(timeout=0)
+    assert fixup_task.get_exit_code() == 0, 'memberOf fixup failed'
+    time.sleep(delay)
+
+    group_dn_l = group_dn.lower()
+
+    def assert_members(in_dns, out_dns, label):
+        for dn in in_dns:
+            u = UserAccount(inst, dn)
+            assert group_dn_l in u.get_attr_vals_utf8_l('memberOf'), \
+                '%s: %s missing memberOf' % (label, dn)
+        for dn in out_dns:
+            u = UserAccount(inst, dn)
+            assert group_dn_l not in u.get_attr_vals_utf8_l('memberOf'), \
+                '%s: %s unexpectedly has memberOf' % (label, dn)
+
+    assert_members(user_dns[:10], user_dns[10:], 'post-import+fixup')
+
+    Group(inst, group_dn).replace('member', user_dns[5:15])
+    time.sleep(delay)
+    assert_members(user_dns[5:15], user_dns[:5] + user_dns[15:], 'post-replace')
+
+
+def test_replace_list_no_spurious_member_mods(topology_st, request):
+    """A group MOD_REPLACE must not re-modify overlap members.
+
+    :id: 6de82dc9-4727-4757-b0d2-69a7907a8dbe
+    :setup: Standalone Instance, USN + memberOf enabled
+    :steps:
+        1. Create four users
+        2. Create a group containing two of them
+        3. Replace the group's member list with all four users
+        4. Check entryUSN of every user
+    :expectedresults:
+        1. Users created
+        2. Initial members hold memberOf for the group
+        3. Replace succeeds; all four users hold memberOf
+        4. The two pre-existing members' entryUSN is unchanged;
+           the two newly added members' entryUSN has advanced
+    """
+    inst = topology_st.standalone
+
+    USNPlugin(inst).enable()
+    memberof = MemberOfPlugin(inst)
+    memberof.set_attr('memberOf')
+    memberof.replace_groupattr('member')
+    memberof.remove_all_entryscope()
+    memberof.remove_all_excludescope()
+    memberof.remove_configarea()
+    memberof.set_autoaddoc('nsMemberOf')
+    memberof.enable()
+    deferred = memberof.get_memberofdeferredupdate()
+    delay = 3 if deferred and deferred.lower() == "on" else 0
+    inst.restart()
+
+    users_idm = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_names = ['alpha', 'beta', 'charlie', 'delta']
+    user_objs = {}
+    group = None
+
+    def fin():
+        try:
+            if group is not None and group.exists():
+                group.delete()
+        except ldap.LDAPError as e:
+            log.warning('cleanup: group delete failed: %s', e)
+        for u in user_objs.values():
+            try:
+                u.delete()
+            except ldap.LDAPError as e:
+                log.warning('cleanup: user delete failed: %s', e)
+    request.addfinalizer(fin)
+
+    for i, name in enumerate(user_names):
+        user_objs[name] = users_idm.create(properties={
+            'uid': name,
+            'cn': name,
+            'sn': name,
+            'uidNumber': str(400000 + i),
+            'gidNumber': str(400000 + i),
+            'homeDirectory': '/home/%s' % name,
+        })
+
+    groups = Groups(inst, DEFAULT_SUFFIX, rdn=None)
+    group = groups.create(properties={
+        'cn': 'replace_no_spurious_group',
+        'member': [user_objs['alpha'].dn, user_objs['delta'].dn],
+    })
+    group_dn_l = group.dn.lower()
+    time.sleep(delay)
+
+    for shared in ('alpha', 'delta'):
+        assert group_dn_l in user_objs[shared].get_attr_vals_utf8_l('memberOf'), \
+            'pre-replace: %s missing memberOf %s' % (shared, group.dn)
+
+    usn_before = {
+        name: user_objs[name].get_attr_val_int('entryusn')
+        for name in user_names
+    }
+
+    group.replace('member', [user_objs[n].dn for n in user_names])
+    time.sleep(delay)
+
+    for name in user_names:
+        assert group_dn_l in user_objs[name].get_attr_vals_utf8_l('memberOf'), \
+            'post-replace: %s missing memberOf %s' % (name, group.dn)
+
+    usn_after = {
+        name: user_objs[name].get_attr_val_int('entryusn')
+        for name in user_names
+    }
+
+    for shared in ('alpha', 'delta'):
+        assert usn_after[shared] == usn_before[shared], (
+            '%s was modified (entryUSN %d -> %d) but it was already a '
+            'member before the replace and is still a member after'
+            % (shared, usn_before[shared], usn_after[shared]))
+
+    for added in ('beta', 'charlie'):
+        assert usn_after[added] > usn_before[added], (
+            '%s was not modified (entryUSN %d -> %d) but should have '
+            'gained memberOf' % (added, usn_before[added], usn_after[added]))
 
 
 if __name__ == '__main__':

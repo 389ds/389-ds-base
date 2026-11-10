@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 from lib389._mapped_object import DSLdapObject
 from lib389.idm.group import Group
 from lib389._constants import DEFAULT_SUFFIX

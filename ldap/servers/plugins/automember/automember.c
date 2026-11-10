@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2022 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1755,13 +1755,13 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
         }
 
         mod_pb = slapi_pblock_new();
-        slapi_modify_internal_set_pb(mod_pb, group_dn,
-                                     mods, 0, 0, automember_get_plugin_id(), 0);
-        slapi_modify_internal_pb(mod_pb);
-        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
-
+        /* Do a single mod with error overrides for DEL/ADD */
+        Slapi_DN *sdn = slapi_sdn_new_normdn_byref(group_dn);
+        result = slapi_single_modify_internal_override(mod_pb, sdn, mods,
+                                                       automember_get_plugin_id(), 0);
+        slapi_sdn_free(&sdn);
         if(add){
-            if ((result != LDAP_SUCCESS) && (result != LDAP_TYPE_OR_VALUE_EXISTS)) {
+            if (result != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                               "automember_update_member_value - Unable to add \"%s\" as "
                               "a \"%s\" value to group \"%s\" (%s).\n",
@@ -1771,7 +1771,7 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
             }
         } else {
             /* delete value */
-            if ((result != LDAP_SUCCESS) && (result != LDAP_NO_SUCH_ATTRIBUTE)) {
+            if (result != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                               "automember_update_member_value - Unable to delete \"%s\" as "
                               "a \"%s\" value from group \"%s\" (%s).\n",
@@ -2301,6 +2301,7 @@ automember_task_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __at
 void
 automember_task_abort_thread(void *arg)
 {
+    slapi_set_thread_name("automem-abort");
     Slapi_Task *task = (Slapi_Task *)arg;
 
     slapi_task_inc_refcount(task);
@@ -2457,6 +2458,7 @@ out:
 void
 automember_rebuild_task_thread(void *arg)
 {
+    slapi_set_thread_name("automem-rebld");
     Slapi_Task *task = (Slapi_Task *)arg;
     struct configEntry *config = NULL;
     Slapi_PBlock *search_pb = NULL;
@@ -2760,6 +2762,7 @@ out:
 void
 automember_export_task_thread(void *arg)
 {
+    slapi_set_thread_name("automem-exprt");
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_PBlock *search_pb = NULL;
     Slapi_Entry **entries = NULL;
@@ -2950,6 +2953,7 @@ out:
 void
 automember_map_task_thread(void *arg)
 {
+    slapi_set_thread_name("automem-map");
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_Entry *e = NULL;
     int result = SLAPI_DSE_CALLBACK_OK;

@@ -13,7 +13,7 @@ import logging
 import pytest
 import ldap
 
-from lib389.topologies import topology_st as topology
+from test389.topologies import topology_st as topology
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.schema import Schema
 

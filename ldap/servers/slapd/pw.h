@@ -40,6 +40,8 @@ void delete_passwdPolicy(struct passwordpolicyarray **pwpolicy);
 int check_pw_duration_value(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
 int check_pw_resetfailurecount_value(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
 int check_pw_storagescheme_value(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
+/* Passwordpolicy attr validation for ADD and MODIFY */
+int check_pw_policy_attrs(Slapi_Entry *e, LDAPMod **mods, char *errorbuf, size_t ebuflen);
 
 int pw_is_pwp_admin(Slapi_PBlock *pb, struct passwordpolicyarray *pwp, int rootdn_flag);
 #define PWP_ADMIN_OR_ROOTDN 0

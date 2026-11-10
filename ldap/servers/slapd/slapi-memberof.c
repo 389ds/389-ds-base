@@ -91,7 +91,7 @@ static int  sm_memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 static void sm_report_error_msg(Slapi_MemberOfConfig *config, char* msg);
 static int  sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn,
                                 Slapi_ValueSet *groupvals, Slapi_ValueSet *nsuniqueidvals);
-static PRBool sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool all_backends, 
+static PRBool sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool all_backends,
                                          PRBool skip_nested, Slapi_DN **include_scope, Slapi_DN **exclude_scope, PRBool enabled_only);
 static void sm_add_ancestors_cbdata(sm_memberof_cached_value *ancestors, void *callback_data);
 static int  sm_memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn, Slapi_MemberOfConfig *config, char **types,
@@ -388,7 +388,6 @@ sm_merge_ancestors(Slapi_Value **member_ndn_val, sm_memberof_get_groups_data *v1
     Slapi_ValueSet *v2_group_norm_vals = *((sm_memberof_get_groups_data *) v2)->group_norm_vals;
     Slapi_ValueSet *v1_nsuniqueidvals = *((sm_memberof_get_groups_data *) v1)->nsuniqueidvals;
     Slapi_ValueSet *v2_nsuniqueidvals = *((sm_memberof_get_groups_data *) v2)->nsuniqueidvals;
-    int merged_cnt = 0;
 
     hint = slapi_valueset_first_value(v1_groupvals, &sval);
     hint_nsuniqueid = slapi_valueset_first_value(v1_nsuniqueidvals, &sval_2);
@@ -412,7 +411,6 @@ sm_merge_ancestors(Slapi_Value **member_ndn_val, sm_memberof_get_groups_data *v1
                     slapi_valueset_add_value_ext(v2_groupvals, sval_dn, SLAPI_VALUE_FLAG_PASSIN);
                     slapi_valueset_add_value_ext(v2_group_norm_vals, sval_ndn, SLAPI_VALUE_FLAG_PASSIN);
                     slapi_valueset_add_value_ext(v2_nsuniqueidvals, sval_nsuniqueid, SLAPI_VALUE_FLAG_PASSIN);
-                    merged_cnt++;
                 } else {
                     /* This ancestor was already present, free sval_ndn/sval_dn that will not be consumed */
 #if MEMBEROF_CACHE_DEBUG
@@ -746,7 +744,6 @@ sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_Va
                           "sm_entry_get_groups - Failed to retrieve target entry %s: %d\n",
                           slapi_sdn_get_ndn(group_sdn), rc);
             slapi_sdn_free(&group_sdn);
-            slapi_ch_array_free(groups_dn);
             rc = -1;
             goto common;
         }
@@ -766,7 +763,6 @@ sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_Va
         /* add its dn to the valuset */
         sval = slapi_value_new_string(slapi_sdn_get_ndn(group_sdn));
         slapi_valueset_add_value_ext(groupvals, sval, SLAPI_VALUE_FLAG_PASSIN);
-
 
         slapi_sdn_free(&group_sdn);
         slapi_search_get_entry_done(&group_pb);

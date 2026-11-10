@@ -11,7 +11,7 @@ import pytest
 import time
 import shutil
 from lib389.idm.account import Accounts, Account
-from lib389.topologies import topology_i2 as topology
+from test389.topologies import topology_i2 as topology
 from lib389.backend import Backends
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.plugins import ChainingBackendPlugin

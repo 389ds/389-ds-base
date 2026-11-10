@@ -57,6 +57,24 @@ ldbm_nasty(const char *func, const char *str, int c, int err)
     }
 }
 
+/* Backoff before retrying a DBI_RC_RETRY fetch: exponential with jitter,
+ * capped at 200ms */
+void
+ldbm_fetch_retry_sleep(int retry_count)
+{
+    PRUint32 backoff_ms = 10;
+    int i;
+
+    for (i = 0; i < retry_count && backoff_ms < 200; i++) {
+        backoff_ms *= 2;
+    }
+    if (backoff_ms > 200) {
+        backoff_ms = 200;
+    }
+    backoff_ms += slapi_rand() % (backoff_ms + 1);
+    DS_Sleep(PR_MillisecondsToInterval(backoff_ms));
+}
+
 /* Put a message in the access log, complete with connection ID and operation ID */
 void
 ldbm_log_access_message(Slapi_PBlock *pblock, char *string)
@@ -106,9 +124,19 @@ static const char *systemIndexes[] = {
 
 
 int
+ldbm_index_entrydn_should_ignore(const char *index_name)
+{
+    /* entryrdn is always enabled; leftover entrydn indexes must be ignored */
+    return index_name && (0 == strcasecmp(index_name, LDBM_ENTRYDN_STR));
+}
+
+int
 ldbm_attribute_always_indexed(const char *attrtype)
 {
     int r = 0;
+    if (ldbm_index_entrydn_should_ignore(attrtype)) {
+        return 0;
+    }
     if (NULL != attrtype) {
         int i = 0;
         while (!r && systemIndexes[i] != NULL) {
@@ -329,7 +357,7 @@ ldbm_txn_ruv_modify_context(Slapi_PBlock *pb, modify_context *mc)
     Slapi_Mods *smods = NULL;
     struct backentry *bentry;
     entry_address bentry_addr;
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock *, char **, Slapi_Mods **) = NULL;
     int rc = 0;
     back_txn txn = {NULL};
 
@@ -450,7 +478,10 @@ get_value_from_string(const char *string, char *type, char **value)
             rc = -1; /* set non-0 to rc */
             goto bail;
         }
-        if (0 != PL_strncasecmp(type, tmptype.bv_val, tmptype.bv_len)) {
+        /* Compare the base type name only, ignoring any CSN state info suffix:
+           "dsEntryDN;vucsn-..." should match "dsEntryDN"
+         */
+        if (0 != PL_strncasecmp(type, tmptype.bv_val, typelen)) {
             slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string",
                           "type does not match: %s != %s\n", type, tmptype.bv_val);
             if (freeval) {
@@ -572,6 +603,12 @@ normalize_dir(char *dir)
         return;
     }
     l = strlen(dir);
+    if (0 == l) {
+        /* dir + l - 1 would point before the string, and the loop condition
+         * dereferences p before testing (p > dir), so the byte before the
+         * allocation would be read. */
+        return;
+    }
 
     for (p = dir + l - 1; p && *p && (p > dir); p--) {
         if ((' ' != *p) && ('\t' != *p) && ('/' != *p) && ('\\' != *p)) {
@@ -579,4 +616,25 @@ normalize_dir(char *dir)
         }
     }
     *(p + 1) = '\0';
+}
+
+char *
+convert_bytes_to_str(double value, char *buffer, int level)
+{
+    const char *unit[10] = {
+        "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
+    };
+
+    PR_ASSERT(level < 10);
+    if (level > 9) {
+        return "<value exceeded limits>";
+    }
+
+    if (value > 1024) {
+        double next_val = value / 1024;
+        convert_bytes_to_str(next_val, buffer, ++level);
+    } else {
+        sprintf(buffer, "%.1f %s", value, unit[level]);
+    }
+    return buffer;
 }

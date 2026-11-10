@@ -11,7 +11,7 @@ Still, it is better if you'll use the 'create_topology' method for basic initial
 
   ::
 
-    from lib389.topologies import create_topology
+    from test389.topologies import create_topology
 
     topology = create_topology({ReplicaRole.SUPPLIER: 2,
                                 ReplicaRole.CONSUMER: 2})

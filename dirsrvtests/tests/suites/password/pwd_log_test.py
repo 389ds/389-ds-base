@@ -10,7 +10,7 @@
 import logging
 import pytest
 from lib389.tasks import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389._constants import DEFAULT_SUFFIX
 

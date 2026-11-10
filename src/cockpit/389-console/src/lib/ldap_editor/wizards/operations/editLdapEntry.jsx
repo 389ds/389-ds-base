@@ -143,7 +143,9 @@ class EditLdapEntry extends React.Component {
                         result.output = _("Successfully modified entry");
                     }
                     this.setState({
-                        commandOutput: result.errorCode === 0 ? _("Successfully modified entry!") : _("Failed to modify entry, error: ") + result.errorCode,
+                        commandOutput: result.errorCode === 0 ?
+                            _("Successfully modified entry!") :
+                            _("Failed to modify entry: ") + result.output,
                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                         modifying: false,
                     }, () => { this.state.localProps.onReload() }); // refreshes tableView
@@ -1195,8 +1197,8 @@ class EditLdapEntry extends React.Component {
                 onSelect={this.handleAttrDropDownSelect}
                 position="left"
                 toggle={
-                    <BadgeToggle 
-                        id="toggle-attr-select" 
+                    <BadgeToggle
+                        id="toggle-attr-select"
                         onToggle={this.handleAttrDropDownToggle}
                     >
                         {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
@@ -1280,7 +1282,7 @@ class EditLdapEntry extends React.Component {
                                             }}
                                         />
                                         {row.cells.map((cell, cellIndex) => (
-                                            <Td 
+                                            <Td
                                                 key={`${rowIndex}_${cellIndex}`}
                                                 dataLabel={columnsOc[cellIndex]?.title || columnsOc[cellIndex]}
                                             >
@@ -1329,8 +1331,8 @@ class EditLdapEntry extends React.Component {
                         />
                     </GridItem>
                 </Grid>
-                <Table 
-                    aria-label="Pagination Attributes" 
+                <Table
+                    aria-label="Pagination Attributes"
                     variant="compact"
                     className="ds-margin-top"
                 >
@@ -1357,7 +1359,7 @@ class EditLdapEntry extends React.Component {
                                     }}
                                 />
                                 {row.cells.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={`${rowIndex}_${cellIndex}`}
                                         dataLabel={columnsAttr[cellIndex]?.title || columnsAttr[cellIndex]}
                                     >
@@ -1394,7 +1396,7 @@ class EditLdapEntry extends React.Component {
         );
 
         const ldifListItems = cleanLdifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={(typeof line === 'string' || line instanceof String) && line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={(typeof line === 'string' || line instanceof String) && line.startsWith('dn: ')}>
                 {(typeof line === 'string' || line instanceof String)
                     ? line.length < 1000
                         ? line
@@ -1514,10 +1516,10 @@ class EditLdapEntry extends React.Component {
                                     {row.cells.map((cell, cellIndex) => (
                                         <React.Fragment key={cellIndex}>
                                             <Td>
-                                                {cell.title ? 
+                                                {cell.title ?
                                                     // For cells with React element content
                                                     cell.title.props.children
-                                                    : 
+                                                    :
                                                     // For simple string cells
                                                     cell
                                                 }
@@ -1545,7 +1547,7 @@ class EditLdapEntry extends React.Component {
                 component: entryReviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached > 6,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.modifying
             }
         ];

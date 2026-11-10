@@ -67,6 +67,24 @@ def _gen_filter(attrtypes, values, extra=None):
     return filt
 
 
+def _normalise_attrs(attrs_dict):
+    result = {}
+
+    for k, v in attrs_dict.items():
+        key = k.lower()
+        # v is always a list
+        values = v
+        normalised = []
+        for x in values:
+            # Handle DN valued attributes
+            if is_a_dn(x):
+                x = ldap.dn.dn2str(ldap.dn.str2dn(x))
+            normalised.append(ensure_str(x))
+        result[key] = normalised
+
+    return result
+
+
 # Define wrappers around the ldap operation to have a clear diagnostic
 def _ldap_op_s(inst, f, fname, *args, **kwargs):
     # f.__name__ says 'inner' so the wanted name is provided as argument
@@ -121,6 +139,11 @@ class DSLdapObject(DSLogging, DSLint):
     :type dn: str
     """
 
+    # Outcome results for ensure_state operations
+    ENSURE_ADDED = "added"
+    ENSURE_UPDATED = "updated"
+    ENSURE_UNCHANGED= "unchanged"
+
     # TODO: Automatically create objects when they are requested to have properties added
     def __init__(self, instance, dn=None):
         self._instance = instance
@@ -135,18 +158,36 @@ class DSLdapObject(DSLogging, DSLint):
         self._create_objectclasses = []
         self._rdn_attribute = None
         self._must_attributes = None
-        # attributes, we don't want to compare
-        self._compare_exclude = ['entryid', 'modifytimestamp', 'nsuniqueid']
+        # Backend-generated attributes that are local to an instance.
+        self._compare_exclude = ['entryid', 'modifytimestamp', 'nsuniqueid', 'parentid',
+                                 'numsubordinates', 'hassubordinates', 'tombstonenumsubordinates']
         self._server_controls = None
         self._client_controls = None
         self._object_filter = '(objectClass=*)'
+        self._ensure_status = self.ENSURE_UNCHANGED
 
     def __unicode__(self):
         val = self._dn
         if self._rdn_attribute:
             # What if the rdn is multi value and we don't get the primary .... ARGHHH
-            val = self.get_attr_val(self._rdn_attribute)
+            # TODO: https://github.com/389ds/389-ds-base/issues/3329
+            val = self.get_rdn_from_dn()
         return ensure_str(val)
+
+    def get_rdn_from_dn(self, dn=None):
+        """Extract the RDN value from a DN.
+
+        :param dn: DN to extract RDN from, defaults to this object's DN
+        :type dn: str
+        :returns: The RDN value
+        :rtype: str
+        """
+        if dn is None:
+            dn = self._dn
+
+        rdn_components = ldap.dn.str2dn(dn)[0]
+        rdn_value = rdn_components[0][1]
+        return rdn_value
 
     def __str__(self):
         return self.__unicode__()
@@ -184,7 +225,7 @@ class DSLdapObject(DSLogging, DSLint):
         if scope == 'base':
             search_scope = ldap.SCOPE_BASE
         elif scope == 'one':
-            search_scope = ldap.SCOPE_ONE
+            search_scope = ldap.SCOPE_ONELEVEL
         elif scope == 'subtree':
             search_scope = ldap.SCOPE_SUBTREE
         return _search_ext_s(self._instance,self._dn, search_scope, filter,
@@ -264,7 +305,8 @@ class DSLdapObject(DSLogging, DSLint):
         """
 
         # How can we be sure this returns the primary one?
-        return ensure_str(self.get_attr_val(self._rdn_attribute))
+        # TODO: https://github.com/389ds/389-ds-base/issues/3329
+        return ensure_str(self.get_rdn_from_dn())
 
     def get_basedn(self):
         """Get the suffix this entry belongs to
@@ -301,7 +343,7 @@ class DSLdapObject(DSLogging, DSLint):
         if value is None:
             # We are just checking if SOMETHING is present ....
             return len(values) > 0
-        
+
         # Otherwise, we are checking a specific value
         if is_a_dn(value):
             normalized_value = normalizeDN(value)
@@ -450,6 +492,10 @@ class DSLdapObject(DSLogging, DSLint):
         """
         if self.present(attr, value):
             self.remove(attr, value)
+
+    @property
+    def ensure_status(self):
+        return self._ensure_status
 
     def ensure_attr_state(self, state):
         """
@@ -606,8 +652,10 @@ class DSLdapObject(DSLogging, DSLint):
 
         This comparison is a loose comparison, not a strict one i.e. "this object *is* this other object"
         It will just check if the attributes are same.
-        'nsUniqueId' attribute is not checked intentionally because we want to compare arbitrary objects
-        i.e they may have different 'nsUniqueId' but same attributes.
+        Instance-local operational attributes like 'nsUniqueId', 'entryid',
+        and 'parentid' are not checked intentionally because we want to
+        compare arbitrary objects, i.e they may have different internal
+        database identity but same attributes.
 
         Example::
 
@@ -966,7 +1014,7 @@ class DSLdapObject(DSLogging, DSLint):
                 if properties.get(attr, None) is None:
                     # Put RDN to properties
                     if attr == self._rdn_attribute and rdn is not None:
-                        properties[self._rdn_attribute] = ldap.dn.str2dn(rdn)[0][0][1]
+                        properties[self._rdn_attribute] = self.get_rdn_from_dn(rdn)
                     else:
                         raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
 
@@ -1019,7 +1067,7 @@ class DSLdapObject(DSLogging, DSLint):
         # Do we need to do extra dn validation here?
         return (tdn, str_props)
 
-    def _create(self, rdn=None, properties=None, basedn=None, ensure=False):
+    def _create(self, rdn=None, properties=None, basedn=None, ensure=False, strict=False):
         """Internal implementation of create. This is used by ensure
         and create, to prevent code duplication. You should *never* call
         this method directly.
@@ -1047,11 +1095,52 @@ class DSLdapObject(DSLogging, DSLint):
             # update properties
             self._log.debug('Exists %s' % dn)
             self._dn = dn
-            # Now use replace_many to setup our values
-            mods = []
-            for k, v in list(valid_props.items()):
-                mods.append((ldap.MOD_REPLACE, k, v))
-            _modify_ext_s(self._instance,self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
+
+            # Non strict mode, replace all attributes
+            if not strict:
+                # Now use replace_many to setup our values
+                mods = []
+                for k, v in list(valid_props.items()):
+                    mods.append((ldap.MOD_REPLACE, k, v))
+                _modify_ext_s(self._instance,self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
+
+                self._ensure_status = self.ENSURE_UPDATED
+                return self
+            # Strict mode, compare and update only the differences
+            else:
+                # Get existing attributes
+                current_attrs = _normalise_attrs(self.get_all_attrs_utf8())
+
+                # Get requested attributes
+                requested_attrs = _normalise_attrs(valid_props)
+
+                # Remove operational attributes
+                for attr in self._compare_exclude:
+                    current_attrs.pop(attr, None)
+
+                # Compare current with requested
+                matches = True
+                mods = []
+                for k, v in requested_attrs.items():
+                    current_val = current_attrs.get(k, [])
+                    if set(current_val) != set(v):
+                        matches = False
+                        mods.append((ldap.MOD_REPLACE, k, ensure_list_bytes(v)))
+
+                # Its a match, nothing to do
+                if matches:
+                    self._ensure_status = self.ENSURE_UNCHANGED
+                    return self
+
+                if mods:
+                    _modify_ext_s(self._instance, self._dn, mods,
+                                serverctrls=self._server_controls,
+                                clientctrls=self._client_controls,
+                                escapehatch='i am sure')
+                    self._ensure_status = self.ENSURE_UPDATED
+
+                return self
+
         elif not exists:
             # This case is reached in two cases. One is we are in ensure mode, and we KNOW the entry
             # doesn't exist.
@@ -1068,12 +1157,13 @@ class DSLdapObject(DSLogging, DSLint):
             # we may not have a self reference yet (just created), it may have changed (someone
             # set dn, but validate altered it).
             self._dn = dn
+            self._ensure_status = self.ENSURE_ADDED
+            return self
         else:
             # This case can't be reached now that we only check existance on ensure.
             # However, it's good to keep it for "complete" behaviour, exhausting all states.
             # We could highlight bugs ;)
             raise AssertionError("Impossible State Reached in _create")
-        return self
 
     def create(self, rdn=None, properties=None, basedn=None):
         """Add a new entry
@@ -1089,7 +1179,7 @@ class DSLdapObject(DSLogging, DSLint):
         """
         return self._create(rdn, properties, basedn, ensure=False)
 
-    def ensure_state(self, rdn=None, properties=None, basedn=None):
+    def ensure_state(self, rdn=None, properties=None, basedn=None, strict=False):
         """Ensure an entry exists with the following state, created
         if necessary.
 
@@ -1102,7 +1192,7 @@ class DSLdapObject(DSLogging, DSLint):
 
         :returns: DSLdapObject of the created entry
         """
-        return self._create(rdn, properties, basedn, ensure=True)
+        return self._create(rdn, properties, basedn, ensure=True, strict=strict)
 
 
 # A challenge of this, is how do we manage indexes? They have two naming attributes....
@@ -1151,17 +1241,22 @@ class DSLdapObjects(DSLogging, DSLints):
         # functions with very little work on the behalf of the overloader
         return self._childobject(instance=self._instance, dn=dn)
 
-    def list(self, paged_search=None, paged_critical=True):
-        """Get a list of children entries (DSLdapObject, Replica, etc.) using a base DN
-        and objectClasses of our object (DSLdapObjects, Replicas, etc.)
+    def list(self, paged_search=None, paged_critical=True, full_dn=False):
+        """Get a list of children entries (DSLdapObject, Replica, etc.) using
+        a base DN and objectClasses of our object (DSLdapObjects, Replicas,
+        etc.)
 
-        :param paged_search: None for no paged search, or an int of page size to use.
+        :param paged_search: None for no paged search, or an int of page size
+                             to use.
+        :param paged_critical: pages search is critical
+        :param full_dn: Return a list of DN's instead of objects
         :returns: A list of children entries
         """
 
         # Filter based on the objectclasses and the basedn
         insts = None
-        # This will yield and & filter for objectClass with as many terms as needed.
+        # This will yield an & filter for objectClass with as many terms as
+        # needed.
         filterstr = self._get_objectclass_filter()
         self._log.debug('list filter = %s' % filterstr)
 
@@ -1171,7 +1266,9 @@ class DSLdapObjects(DSLogging, DSLints):
             results = []
             pages = 0
             pctrls = []
-            req_pr_ctrl = SimplePagedResultsControl(paged_critical, size=paged_search, cookie='')
+            req_pr_ctrl = SimplePagedResultsControl(paged_critical,
+                                                    size=paged_search,
+                                                    cookie='')
             if self._server_controls is not None:
                 controls = [req_pr_ctrl] + self._server_controls
             else:
@@ -1187,12 +1284,12 @@ class DSLdapObjects(DSLogging, DSLints):
                         escapehatch='i am sure'
                     )
                 self._log.info('Getting page %d' % (pages,))
-                rtype, rdata, rmsgid, rctrls = self._instance.result3(msgid, escapehatch='i am sure')
+                rtype, rdata, rmsgid, rctrls = self._instance.result3(msgid,
+                                                                      escapehatch='i am sure')
                 results.extend(rdata)
                 pages += 1
                 self._log.debug("%s" % rctrls)
-                pctrls = [ c for c in rctrls
-                    if c.controlType == SimplePagedResultsControl.controlType]
+                pctrls = [c for c in rctrls if c.controlType == SimplePagedResultsControl.controlType]
                 if pctrls and pctrls[0].cookie:
                     req_pr_ctrl.cookie = pctrls[0].cookie
                     if self._server_controls is not None:
@@ -1201,26 +1298,32 @@ class DSLdapObjects(DSLogging, DSLints):
                         controls = [req_pr_ctrl]
                 else:
                     break
-                #End while
+                # End while
             # Result3 doesn't map through Entry, so we have to do it manually.
             results = [Entry(r) for r in results]
-            insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
+            if full_dn:
+                insts = [r.dn for r in results]
+            else:
+                insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
             # End paged search
         else:
             # If not paged
             try:
                 results = _search_ext_s(self._instance,
-                    base=self._basedn,
-                    scope=self._scope,
-                    filterstr=filterstr,
-                    attrlist=self._list_attrlist,
-                    serverctrls=self._server_controls, clientctrls=self._client_controls,
-                    escapehatch='i am sure'
-                )
-                # def __init__(self, instance, dn=None):
-                insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
+                                        base=self._basedn,
+                                        scope=self._scope,
+                                        filterstr=filterstr,
+                                        attrlist=self._list_attrlist,
+                                        serverctrls=self._server_controls,
+                                        clientctrls=self._client_controls,
+                                        escapehatch='i am sure')
+                if full_dn:
+                    insts = [r.dn for r in results]
+                else:
+                    insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
             except ldap.NO_SUCH_OBJECT:
-                # There are no objects to select from, se we return an empty array
+                # There are no objects to select from, se we return an empty
+                # array
                 insts = []
         return insts
 
@@ -1270,7 +1373,10 @@ class DSLdapObjects(DSLogging, DSLints):
         if len(results) == 0:
             raise ldap.NO_SUCH_OBJECT(f"No object exists given the filter criteria: {criteria} {search_filter}")
         if len(results) > 1:
-            raise ldap.UNWILLING_TO_PERFORM(f"Too many objects matched selection criteria: {criteria} {search_filter}")
+            entry_dn = [e.dn for e in results]
+            entry_dns_pretty = '\n    '.join(entry_dn)
+            raise ldap.UNWILLING_TO_PERFORM(f"Too many objects matched selection criteria: {criteria} {search_filter}"
+                                            f" - Please use 'get-by-dn' to specify which entry to get:\n    {entry_dns_pretty}")
         if json:
             return self._entry_to_instance(results[0].dn, results[0]).get_all_attrs_json()
         else:
@@ -1336,7 +1442,7 @@ class DSLdapObjects(DSLogging, DSLints):
         # Now actually commit the creation req
         return co.create(rdn, properties, self._basedn)
 
-    def ensure_state(self, rdn=None, properties=None):
+    def ensure_state(self, rdn=None, properties=None, strict=False):
         """Create an object under base DN of our entry, or
         assert it exists and update it's properties.
 
@@ -1356,7 +1462,7 @@ class DSLdapObjects(DSLogging, DSLints):
         self._rdn_attribute = co._rdn_attribute
         (rdn, properties) = self._validate(rdn, properties)
         # Now actually commit the creation req
-        return co.ensure_state(rdn, properties, self._basedn)
+        return co.ensure_state(rdn, properties, self._basedn, strict=strict)
 
     def filter(self, search, attrlist=None, scope=None, strict=False):
         # This will yield and & filter for objectClass with as many terms as needed.

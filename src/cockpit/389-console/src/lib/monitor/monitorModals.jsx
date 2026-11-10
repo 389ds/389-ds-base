@@ -3,30 +3,94 @@ import React from "react";
 import {
     Button,
     Checkbox,
+    ClipboardCopy,
+    ClipboardCopyVariant,
+    EmptyState,
+    EmptyStateIcon,
+    EmptyStateBody,
     Grid,
     GridItem,
     Form,
+    Label,
     Modal,
     ModalVariant,
     NumberInput,
     Radio,
     Spinner,
+    Split,
+    SplitItem,
+    Tab,
+    Tabs,
+    TabTitleText,
     TextArea,
     TextInput,
     Text,
     TextContent,
     TextVariants,
+    Title,
     Tooltip,
+    Card,
+    CardBody,
+    Alert,
+    CardTitle,
+    DescriptionList,
+    DescriptionListGroup,
+    DescriptionListTerm,
+    DescriptionListDescription,
+    List,
+    ListItem
 } from "@patternfly/react-core";
 import {
+    ArrowRightIcon,
+    CheckCircleIcon,
     CopyIcon,
+    OutlinedQuestionCircleIcon,
+    DownloadIcon,
+    ServerIcon
 } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
-import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
-import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
+import {
+    ReportSingleTable,
+    ReportConsumersTable,
+    ExistingLagReportsTable
+} from "./monitorTables.jsx";
+import {
+    ExclamationCircleIcon,
+    InfoIcon
+} from "@patternfly/react-icons";
+import {
+    Chart,
+    ChartAxis,
+    ChartGroup,
+    ChartLine,
+    ChartScatter,
+    ChartThemeColor,
+    ChartVoronoiContainer,
+    ChartTooltip
+} from "@patternfly/react-charts";
+import { getResizeObserver } from "@patternfly/react-core";
 
 const _ = cockpit.gettext;
+
+// Cockpit's default file read limit is 16 MiB. Replication reports can easily exceed that,
+// especially when running in "full precision" mode. Allow substantially larger payloads.
+const MAX_REPORT_JSON_SIZE = 64 * 1024 * 1024; // 64 MiB
+const MAX_BINARY_READ_SIZE = 64 * 1024 * 1024; // 64 MiB
+const CSV_PREVIEW_LINES = 20;
+
+const formatLagSeconds = (seconds, precision = 3) => {
+    if (seconds === undefined || seconds === null) {
+        return null;
+    }
+    if (seconds >= 3600) {
+        return `${(seconds / 3600).toFixed(precision)}h`;
+    }
+    if (seconds >= 60) {
+        return `${(seconds / 60).toFixed(precision)}m`;
+    }
+    return `${seconds.toFixed(precision)}s`;
+};
 
 class TaskLogModal extends React.Component {
     render() {
@@ -359,7 +423,7 @@ class ConflictCompareModal extends React.Component {
                             <TextInput
                                 placeholder={_("Enter new RDN here")}
                                 type="text"
-                                onChange={handleChange}
+                                onChange={(_event, value) => handleChange(_event)}
                                 aria-label="new rdn label"
                                 id="convertRDN"
                                 value={orig_rdn}
@@ -383,7 +447,7 @@ class ReportCredentialsModal extends React.Component {
             hostname,
             port,
             binddn,
-            pwInputInterractive,
+            pwInputInteractive,
             bindpw,
             addConfig,
             editConfig,
@@ -408,7 +472,7 @@ class ReportCredentialsModal extends React.Component {
                         onClick={newEntry ? addConfig : editConfig}
                         isDisabled={
                             hostname === "" || binddn === "" ||
-                            (bindpw === "" && !pwInputInterractive)
+                            (bindpw === "" && !pwInputInteractive)
                         }
                     >
                         {_("Save")}
@@ -486,7 +550,7 @@ class ReportCredentialsModal extends React.Component {
                                         id="credsBindpw"
                                         aria-describedby="cachememsize"
                                         name="credsBindpw"
-                                        isDisabled={pwInputInterractive}
+                                        isDisabled={pwInputInteractive}
                                         onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
@@ -495,12 +559,12 @@ class ReportCredentialsModal extends React.Component {
                             </Grid>
                             <Grid title={_("Input the password interactively")}>
                                 <GridItem className="ds-label" span={3}>
-                                    {_("Interractive Input")}
+                                    {_("Interactive Input")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <Checkbox
-                                        isChecked={pwInputInterractive}
-                                        id="pwInputInterractive"
+                                        isChecked={pwInputInteractive}
+                                        id="pwInputInteractive"
                                         onChange={(e, checked) => {
                                             handleFieldChange(e);
                                         }}
@@ -525,7 +589,7 @@ class ReportConnectionModal extends React.Component {
             hostname,
             port,
             binddn,
-            pwInputInterractive,
+            pwInputInteractive,
             bindpw,
             addConn,
             onMinusConfig,
@@ -546,7 +610,7 @@ class ReportConnectionModal extends React.Component {
                         onClick={addConn}
                         isDisabled={
                             name === "" || hostname === "" || port === "" ||
-                            binddn === "" || (bindpw === "" && !pwInputInterractive)
+                            binddn === "" || (bindpw === "" && !pwInputInteractive)
                         }
                     >
                         {_("Save")}
@@ -641,7 +705,7 @@ class ReportConnectionModal extends React.Component {
                                         id="connCred"
                                         aria-describedby="connCred"
                                         name="connCred"
-                                        isDisabled={pwInputInterractive}
+                                        isDisabled={pwInputInteractive}
                                         onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
@@ -650,12 +714,12 @@ class ReportConnectionModal extends React.Component {
                             </Grid>
                             <Grid title={_("Input the password interactively, stores '*' as the password value in .dsrc")}>
                                 <GridItem className="ds-label" span={3}>
-                                    {_("Interractive Input")}
+                                    {_("Interactive Input")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <Checkbox
-                                        isChecked={pwInputInterractive}
-                                        id="pwInputInterractive"
+                                        isChecked={pwInputInteractive}
+                                        id="pwInputInteractive"
                                         onChange={(e, checked) => {
                                             handleFieldChange(e);
                                         }}
@@ -1101,7 +1165,2158 @@ class FullReportContent extends React.Component {
         );
     }
 }
+
+class ScatterLineChart extends React.PureComponent {
+    constructor(props) {
+        super(props);
+        this.containerRef = React.createRef();
+        this.observer = () => {};
+        this.state = {
+            width: 0,
+            showLegend: this.props.defaultShowLegend !== false,
+            hiddenSeries: {}
+        };
+        this._resizeTimer = null;
+        this._seriesCache = null;
+        this.handleResize = () => {
+            if (this._resizeTimer) {
+                clearTimeout(this._resizeTimer);
+            }
+            this._resizeTimer = setTimeout(() => {
+                if (this.containerRef.current && this.containerRef.current.clientWidth) {
+                    this.setState({ width: this.containerRef.current.clientWidth });
+                }
+            }, 250);
+        };
+        this.toggleLegendItem = this.toggleLegendItem.bind(this);
+        this.handlePointClick = this.handlePointClick.bind(this);
+    }
+
+    handlePointClick(datum, seriesIndex) {
+        if (this.props.onPointClick && datum.csnId) {
+            this.props.onPointClick(datum);
+        }
+    }
+
+    componentDidMount() {
+        this.observer = getResizeObserver(this.containerRef.current, this.handleResize);
+        this.handleResize();
+    }
+
+    componentWillUnmount() {
+        this.observer();
+        if (this._resizeTimer) {
+            clearTimeout(this._resizeTimer);
+            this._resizeTimer = null;
+        }
+    }
+
+    toggleLegendItem(idx) {
+        this.setState((prev) => ({
+            hiddenSeries: { ...prev.hiddenSeries, [idx]: !prev.hiddenSeries[idx] }
+        }));
+    }
+
+    _getSeriesSnapshot() {
+        const { chartData, minY, maxY } = this.props;
+        const cache = this._seriesCache;
+        if (cache && cache.chartData === chartData && cache.minY === minY && cache.maxY === maxY) {
+            return cache;
+        }
+
+        const baseSeries = Array.isArray(chartData?.series) ? chartData.series : [];
+        const processedSeries = baseSeries.map(series => {
+            const datapoints = (series.datapoints || [])
+                .map(dp => {
+                    const parsed = new Date(dp.x);
+                    if (isNaN(parsed.getTime())) {
+                        console.warn('Omitting invalid date value in chart data:', dp.x);
+                        return null;
+                    }
+                    return { ...dp, x: parsed, name: dp.name };
+                })
+                .filter(dp => dp !== null);
+            return { ...series, datapoints };
+        });
+
+        const allYValues = [];
+        processedSeries.forEach(s => s.datapoints.forEach(dp => allYValues.push(dp.y)));
+
+        const computedMin = minY != null
+            ? minY
+            : (allYValues.length ? Math.max(0, Math.min(...allYValues) * 0.9) : 0);
+        const computedMax = maxY != null
+            ? maxY
+            : (allYValues.length ? Math.max(...allYValues) * 1.1 : 10);
+
+        const snapshot = {
+            chartData,
+            minY,
+            maxY,
+            series: processedSeries,
+            yDomain: { min: computedMin, max: computedMax }
+        };
+        this._seriesCache = snapshot;
+        return snapshot;
+    }
+
+    render() {
+        const { width } = this.state;
+        const { chartData, title, yAxisLabel, xAxisLabel } = this.props;
+
+        // If no data is available, show a message
+        if (!chartData || !chartData.series || chartData.series.length === 0) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon="info" />
+                    <Title headingLevel="h2" size="lg">
+                        {_("No data available")}
+                    </Title>
+                    <EmptyStateBody>
+                        {_("There is no data available for this chart.")}
+                    </EmptyStateBody>
+                </EmptyState>
+            );
+        }
+
+        // Don't render the chart until we have a valid width
+        if (!width || width <= 0) {
+            return (
+                <div ref={this.containerRef} style={{ height: '400px' }}>
+                    <div className="ds-center">
+                        <Spinner size="lg" />
+                        <p className="ds-margin-top">{_("Preparing chart...")}</p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Process dates to ensure proper formatting for the chart
+        const { series, yDomain } = this._getSeriesSnapshot();
+
+        // Helper function to format time values
+        const formatTimeValue = (seconds) => formatLagSeconds(seconds, 3);
+
+        // Process tooltip HTML tags
+        const formatTooltip = (datum) => {
+            if (datum.childName && datum.childName.includes('line-')) {
+                // Replace <br> tags with actual line breaks for tooltip display
+                if (datum.hoverInfo) {
+                    // Split the hoverInfo by <br> tags and join with newlines
+                    return datum.hoverInfo.split(/<br\s*\/?>/i).join('\n');
+                }
+                return `${datum.name}: ${formatTimeValue(datum.y)}`;
+            }
+            return null;
+        };
+
+        // Ensure we never have negative width or height to avoid SVG rendering errors
+        const safeWidth = Math.max(width, 10);
+        const safeHeight = 400;
+
+        // Count visible series for the legend toggle button badge
+        const visibleSeriesCount = series.filter((s, idx) => !this.state.hiddenSeries[idx]).length;
+
+        return (
+            <div ref={this.containerRef}>
+                <div style={{ height: safeHeight + 'px' }}>
+                    <Chart
+                        ariaDesc={title || "Replication data chart"}
+                        ariaTitle={title || "Replication data chart"}
+                        containerComponent={
+                            <ChartVoronoiContainer
+                                labels={({ datum }) => formatTooltip(datum)}
+                                constrainToVisibleArea
+                                labelComponent={
+                                <ChartTooltip
+                                    orientation={({ datum }) => {
+                                        // Position tooltip below for high points, above for low points
+                                        // This prevents the tooltip from blocking clicks on points near the top
+                                        const yMax = yDomain.max;
+                                        const yMin = yDomain.min;
+                                        const yRange = yMax - yMin;
+                                        const threshold = yMin + (yRange * 0.6);
+                                        return datum.y > threshold ? "bottom" : "top";
+                                    }}
+                                    style={{
+                                        fontSize: "12px",
+                                        padding: 10,
+                                        whiteSpace: "pre-line", // Important for newlines
+                                        pointerEvents: "none"
+                                    }}
+                                    flyoutStyle={{
+                                        pointerEvents: "none"
+                                    }}
+                                    dx={0}
+                                    dy={({ datum }) => {
+                                        // Add extra offset to keep tooltip away from the point
+                                        const yMax = yDomain.max;
+                                        const yMin = yDomain.min;
+                                        const yRange = yMax - yMin;
+                                        const threshold = yMin + (yRange * 0.6);
+                                        return datum.y > threshold ? 10 : -10;
+                                    }}
+                                />
+                                }
+                            />
+                        }
+                        height={safeHeight}
+                        maxDomain={{ y: yDomain.max }}
+                        minDomain={{ y: yDomain.min }}
+                        padding={{
+                            bottom: 75,
+                            left: 90,
+                            right: 50,
+                            top: 50
+                        }}
+                        themeColor={ChartThemeColor.blue}
+                        width={safeWidth}
+                        scale={{ x: 'time' }}
+                        style={{
+                            background: { fill: "var(--pf-v5-global--BackgroundColor--100, #f9f9f9)" },
+                            axis: {
+                                grid: { stroke: "var(--pf-v5-global--BorderColor--100, #e8e8e8)", strokeWidth: 1 },
+                                ticks: { stroke: "var(--pf-v5-global--Color--200, #999)", size: 5 }
+                            },
+                            legend: {
+                                labels: {
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
+                                }
+                            }
+                        }}
+                    >
+                        <ChartAxis
+                            label={xAxisLabel || ""}
+                            fixLabelOverlap
+                            tickCount={5}
+                            tickFormat={(t) => {
+                                return new Date(t).toLocaleString(undefined, {
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit',
+                                    hour12: false
+                                });
+                            }}
+                            style={{
+                                axisLabel: {
+                                    fontSize: 14,
+                                    padding: 40,
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
+                                },
+                                tickLabels: {
+                                    fontSize: 12,
+                                    padding: 5,
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
+                                }
+                            }}
+                        />
+                        <ChartAxis
+                            dependentAxis
+                            showGrid
+                            label={yAxisLabel || "Value"}
+                            tickFormat={(t) => {
+                                // Format large values as hours/minutes for better readability
+                                if (t >= 3600) {
+                                    // Show as hours
+                                    const hours = (t / 3600).toFixed(1);
+                                    return `${hours}h`;
+                                } else if (t >= 60) {
+                                    // Show as minutes
+                                    const minutes = (t / 60).toFixed(1);
+                                    return `${minutes}m`;
+                                } else {
+                                    // Show as seconds
+                                    return `${t.toFixed(1)}s`;
+                                }
+                            }}
+                            style={{
+                                axisLabel: {
+                                    fontSize: 14,
+                                    padding: 70,
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
+                                },
+                                tickLabels: {
+                                    fontSize: 12,
+                                    padding: 5,
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
+                                },
+                                grid: {
+                                    stroke: "var(--pf-v5-global--BorderColor--100)"
+                                }
+                            }}
+                        />
+                        <ChartGroup>
+                            {series.map((s, idx) => {
+                                if (this.state.hiddenSeries[idx]) {
+                                    return null;
+                                }
+                                const hasClickHandler = !!this.props.onPointClick;
+                                return (
+                                    <ChartScatter
+                                        key={`scatter-${idx}`}
+                                        name={`scatter-${idx}`}
+                                        data={s.datapoints}
+                                        style={{
+                                            data: {
+                                                fill: s.color,
+                                                cursor: hasClickHandler ? 'pointer' : 'default'
+                                            }
+                                        }}
+                                        events={hasClickHandler ? [{
+                                            target: "data",
+                                            eventHandlers: {
+                                                onClick: () => [{
+                                                    target: "data",
+                                                    mutation: (props) => {
+                                                        this.handlePointClick(props.datum, idx);
+                                                        return null;
+                                                    }
+                                                }],
+                                                onMouseOver: () => [{
+                                                    target: "data",
+                                                    mutation: (props) => ({
+                                                        style: {
+                                                            ...props.style,
+                                                            fill: s.color,
+                                                            cursor: 'pointer',
+                                                            strokeWidth: 2,
+                                                            stroke: 'var(--pf-v5-global--active-color--100, #0066cc)',
+                                                            r: 6
+                                                        }
+                                                    })
+                                                }],
+                                                onMouseOut: () => [{
+                                                    target: "data",
+                                                    mutation: () => null
+                                                }]
+                                            }
+                                        }] : undefined}
+                                    />
+                                );
+                            })}
+                        </ChartGroup>
+                        <ChartGroup>
+                            {series.map((s, idx) => {
+                                if (this.state.hiddenSeries[idx]) {
+                                    return null;
+                                }
+                                return (
+                                    <ChartLine
+                                        key={`line-${idx}`}
+                                        name={`line-${idx}`}
+                                        data={s.datapoints}
+                                        style={{
+                                            data: {
+                                                stroke: s.color,
+                                                strokeWidth: 2,
+                                                strokeDasharray: s.style?.data?.strokeDasharray
+                                            }
+                                        }}
+                                    />
+                                );
+                            })}
+                        </ChartGroup>
+                    </Chart>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                    <Button
+                        variant="link"
+                        aria-pressed={this.state.showLegend}
+                        countOptions={{ isRead: true, count: visibleSeriesCount }}
+                        onClick={() => this.setState({ showLegend: !this.state.showLegend })}
+                    >
+                        {this.state.showLegend ? _("Hide legend") : _("Show legend")}
+                    </Button>
+                </div>
+                {this.state.showLegend && (
+                    <div style={{ marginTop: '4px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--pf-v5-global--spacer--md)' }}>
+                            {series.map((s, idx) => (
+                                <button
+                                    key={`legend-${idx}`}
+                                    type="button"
+                                    aria-pressed={!this.state.hiddenSeries[idx]}
+                                    onClick={() => this.toggleLegendItem(idx)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        opacity: this.state.hiddenSeries[idx] ? 0.4 : 1,
+                                        border: 'none',
+                                        background: 'none',
+                                        padding: 0,
+                                        margin: 0
+                                    }}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        style={{
+                                            display: 'inline-block',
+                                            width: 12,
+                                            height: 12,
+                                            background: s.color,
+                                            marginRight: 8,
+                                            borderRadius: 2
+                                        }}
+                                    />
+                                    <span style={{ color: 'var(--pf-v5-chart-global--label--Fill, currentColor)', fontSize: 14 }}>
+                                        {s.legendItem?.name || s.name || `Series ${idx + 1}`}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+}
+
+/**
+ * CSNDetailModal - Displays detailed CSN propagation path information
+ * Shows the hop-by-hop timing of how a change propagated through the replication topology
+ */
+class CSNDetailModal extends React.Component {
+    constructor(props) {
+        super(props);
+        this.formatTimestamp = this.formatTimestamp.bind(this);
+        this.formatLag = this.formatLag.bind(this);
+    }
+
+    formatTimestamp(isoString) {
+        if (!isoString) return _("Unknown");
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) {
+                console.warn("Invalid timestamp format:", isoString);
+                return cockpit.format(_("Invalid: $0"), isoString);
+            }
+            return date.toLocaleString(undefined, {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                fractionalSecondDigits: 3,
+                hour12: false
+            });
+        } catch (e) {
+            console.warn("Error formatting timestamp:", isoString, e);
+            return cockpit.format(_("Invalid: $0"), isoString);
+        }
+    }
+
+    formatLag(seconds) {
+        return formatLagSeconds(seconds, 3) || _("N/A");
+    }
+
+    render() {
+        const { csnData, onClose } = this.props;
+
+        if (!csnData) {
+            return null;
+        }
+
+        const arrivals = csnData.arrivals || [];
+        const pathJson = JSON.stringify(csnData, null, 2);
+
+        return (
+            <Modal
+                variant={ModalVariant.large}
+                title={_("CSN Propagation Details")}
+                isOpen={!!csnData}
+                onClose={onClose}
+                aria-label={_("CSN propagation details")}
+                actions={[
+                    <Button key="close" variant="primary" onClick={onClose}>
+                        {_("Close")}
+                    </Button>
+                ]}
+            >
+                        {/* CSN Summary Information */}
+                        <Card isFlat className="ds-margin-bottom-md">
+                            <CardBody>
+                                <Grid hasGutter>
+                                    <GridItem span={6}>
+                                        <DescriptionList isHorizontal isCompact>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("CSN")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    <ClipboardCopy
+                                                        variant={ClipboardCopyVariant.inline}
+                                                    >
+                                                        {csnData.csn}
+                                                    </ClipboardCopy>
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Entry DN")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    <Tooltip content={csnData.targetDn}>
+                                                        <span className="pf-v5-u-text-truncate" style={{ maxWidth: '300px', display: 'inline-block' }}>
+                                                            {csnData.targetDn}
+                                                        </span>
+                                                    </Tooltip>
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Suffix")}</DescriptionListTerm>
+                                                <DescriptionListDescription>{csnData.suffix}</DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                        </DescriptionList>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <DescriptionList isHorizontal isCompact>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Origin Server")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    <Label color="blue" icon={<ServerIcon />}>
+                                                        {csnData.originServer}
+                                                    </Label>
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            {csnData.originIncludedInArrivals === false && (
+                                                <DescriptionListGroup>
+                                                    <DescriptionListTerm>{_("Origin Note")}</DescriptionListTerm>
+                                                    <DescriptionListDescription>
+                                                        <Text component={TextVariants.small} style={{ color: 'var(--pf-v5-global--Color--200)' }}>
+                                                            {_("Origin server record is outside the selected time range; entry details reflect the earliest arrival.")}
+                                                        </Text>
+                                                    </DescriptionListDescription>
+                                                </DescriptionListGroup>
+                                            )}
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Total Lag")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    <strong>{this.formatLag(csnData.globalLag)}</strong>
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Servers Reached")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    {csnData.serverCount}
+                                                    {csnData.replicatedToAll && (
+                                                        <Label color="green" icon={<CheckCircleIcon />} className="ds-left-margin">
+                                                            {_("All")}
+                                                        </Label>
+                                                    )}
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                        </DescriptionList>
+                                    </GridItem>
+                                </Grid>
+                            </CardBody>
+                        </Card>
+
+                        {/* Arrival Timeline Visualization */}
+                        <Card isFlat className="ds-margin-bottom-md">
+                            <CardTitle>{_("Arrival Timeline")}</CardTitle>
+                            <CardBody>
+                                <Text
+                                    component={TextVariants.small}
+                                    className="ds-margin-bottom"
+                                    style={{ color: 'var(--pf-v5-global--Color--200)', fontStyle: 'italic' }}
+                                >
+                                    {_("Note: Shows arrival order by time. Actual replication topology may differ in fan-out configurations.")}
+                                </Text>
+                                <div
+                                    role="list"
+                                    aria-label={_("CSN propagation timeline")}
+                                    style={{
+                                        display: 'flex',
+                                        flexWrap: 'wrap',
+                                        alignItems: 'center',
+                                        gap: 'var(--pf-v5-global--spacer--sm)',
+                                        padding: 'var(--pf-v5-global--spacer--sm)'
+                                    }}
+                                >
+                                    {arrivals.map((arrival, idx) => (
+                                        <React.Fragment key={idx}>
+                                            {/* Server Node */}
+                                            <div
+                                                role="listitem"
+                                                aria-label={cockpit.format(
+                                                    arrival.isOrigin
+                                                        ? _("Origin server: $0")
+                                                        : _("Server $0, delay: $1"),
+                                                    arrival.server,
+                                                    arrival.isOrigin ? "" : this.formatLag(arrival.relativeDelay)
+                                                )}
+                                                style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                padding: 'var(--pf-v5-global--spacer--sm)',
+                                                backgroundColor: arrival.isOrigin
+                                                    ? 'var(--pf-v5-global--palette--blue-50, #e7f1fa)'
+                                                    : 'var(--pf-v5-global--BackgroundColor--200, #f0f0f0)',
+                                                borderRadius: 'var(--pf-v5-global--BorderRadius--sm)',
+                                                border: arrival.isOrigin
+                                                    ? '2px solid var(--pf-v5-global--primary-color--100, #0066cc)'
+                                                    : '1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2)',
+                                                minWidth: '120px'
+                                            }}>
+                                                <Text component={TextVariants.small} style={{ fontWeight: 'bold' }}>
+                                                    {arrival.server}
+                                                </Text>
+                                                <Text component={TextVariants.small} style={{ fontSize: '0.75rem', color: 'var(--pf-v5-global--Color--200)' }}>
+                                                    {this.formatTimestamp(arrival.timestamp)}
+                                                </Text>
+                                                {arrival.isOrigin && (
+                                                    <Label color="blue" isCompact style={{ marginTop: '4px' }}>
+                                                        {_("Origin")}
+                                                    </Label>
+                                                )}
+                                                {!arrival.isOrigin && (
+                                                    <Text component={TextVariants.small} style={{ marginTop: '4px', color: 'var(--pf-v5-global--success-color--100)' }}>
+                                                        +{this.formatLag(arrival.relativeDelay)}
+                                                    </Text>
+                                                )}
+                                            </div>
+
+                                            {/* Arrow between nodes */}
+                                            {idx < arrivals.length - 1 && (
+                                                <div
+                                                    role="presentation"
+                                                    aria-hidden="true"
+                                                    style={{
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        padding: '0 var(--pf-v5-global--spacer--xs)'
+                                                    }}
+                                                >
+                                                    <ArrowRightIcon style={{ color: 'var(--pf-v5-global--Color--200)' }} />
+                                                    <Text component={TextVariants.small} style={{
+                                                        fontSize: '0.7rem',
+                                                        color: 'var(--pf-v5-global--Color--200)',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {arrivals[idx + 1].hopLag !== undefined
+                                                            ? this.formatLag(arrivals[idx + 1].hopLag)
+                                                            : ''}
+                                                    </Text>
+                                                </div>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                            </CardBody>
+                        </Card>
+
+                        {/* Detailed Arrivals Table */}
+                        <Card isFlat className="ds-margin-bottom-md">
+                            <CardTitle>{_("Arrival Details")}</CardTitle>
+                            <CardBody>
+                                <table className="pf-v5-c-table pf-m-compact" role="grid">
+                                    <thead>
+                                        <tr>
+                                            <th>{_("Server")}</th>
+                                            <th>{_("Arrival Time")}</th>
+                                            <th>{_("Hop Lag")}</th>
+                                            <th>{_("Cumulative Delay")}</th>
+                                            <th>{_("Duration")}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {arrivals.map((arrival, idx) => (
+                                            <tr key={idx}>
+                                                <td>
+                                                    {arrival.server}
+                                                    {arrival.isOrigin && (
+                                                        <span style={{ color: 'var(--pf-v5-global--primary-color--100)', marginLeft: 'var(--pf-v5-global--spacer--xs)' }}>
+                                                            ({_("Origin")})
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td>{this.formatTimestamp(arrival.timestamp)}</td>
+                                                <td>
+                                                    {arrival.isOrigin
+                                                        ? <em>{_("Origin")}</em>
+                                                        : this.formatLag(arrival.hopLag)}
+                                                </td>
+                                                <td>{this.formatLag(arrival.relativeDelay)}</td>
+                                                <td>{arrival.duration ? this.formatLag(arrival.duration) : _("N/A")}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </CardBody>
+                        </Card>
+
+                        {/* Copy Actions */}
+                        <Split hasGutter>
+                            <SplitItem>
+                                <ClipboardCopy
+                                    variant={ClipboardCopyVariant.expansion}
+                                    isExpanded={false}
+                                    isCode
+                                    isReadOnly
+                                    hoverTip={_("Copy full path JSON")}
+                                    clickTip={_("Copied!")}
+                                >
+                                    {pathJson}
+                                </ClipboardCopy>
+                            </SplitItem>
+                        </Split>
+            </Modal>
+        );
+    }
+}
+
+CSNDetailModal.propTypes = {
+    csnData: PropTypes.object,
+    onClose: PropTypes.func.isRequired
+};
+
+CSNDetailModal.defaultProps = {
+    csnData: null
+};
+
+class LagReportModal extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            activeTabKey: 0,
+            ...this._freshReportState(),
+            loadingSummary: false,
+            loadingJson: false,
+            loadingCsv: false,
+            loadingPng: false,
+            selectedCsnId: null
+        };
+
+        this.handleTabClick = this.handleTabClick.bind(this);
+        this.loadData = this.loadData.bind(this);
+        this.loadPngAsDataUrl = this.loadPngAsDataUrl.bind(this);
+        this.downloadFile = this.downloadFile.bind(this);
+        this.openInNewWindow = this.openInNewWindow.bind(this);
+        this.renderSummaryTab = this.renderSummaryTab.bind(this);
+        this.renderChartsTab = this.renderChartsTab.bind(this);
+        this.renderPngTab = this.renderPngTab.bind(this);
+        this.renderCsvTab = this.renderCsvTab.bind(this);
+        this.renderReportFilesTab = this.renderReportFilesTab.bind(this);
+        this.handleCsnPointClick = this.handleCsnPointClick.bind(this);
+        this.handleCloseCsnDetails = this.handleCloseCsnDetails.bind(this);
+
+        this._activeLoadToken = 0;
+        this._isMounted = false;
+        this._clientSamplingCap = {
+            primary: 2000,
+            hop: 600
+        };
+    }
+
+    _freshReportState(overrides = {}) {
+        return {
+            csvPreview: null,
+            jsonData: null,
+            error: null,
+            pngDataUrl: null,
+            pngError: false,
+            summary: null,
+            suffixStats: {},
+            clientSamplingNotice: null,
+            selectedCsnId: null,
+            ...overrides
+        };
+    }
+
+    handleCsnPointClick(datum) {
+        if (datum && datum.csnId) {
+            const { jsonData } = this.state;
+            if (jsonData && jsonData.csnDetails && jsonData.csnDetails[datum.csnId]) {
+                this.setState({ selectedCsnId: datum.csnId });
+            } else {
+                console.warn("CSN details not available for:", datum.csnId);
+            }
+        }
+    }
+
+    handleCloseCsnDetails() {
+        this.setState({ selectedCsnId: null });
+    }
+
+    componentDidMount() {
+        this._isMounted = true;
+        this.loadData();
+    }
+
+    componentDidUpdate(prevProps) {
+        if (this.props.reportUrls !== prevProps.reportUrls) {
+            this.loadData();
+        }
+    }
+
+    componentWillUnmount() {
+        this._isMounted = false;
+        // Clean up any data URLs to prevent memory leaks
+        if (this.state.pngDataUrl && this.state.pngDataUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(this.state.pngDataUrl);
+        }
+    }
+
+    handleTabClick(event, tabIndex) {
+        this.setState({ activeTabKey: tabIndex });
+    }
+
+    loadData() {
+        const reportUrls = this.props.reportUrls || {};
+        const loadToken = this._activeLoadToken + 1;
+        this._activeLoadToken = loadToken;
+
+        // Reset state, preserving activeTabKey
+        this.setState(prevState => ({
+            ...this._freshReportState(),
+            activeTabKey: prevState.activeTabKey,
+            loadingSummary: false,
+            loadingJson: false,
+            loadingCsv: false,
+            loadingPng: false
+        }));
+
+        // Load each tab's data independently (asynchronously)
+        if (reportUrls.summary) {
+            this._fetchSummary(reportUrls.summary, loadToken);
+        }
+
+        if (reportUrls.json) {
+            this._fetchJsonData(reportUrls.json, loadToken);
+        }
+
+        if (reportUrls.csv) {
+            this._fetchCsvPreview(reportUrls.csv, loadToken);
+        }
+
+        if (reportUrls.png) {
+            this.loadPngAsDataUrl(reportUrls.png, loadToken);
+        }
+    }
+
+    _isActive(loadToken) {
+        return this._isMounted && this._activeLoadToken === loadToken;
+    }
+
+    _isTooLargeError(err) {
+        if (!err) {
+            return false;
+        }
+        if (err.problem === "too-large" || err.code === 413 || err.status === 413) {
+            return true;
+        }
+        const message = err.message || (typeof err.toString === "function" ? err.toString() : "");
+        if (!message) {
+            return false;
+        }
+        return String(message).toLowerCase().indexOf("too much data") !== -1;
+    }
+
+    _handleLoadedJsonData(rawData, options = {}) {
+        const { forcedSampling = false, samplingResult: precomputedSampling = null } = options;
+
+        const samplingResult = precomputedSampling || this._applyClientSamplingForDisplay(rawData);
+
+        let notice = null;
+        if (samplingResult.applied) {
+            notice = forcedSampling
+                ? _("Charts were down-sampled automatically because the dataset is very large. Adjust filters or the time range to reduce the dataset, or download the full JSON/CSV for complete details.")
+                : _("Charts are down-sampled for responsiveness. Adjust filters or the time range for a smaller dataset if you need finer detail.");
+        } else if (forcedSampling) {
+            notice = _("The dataset is very large. Charts are shown in full resolution and may respond slowly. Adjust filters or the time range if the UI becomes unresponsive.");
+        }
+
+        this.setState({
+            jsonData: samplingResult.sampledData,
+            clientSamplingNotice: notice,
+            error: null
+        });
+    }
+
+    async _readJsonFile(path, options) {
+        const fileHandle = cockpit.file(path, options);
+        try {
+            const content = await fileHandle.read();
+            return JSON.parse(content);
+        } finally {
+            try {
+                fileHandle.close();
+            } catch (closeErr) {
+                console.error("Error closing JSON file handle:", closeErr);
+            }
+        }
+    }
+
+    async _fetchJsonData(jsonPath, loadToken) {
+        if (!this._isActive(loadToken)) {
+            return;
+        }
+
+        this.setState({ loadingJson: true });
+
+        try {
+            const data = await this._readJsonFile(jsonPath, { max_read_size: MAX_REPORT_JSON_SIZE });
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            this._handleLoadedJsonData(data);
+        } catch (err) {
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+
+            if (this._isTooLargeError(err)) {
+                try {
+                    const fallbackData = await this._loadLargeJsonWithSampling(jsonPath);
+                    if (this._isActive(loadToken)) {
+                        this._handleLoadedJsonData(fallbackData, { forcedSampling: true });
+                    }
+                    return;
+                } catch (fallbackErr) {
+                    console.error("Fallback load of large chart JSON failed:", fallbackErr);
+                    this.setState({
+                        error: _("Chart data exceeds the UI limits and could not be displayed. Adjust the filters or time range and try again, or download the JSON report for full details."),
+                        clientSamplingNotice: null,
+                        jsonData: null
+                    });
+                    return;
+                }
+            }
+
+            if (err instanceof SyntaxError) {
+                console.error("Error parsing JSON data for charts:", err);
+                this.setState({
+                    error: _("Unable to parse the generated chart data. Download the JSON file to inspect it manually."),
+                    clientSamplingNotice: null,
+                    jsonData: null
+                });
+            } else {
+                console.error("Error loading JSON data for charts:", err);
+                const message = err && err.message
+                    ? cockpit.format(_("Failed to load chart data: $0"), err.message)
+                    : _("Failed to load chart data.");
+                this.setState({
+                    error: message,
+                    clientSamplingNotice: null,
+                    jsonData: null
+                });
+            }
+        } finally {
+            if (this._isActive(loadToken)) {
+                this.setState({ loadingJson: false });
+            }
+        }
+    }
+
+    async _fetchSummary(summaryPath, loadToken) {
+        if (!this._isActive(loadToken)) {
+            return;
+        }
+
+        this.setState({ loadingSummary: true });
+
+        try {
+            const data = await this._readJsonFile(summaryPath, { max_read_size: MAX_REPORT_JSON_SIZE });
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            this.setState({
+                summary: data.analysis_summary,
+                suffixStats: data.suffix_statistics || {},
+                activeTabKey: 0
+            });
+        } catch (err) {
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            console.error("Error loading JSON summary:", err);
+        } finally {
+            if (this._isActive(loadToken)) {
+                this.setState({ loadingSummary: false });
+            }
+        }
+    }
+
+    async _fetchCsvPreview(csvPath, loadToken) {
+        if (!this._isActive(loadToken)) {
+            return;
+        }
+
+        this.setState({ loadingCsv: true });
+
+        try {
+            const fileHandle = cockpit.file(csvPath);
+            const content = await fileHandle.read();
+            fileHandle.close();
+
+            if (this._isActive(loadToken)) {
+                // Get first N lines
+                const lines = content.split('\n').slice(0, CSV_PREVIEW_LINES).join('\n');
+                this.setState({ csvPreview: lines });
+            }
+        } catch (err) {
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            console.error("Error loading CSV:", err);
+            this.setState({ csvPreview: null });
+        } finally {
+            if (this._isActive(loadToken)) {
+                this.setState({ loadingCsv: false });
+            }
+        }
+    }
+
+    async _readBinaryPngAsDataUrl(pngPath) {
+        const fileHandle = cockpit.file(pngPath, { binary: true, max_read_size: MAX_BINARY_READ_SIZE });
+        try {
+            const content = await fileHandle.read();
+            if (!content) {
+                throw new Error("No content returned from PNG file");
+            }
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error || new Error("Failed to read PNG blob"));
+                reader.readAsDataURL(new Blob([content], { type: "image/png" }));
+            });
+        } finally {
+            try {
+                fileHandle.close();
+            } catch (closeErr) {
+                console.error("Error closing PNG file handle:", closeErr);
+            }
+        }
+    }
+
+    async loadPngAsDataUrl(pngPath, loadToken) {
+        if (!pngPath || !this._isActive(loadToken)) {
+            return;
+        }
+
+        this.setState({ loadingPng: true });
+
+        try {
+            const dataUrl = await this._readBinaryPngAsDataUrl(pngPath);
+            if (this._isActive(loadToken)) {
+                this.setState({ pngDataUrl: dataUrl, pngError: false });
+            }
+        } catch (err) {
+            if (!this._isActive(loadToken)) {
+                return;
+            }
+            console.error("Error loading PNG:", err);
+            this.setState({ pngError: true });
+        } finally {
+            if (this._isActive(loadToken)) {
+                this.setState({ loadingPng: false });
+            }
+        }
+    }
+
+    async _loadLargeJsonWithSampling(jsonPath) {
+        const fileHandle = cockpit.file(jsonPath);
+        try {
+            const content = await fileHandle.read();
+            return JSON.parse(content);
+        } catch (parseError) {
+            console.error("Error parsing large JSON data for charts:", parseError);
+            throw parseError;
+        } finally {
+            try {
+                fileHandle.close();
+            } catch (closeErr) {
+                console.error("Error closing JSON file handle:", closeErr);
+            }
+        }
+    }
+
+    _applyClientSamplingForDisplay(originalData) {
+        let samplingApplied = false;
+
+        const downsample = (points, limit) => {
+            if (!Array.isArray(points) || points.length <= limit) return points;
+            samplingApplied = true;
+            const step = (points.length - 1) / (limit - 1);
+            return Array.from({ length: limit }, (_, i) =>
+                points[Math.min(points.length - 1, Math.round(i * step))]
+            );
+        };
+
+        return {
+            sampledData: {
+                ...originalData,
+                replicationLags: originalData.replicationLags ? {
+                    ...originalData.replicationLags,
+                    series: (originalData.replicationLags.series || []).map(s => ({
+                        ...s,
+                        datapoints: downsample(s.datapoints, this._clientSamplingCap.primary)
+                    }))
+                } : undefined,
+                hopLags: originalData.hopLags ? {
+                    ...originalData.hopLags,
+                    series: (originalData.hopLags.series || []).map(s => ({
+                        ...s,
+                        datapoints: downsample(s.datapoints, this._clientSamplingCap.hop)
+                    }))
+                } : undefined,
+                metadata: {
+                    ...originalData.metadata,
+                    clientSampling: samplingApplied || undefined
+                }
+            },
+            applied: samplingApplied
+        };
+    }
+
+    downloadFile(url, filename) {
+        if (!url) return;
+
+        console.log("Downloading file:", url, "as", filename);
+
+        // Determine the appropriate content type based on file format
+        let contentType;
+        if (filename.endsWith('.html')) {
+            contentType = "text/html";
+        } else if (filename.endsWith('.png')) {
+            contentType = "image/png";
+        } else if (filename.endsWith('.csv')) {
+            contentType = "text/csv";
+        } else if (filename.endsWith('.json')) {
+            contentType = "application/json";
+        } else {
+            contentType = "application/octet-stream";
+        }
+
+        // Create the query parameter with file details
+        const query = window.btoa(JSON.stringify({
+            host: cockpit.transport.host,
+            payload: "fsread1",
+            binary: "raw",
+            path: url,
+            superuser: "require",
+            max_read_size: 3 * 1024 * 1024 * 1024,
+            external: {
+                "content-disposition": `attachment; filename="${filename}"`,
+                "content-type": contentType
+            }
+        }));
+
+        // Construct the full URL for the iframe
+        const prefix = (new URL(cockpit.transport.uri("channel/" + cockpit.transport.csrf_token))).pathname;
+        const fullUrl = prefix + '?' + query;
+
+        // Create and use a hidden iframe for downloading
+        const iframe = document.createElement("iframe");
+        iframe.setAttribute("src", fullUrl);
+        iframe.setAttribute("hidden", "hidden");
+
+        // Add event listener to handle load events (success or error)
+        iframe.addEventListener("load", () => {
+            const title = iframe.contentDocument?.title;
+            if (title) {
+                // If title exists, an error occurred
+                console.error("Download error:", title);
+                if (this.props.addNotification) {
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Failed to download report: $0"), title)
+                    );
+                }
+            }
+            // Clean up the iframe after download completes or fails
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 1000);
+        });
+
+        document.body.appendChild(iframe);
+    }
+
+    openInNewWindow(url) {
+        if (!url) return;
+        window.open(url, '_blank');
+    }
+
+    renderSummaryTab() {
+        const { summary, suffixStats, loadingSummary } = this.state;
+        const { reportUrls } = this.props;
+
+        if (loadingSummary && !summary) {
+            return (
+                <div className="ds-center">
+                    <Spinner size="lg" />
+                    <p className="ds-margin-top">{_("Loading summary data...")}</p>
+                </div>
+            );
+        }
+
+        if (!summary) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon={InfoIcon} />
+                    <Title headingLevel="h2">{_("No Summary Available")}</Title>
+                    <EmptyStateBody>
+                        {_("No report summary could be loaded.")}
+                    </EmptyStateBody>
+                </EmptyState>
+            );
+        }
+
+        return (
+            <div className="ds-margin-top-lg">
+                <Card>
+                    <CardTitle>
+                        <Title headingLevel="h2">{_("Replication Analysis Summary")}</Title>
+                    </CardTitle>
+                    <CardBody>
+                        <Grid hasGutter>
+                            <GridItem span={6}>
+                                <Card isFlat>
+                                    <CardTitle>{_("Analysis Overview")}</CardTitle>
+                                    <CardBody>
+                                        <DescriptionList isHorizontal>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Total Servers")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    {summary.total_servers || 0}
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Analyzed Log Events")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    {summary.analyzed_logs || 0}
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Total Updates")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    {summary.total_updates || 0}
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                        </DescriptionList>
+                                    </CardBody>
+                                </Card>
+                            </GridItem>
+
+                            <GridItem span={6}>
+                                <Card isFlat>
+                                    <CardTitle>{_("Replication Lag Statistics")}</CardTitle>
+                                    <CardBody>
+                                        <DescriptionList isHorizontal>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Minimum Lag")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    {summary.minimum_lag != null ? `${summary.minimum_lag.toFixed(3)} seconds` : _("N/A")}
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Maximum Lag")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    {summary.maximum_lag != null ? `${summary.maximum_lag.toFixed(3)} seconds` : _("N/A")}
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                            <DescriptionListGroup>
+                                                <DescriptionListTerm>{_("Average Lag")}</DescriptionListTerm>
+                                                <DescriptionListDescription>
+                                                    {summary.average_lag != null ? `${summary.average_lag.toFixed(3)} seconds` : _("N/A")}
+                                                </DescriptionListDescription>
+                                            </DescriptionListGroup>
+                                        </DescriptionList>
+                                    </CardBody>
+                                </Card>
+                            </GridItem>
+
+                            {Array.isArray(summary.skipped_log_dirs) && summary.skipped_log_dirs.length > 0 && (
+                                <GridItem span={12}>
+                                    <Alert
+                                        variant="warning"
+                                        isInline
+                                        title={_("Some selected log directories were skipped")}
+                                    >
+                                        <Text component={TextVariants.small}>
+                                            {_("These directories could not be read during analysis")}
+                                        </Text>
+                                        <List className="ds-margin-top-sm">
+                                            {summary.skipped_log_dirs.map((dir, idx) => (
+                                                <ListItem key={idx}>{dir}</ListItem>
+                                            ))}
+                                        </List>
+                                    </Alert>
+                                </GridItem>
+                            )}
+
+                            {summary.updates_by_suffix && Object.keys(summary.updates_by_suffix).length > 0 && (
+                                <GridItem span={12}>
+                                    <Card isFlat>
+                                        <CardTitle>{_("Updates by Suffix")}</CardTitle>
+                                        <CardBody>
+                                            <List>
+                                                {Object.entries(summary.updates_by_suffix).map(([suffix, count]) => (
+                                                    <ListItem key={suffix}>
+                                                        <strong>{suffix}:</strong> {count} {_("updates")}
+                                                    </ListItem>
+                                                ))}
+                                            </List>
+                                        </CardBody>
+                                    </Card>
+                                </GridItem>
+                            )}
+
+                            {summary.time_range && (
+                                <GridItem span={12}>
+                                    <Card isFlat>
+                                        <CardTitle>{_("Time Range")}</CardTitle>
+                                        <CardBody>
+                                            <DescriptionList isHorizontal>
+                                                <DescriptionListGroup>
+                                                    <DescriptionListTerm>{_("Start Time")}</DescriptionListTerm>
+                                                    <DescriptionListDescription>
+                                                        {summary.time_range.start || _("From beginning")}
+                                                    </DescriptionListDescription>
+                                                </DescriptionListGroup>
+                                                <DescriptionListGroup>
+                                                    <DescriptionListTerm>{_("End Time")}</DescriptionListTerm>
+                                                    <DescriptionListDescription>
+                                                        {summary.time_range.end || _("To current")}
+                                                    </DescriptionListDescription>
+                                                </DescriptionListGroup>
+                                            </DescriptionList>
+                                        </CardBody>
+                                    </Card>
+                                </GridItem>
+                            )}
+                        </Grid>
+                        {reportUrls && reportUrls.summary && (
+                            <div className="ds-margin-top">
+                                <Button
+                                    variant="secondary"
+                                    icon={<DownloadIcon />}
+                                    onClick={() => this.downloadFile(reportUrls.summary, "replication_analysis_summary.json")}
+                                >
+                                    {_("Download Summary JSON")}
+                                </Button>
+                            </div>
+                        )}
+                    </CardBody>
+                </Card>
+            </div>
+        );
+    }
+
+    renderChartsTab() {
+        const { reportUrls } = this.props;
+        const { loadingJson, jsonData, error, clientSamplingNotice, selectedCsnId } = this.state;
+
+        if (loadingJson) {
+            return (
+                <div className="ds-center">
+                    <Spinner size="lg" />
+                    <p className="ds-margin-top">{_("Loading chart data...")}</p>
+                </div>
+            );
+        }
+
+        if (!reportUrls || !reportUrls.json) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon={InfoIcon} />
+                    <Title headingLevel="h2">{_("No Chart Data Available")}</Title>
+                    <EmptyStateBody>
+                        {_("No JSON chart data was found or could be loaded.")}
+                    </EmptyStateBody>
+                </EmptyState>
+            );
+        }
+
+        if (error) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon={ExclamationCircleIcon} />
+                    <Title headingLevel="h2">{_("Unable to Display Charts")}</Title>
+                    <EmptyStateBody>
+                        {error}
+                    </EmptyStateBody>
+                    {reportUrls && reportUrls.json && (
+                        <Button
+                            variant="secondary"
+                            icon={<DownloadIcon />}
+                            onClick={() => this.downloadFile(reportUrls.json, "replication_analysis.json")}
+                        >
+                            {_("Download JSON Data")}
+                        </Button>
+                    )}
+                </EmptyState>
+            );
+        }
+
+        // Safely extract replication lag chart data
+        const hasReplicationLags = jsonData && jsonData.replicationLags &&
+                                  jsonData.replicationLags.series &&
+                                  jsonData.replicationLags.series.length > 0;
+
+        const hasHopLags = jsonData && jsonData.hopLags &&
+                          jsonData.hopLags.series &&
+                          jsonData.hopLags.series.length > 0;
+
+        const hasCsnDetails = jsonData && jsonData.csnDetails &&
+                             Object.keys(jsonData.csnDetails).length > 0;
+
+        const selectedCsnData = selectedCsnId && hasCsnDetails
+            ? jsonData.csnDetails[selectedCsnId]
+            : null;
+
+        if (!jsonData || (!hasReplicationLags && !hasHopLags)) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon={InfoIcon} />
+                    <Title headingLevel="h2">{_("No Chart Data Available")}</Title>
+                    <EmptyStateBody>
+                        {_("Chart data was found but contains no visualization data.")}
+                    </EmptyStateBody>
+                    <Button
+                        variant="secondary"
+                        icon={<DownloadIcon />}
+                        onClick={() => this.downloadFile(reportUrls.json, "replication_analysis.json")}
+                    >
+                        {_("Download JSON Data")}
+                    </Button>
+                </EmptyState>
+            );
+        }
+
+        return (
+            <div className="ds-margin-top">
+                <Grid hasGutter>
+                    <GridItem span={12}>
+                        <Card>
+                            <CardTitle>{_("Interactive Charts")}</CardTitle>
+                            <CardBody>
+                                {clientSamplingNotice && (
+                                    <Alert variant="warning" isInline className="ds-margin-bottom">
+                                        {clientSamplingNotice}
+                                    </Alert>
+                                )}
+                                {hasCsnDetails && (
+                                    <Text
+                                        component={TextVariants.small}
+                                        className="ds-margin-bottom"
+                                        style={{ color: 'var(--pf-v5-global--Color--200)', fontStyle: 'italic' }}
+                                    >
+                                        {_("Tip: Click on any chart point to view detailed CSN propagation path.")}
+                                    </Text>
+                                )}
+                                {hasReplicationLags && (
+                                    <div className="ds-margin-bottom">
+                                        <Title headingLevel="h3">
+                                            {jsonData.replicationLags.title || _("Global Replication Lag Over Time")}
+                                            {jsonData.metadata && jsonData.metadata.timezone && (
+                                                <span style={{ fontSize: '0.8em', fontWeight: 'normal', marginLeft: '1em', color: 'var(--pf-v5-global--Color--200)' }}>
+                                                    ({jsonData.metadata.timezone})
+                                                </span>
+                                            )}
+                                        </Title>
+                                        {jsonData.metadata && jsonData.metadata.sampling && jsonData.metadata.sampling.applied && (
+                                            <Alert isInline variant="info" title={_("Data was sampled for performance")}>
+                                                {jsonData.metadata.sampling.reducedTotalPoints && jsonData.metadata.sampling.originalTotalPoints ? (
+                                                    <span>
+                                                        {cockpit.format(_("Showing $0 of $1 data points."), jsonData.metadata.sampling.reducedTotalPoints, jsonData.metadata.sampling.originalTotalPoints)}&nbsp;
+                                                    </span>
+                                                ) : null}
+                                                {jsonData.metadata.sampling.precision === "full" ? (
+                                                    <span>{_("Automatic sampling was applied because the dataset is very large. To view all points, consider filtering by time range or suffix.")}</span>
+                                                ) : (
+                                                    <span>{_("For full precision without sampling, rerun with \"Full Precision\" mode (note: may be slower for large datasets).")}</span>
+                                                )}
+                                            </Alert>
+                                        )}
+                                        <ScatterLineChart
+                                            chartData={jsonData.replicationLags}
+                                            title={jsonData.replicationLags.title || _("Global Replication Lag Over Time")}
+                                            xAxisLabel={(jsonData.replicationLags.xAxisLabel || "").replace(/\s*Time\s*/g, "")}
+                                            yAxisLabel={jsonData.replicationLags.yAxisLabel || _("Lag Time (seconds)")}
+                                            defaultShowLegend={true}
+                                            onPointClick={hasCsnDetails ? this.handleCsnPointClick : undefined}
+                                        />
+                                    </div>
+                                )}
+                                {hasHopLags && (
+                                    <div className="ds-margin-top-lg">
+                                        <Title headingLevel="h3">
+                                            {jsonData.hopLags.title || _("Per-Hop Replication Lags")}
+                                            {jsonData.metadata && jsonData.metadata.timezone && (
+                                                <span style={{ fontSize: '0.8em', fontWeight: 'normal', marginLeft: '1em', color: 'var(--pf-v5-global--Color--200)' }}>
+                                                    ({jsonData.metadata.timezone})
+                                                </span>
+                                            )}
+                                        </Title>
+                                        <ScatterLineChart
+                                            chartData={jsonData.hopLags}
+                                            title={jsonData.hopLags.title || _("Per-Hop Replication Lags")}
+                                            xAxisLabel={(jsonData.hopLags.xAxisLabel || "").replace(/\s*Time\s*/g, "")}
+                                            yAxisLabel={jsonData.hopLags.yAxisLabel || _("Hop Lag Time (seconds)")}
+                                            defaultShowLegend={false}
+                                            onPointClick={hasCsnDetails ? this.handleCsnPointClick : undefined}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* CSN Detail Panel - shown when a point is clicked */}
+                                <CSNDetailModal
+                                    csnData={selectedCsnData}
+                                    onClose={this.handleCloseCsnDetails}
+                                />
+
+                                <div className="ds-margin-top">
+                                    <Button
+                                        variant="secondary"
+                                        icon={<DownloadIcon />}
+                                        onClick={() => this.downloadFile(reportUrls.json, "replication_analysis.json")}
+                                    >
+                                        {_("Download JSON Data")}
+                                    </Button>
+                                </div>
+                            </CardBody>
+                        </Card>
+                    </GridItem>
+                </Grid>
+            </div>
+        );
+    }
+
+    renderPngTab() {
+        const { reportUrls } = this.props;
+        const { loadingPng, pngDataUrl, pngError } = this.state;
+
+        if (loadingPng) {
+            return (
+                <div className="ds-center">
+                    <Spinner size="lg" />
+                    <p className="ds-margin-top">{_("Loading PNG data...")}</p>
+                </div>
+            );
+        }
+
+        if (!reportUrls || !reportUrls.png) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon={InfoIcon} />
+                    <Title headingLevel="h2">{_("No PNG Report Available")}</Title>
+                    <EmptyStateBody>
+                        {_("No PNG report was generated. Make sure to select PNG format when generating the report.")}
+                    </EmptyStateBody>
+                </EmptyState>
+            );
+        }
+
+        if (pngError) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon={ExclamationCircleIcon} />
+                    <Title headingLevel="h2">{_("Error Loading PNG")}</Title>
+                    <EmptyStateBody>
+                        {_("There was an error loading the PNG image. Try downloading it instead.")}
+                    </EmptyStateBody>
+                    <Button
+                        variant="primary"
+                        icon={<DownloadIcon />}
+                        onClick={() => this.downloadFile(reportUrls.png, "replication_analysis.png")}
+                    >
+                        {_("Download PNG")}
+                    </Button>
+                </EmptyState>
+            );
+        }
+
+        return (
+            <div className="ds-margin-top">
+                <Grid hasGutter>
+                    <GridItem span={12}>
+                        <Card>
+                            <CardTitle>{_("Static Image Report")}</CardTitle>
+                            <CardBody>
+                                {pngDataUrl ? (
+                                    <div className="ds-margin-bottom ds-text-center">
+                                        <img
+                                            src={pngDataUrl}
+                                            alt={_("Replication Analysis Chart")}
+                                            style={{ maxWidth: '100%', height: 'auto' }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="ds-center">
+                                        <Spinner size="lg" />
+                                        <p className="ds-margin-top">{_("Loading image...")}</p>
+                                    </div>
+                                )}
+                                <div className="ds-margin-top ds-text-center">
+                                    <Button
+                                        variant="primary"
+                                        icon={<DownloadIcon />}
+                                        onClick={() => this.downloadFile(reportUrls.png, "replication_analysis.png")}
+                                    >
+                                        {_("Download PNG")}
+                                    </Button>
+                                </div>
+                            </CardBody>
+                        </Card>
+                    </GridItem>
+                </Grid>
+            </div>
+        );
+    }
+
+    renderCsvTab() {
+        const { reportUrls } = this.props;
+        const { loadingCsv, csvPreview } = this.state;
+
+        if (loadingCsv) {
+            return (
+                <div className="ds-center">
+                    <Spinner size="lg" />
+                    <p className="ds-margin-top">{_("Loading CSV data...")}</p>
+                </div>
+            );
+        }
+
+        if (!reportUrls || !reportUrls.csv) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon={InfoIcon} />
+                    <Title headingLevel="h2">{_("No CSV Report Available")}</Title>
+                    <EmptyStateBody>
+                        {_("No CSV report was generated. Make sure to select CSV format when generating the report.")}
+                    </EmptyStateBody>
+                </EmptyState>
+            );
+        }
+
+        return (
+            <div className="ds-margin-top">
+                <Grid hasGutter>
+                    <GridItem span={12}>
+                        <Card>
+                            <CardTitle>{_("CSV Data Preview")}</CardTitle>
+                            <CardBody>
+                                <div className="ds-margin-bottom">
+                                    {csvPreview ? (
+                                        <TextContent>
+                                            <Text component={TextVariants.h3}>{_("First 20 lines of CSV data:")}</Text>
+                                            <pre className="ds-code-block ds-no-margin-bottom">{csvPreview}</pre>
+                                        </TextContent>
+                                    ) : (
+                                        <EmptyState>
+                                            <EmptyStateIcon icon={InfoIcon} />
+                                            <Title headingLevel="h3">{_("CSV Preview Not Available")}</Title>
+                                            <EmptyStateBody>
+                                                {_("Preview could not be loaded. Try downloading the CSV file.")}
+                                            </EmptyStateBody>
+                                        </EmptyState>
+                                    )}
+                                </div>
+                                <div className="ds-margin-top ds-text-center">
+                                    <Button
+                                        variant="primary"
+                                        icon={<DownloadIcon />}
+                                        onClick={() => this.downloadFile(reportUrls.csv, "replication_analysis.csv")}
+                                    >
+                                        {_("Download CSV")}
+                                    </Button>
+                                </div>
+                            </CardBody>
+                        </Card>
+                    </GridItem>
+                </Grid>
+            </div>
+        );
+    }
+
+    renderReportFilesTab() {
+        const { reportUrls } = this.props;
+
+        if (!reportUrls || Object.keys(reportUrls).length === 0) {
+            return (
+                <EmptyState>
+                    <EmptyStateIcon icon={InfoIcon} />
+                    <Title headingLevel="h2">{_("No Report Files Available")}</Title>
+                    <EmptyStateBody>
+                        {_("No report files were found or could be loaded.")}
+                    </EmptyStateBody>
+                </EmptyState>
+            );
+        }
+
+        const fileEntries = [];
+        if (reportUrls.summary) {
+            fileEntries.push({
+                key: 'summary',
+                label: _("Summary JSON"),
+                desc: _("Analysis summary data in JSON format"),
+                path: reportUrls.summary,
+                filename: "replication_analysis_summary.json"
+            });
+        }
+        if (reportUrls.json) {
+            fileEntries.push({
+                key: 'json',
+                label: _("Interactive Charts JSON"),
+                desc: _("Chart data in JSON format"),
+                path: reportUrls.json,
+                filename: "replication_analysis.json"
+            });
+        }
+        if (reportUrls.csv) {
+            fileEntries.push({
+                key: 'csv',
+                label: _("CSV Data"),
+                desc: _("Tabular data in CSV format"),
+                path: reportUrls.csv,
+                filename: "replication_analysis.csv"
+            });
+        }
+        if (reportUrls.png) {
+            fileEntries.push({
+                key: 'png',
+                label: _("PNG Image"),
+                desc: _("Static chart image in PNG format"),
+                path: reportUrls.png,
+                filename: "replication_analysis.png"
+            });
+        }
+        if (reportUrls.html) {
+            fileEntries.push({
+                key: 'html',
+                label: _("Standalone HTML Report"),
+                desc: _("Self-contained HTML report with embedded charts"),
+                path: reportUrls.html,
+                filename: "replication_analysis.html"
+            });
+        }
+
+        return (
+            <div className="ds-margin-top">
+                <Grid hasGutter>
+                    <GridItem span={12}>
+                        <Card>
+                            <CardTitle>{_("Report Files")}</CardTitle>
+                            <CardBody>
+                                <TextContent>
+                                    <Text component={TextVariants.h3}>{_("Download report files:")}</Text>
+                                </TextContent>
+                                <Grid hasGutter className="ds-margin-top">
+                                    {fileEntries.map((f) => (
+                                        <React.Fragment key={f.key}>
+                                            <GridItem span={3}>
+                                                <Button
+                                                    variant="link"
+                                                    onClick={() => this.downloadFile(f.path, f.filename)}
+                                                    icon={<DownloadIcon />}
+                                                >
+                                                    {f.label}
+                                                </Button>
+                                            </GridItem>
+                                            <GridItem span={9}>
+                                                <Text component={TextVariants.small}>{f.desc}</Text>
+                                            </GridItem>
+                                        </React.Fragment>
+                                    ))}
+                                </Grid>
+                            </CardBody>
+                        </Card>
+                    </GridItem>
+                </Grid>
+            </div>
+        );
+    }
+
+    render() {
+        const { showModal, closeHandler } = this.props;
+        const { activeTabKey } = this.state;
+
+        if (!showModal) {
+            return null;
+        }
+
+        return (
+            <Modal
+                variant={ModalVariant.large}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="close" variant="primary" onClick={closeHandler}>
+                        {_("Close")}
+                    </Button>
+                ]}
+                position="top"
+                aria-label={_("Replication Report Modal")}
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
+                    <div>
+                        <Tabs
+                            activeKey={activeTabKey}
+                            onSelect={this.handleTabClick}
+                            aria-label={_("Report tabs")}
+                        >
+                            <Tab
+                                key={0}
+                                eventKey={0}
+                                title={<TabTitleText>{_("Summary")}</TabTitleText>}
+                            />
+                            {this.props.reportUrls && this.props.reportUrls.json && (
+                                <Tab
+                                    key={1}
+                                    eventKey={1}
+                                    title={<TabTitleText>{_("Charts")}</TabTitleText>}
+                                />
+                            )}
+                            {this.props.reportUrls && this.props.reportUrls.png && (
+                                <Tab
+                                    key={2}
+                                    eventKey={2}
+                                    title={<TabTitleText>{_("PNG Report")}</TabTitleText>}
+                                />
+                            )}
+                            {this.props.reportUrls && this.props.reportUrls.csv && (
+                                <Tab
+                                    key={3}
+                                    eventKey={3}
+                                    title={<TabTitleText>{_("CSV Report")}</TabTitleText>}
+                                />
+                            )}
+                            <Tab
+                                key={4}
+                                eventKey={4}
+                                title={<TabTitleText>{_("Report Files")}</TabTitleText>}
+                            />
+                        </Tabs>
+                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto' }}>
+                        {activeTabKey === 0 && this.renderSummaryTab()}
+                        {activeTabKey === 1 && this.props.reportUrls && this.props.reportUrls.json && this.renderChartsTab()}
+                        {activeTabKey === 2 && this.props.reportUrls && this.props.reportUrls.png && this.renderPngTab()}
+                        {activeTabKey === 3 && this.props.reportUrls && this.props.reportUrls.csv && this.renderCsvTab()}
+                        {activeTabKey === 4 && this.renderReportFilesTab()}
+                    </div>
+                </div>
+            </Modal>
+        );
+    }
+}
+
+class ChooseLagReportModal extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            loading: true,
+            reports: [],
+            reportDirectory: props.reportDirectory || '/tmp',
+            error: null,
+            selectedReport: null,
+            showLagReportModal: false,
+            reportUrls: null
+        };
+
+        this.loadReports = this.loadReports.bind(this);
+        this.handleSelectReport = this.handleSelectReport.bind(this);
+        this.closeLagReportModal = this.closeLagReportModal.bind(this);
+    }
+
+    componentDidMount() {
+        this.loadReports();
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.reportDirectory !== this.props.reportDirectory) {
+            this.setState({
+                reportDirectory: this.props.reportDirectory,
+                loading: true
+            }, this.loadReports);
+        }
+    }
+
+    loadReports() {
+        const { reportDirectory } = this.state;
+
+        // Reset the state
+        this.setState({
+            loading: true,
+            error: null,
+            reports: []
+        });
+
+        // First get all directories in the specified path
+        cockpit.spawn(["ls", "-1A", reportDirectory], { superuser: "require", err: "ignore" })
+            .then(output => {
+                if (!output.trim()) {
+                    this.setState({ loading: false });
+                    return;
+                }
+
+                // Build absolute candidate paths and include the base directory itself
+                const base = reportDirectory.endsWith('/') ? reportDirectory.slice(0, -1) : reportDirectory;
+                const candidates = output.trim().split('\n').map(entry => `${base}/${entry}`);
+                candidates.unshift(base);
+
+                // Stat each candidate to determine if it's a directory
+                const statPromises = candidates.map(p =>
+                    cockpit.spawn(["stat", "-c", "%F", p], { superuser: "require", err: "ignore" })
+                        .then(type => ({ path: p, isDir: type.trim().toLowerCase().includes("directory") }))
+                        .catch(() => ({ path: p, isDir: false }))
+                );
+
+                return Promise.all(statPromises).then(stats => stats.filter(s => s.isDir).map(s => s.path));
+            })
+            .then(directories => {
+                if (!directories) {
+                    return; // previous stage already set loading false
+                }
+
+                const promises = directories.map(dir => {
+                    // Check which report files exist in this directory
+                    return cockpit.spawn(["ls", "-1A", dir], { superuser: "require", err: "ignore" })
+                        .then(output => {
+                            const files = output.trim().split('\n').filter(f => f);
+
+                            // List of valid report file names
+                            const validReportFiles = [
+                                'replication_analysis.json',
+                                'replication_analysis_summary.json',
+                                'replication_analysis.html',
+                                'replication_analysis.csv',
+                                'replication_analysis.png'
+                            ];
+
+                            // Check if this directory contains any report files
+                            const hasJson = files.includes('replication_analysis.json');
+                            const hasHtml = files.includes('replication_analysis.html');
+                            const hasCsv = files.includes('replication_analysis.csv');
+                            const hasPng = files.includes('replication_analysis.png');
+                            const hasSummary = files.includes('replication_analysis_summary.json');
+
+                            // Skip directories that don't have any report files
+                            if (!hasJson && !hasHtml && !hasCsv && !hasPng && !hasSummary) {
+                                return null;
+                            }
+
+                            // Validate that all files in the directory are expected report files
+                            const hasUnexpectedFiles = files.some(file => !validReportFiles.includes(file));
+                            if (hasUnexpectedFiles) {
+                                console.warn(`Directory ${dir} contains unexpected files, skipping:`, files);
+                                return null;
+                            }
+
+                            const reportName = dir.split('/').pop();
+                            let creationTime = "";
+
+                            // Try to get the directory creation time using stat
+                            return cockpit.spawn(["stat", "-c", "%y", dir], { superuser: "require", err: "ignore" })
+                                .then(statOutput => {
+                                    // Format the creation time from stat output
+                                    try {
+                                        const timestamp = statOutput.trim();
+                                        creationTime = new Date(timestamp).toLocaleString();
+                                    } catch (e) {
+                                        console.error("Error parsing date from stat:", e);
+                                        creationTime = _("Unknown");
+                                    }
+
+                                    return {
+                                        path: dir,
+                                        name: reportName,
+                                        creationTime,
+                                        hasJson,
+                                        hasHtml,
+                                        hasCsv,
+                                        hasPng,
+                                        hasSummary
+                                    };
+                                })
+                                .catch(statError => {
+
+                                    // If we can't get the creation time from stat, try to extract it from filename
+                                    // or fall back to using the file listing
+                                    if (reportName.startsWith('repl_report_')) {
+                                        try {
+                                            const timestamp = reportName.replace('repl_report_', '');
+                                            // Check if the timestamp is a pure number (Unix timestamp)
+                                            if (/^\d+$/.test(timestamp)) {
+                                                creationTime = new Date(parseInt(timestamp) * 1000).toLocaleString();
+                                            } else {
+                                                creationTime = cockpit.format(_("Custom: $0"), timestamp);
+                                            }
+                                        } catch (e) {
+                                            creationTime = _("Unknown");
+                                        }
+                                    } else {
+                                        // Try to get file creation time from command output
+                                        const dateMatch = files.match(/\w{3}\s+\d+\s+\d{2}:\d{2}/);
+                                        if (dateMatch) {
+                                            // Use file timestamp as a fallback
+                                            creationTime = dateMatch[0];
+                                        } else {
+                                            creationTime = _("Unknown");
+                                        }
+                                    }
+
+                                    return {
+                                        path: dir,
+                                        name: reportName,
+                                        creationTime,
+                                        hasJson,
+                                        hasHtml,
+                                        hasCsv,
+                                        hasPng,
+                                        hasSummary
+                                    };
+                                });
+                        })
+                        .catch(() => {
+                            return null;
+                        });
+                });
+
+                return Promise.all(promises)
+                    .then(results => {
+                        // Filter out null results and directories without report files
+                        const validReports = results.filter(report => report !== null);
+
+                        // Sort by creation time, newest first
+                        validReports.sort((a, b) => {
+                            try {
+                                return new Date(b.creationTime) - new Date(a.creationTime);
+                            } catch (e) {
+                                return 0;
+                            }
+                        });
+
+                        this.setState({
+                            reports: validReports,
+                            loading: false
+                        });
+                    })
+                    .catch(() => {
+                        this.setState({ loading: false });
+                    });
+            })
+            .catch(() => {
+                this.setState({ loading: false });
+            });
+    }
+
+    handleSelectReport(report) {
+        // Construct the report URLs
+        const reportUrls = {
+            base: report.path,
+            json: report.hasJson ? `${report.path}/replication_analysis.json` : null,
+            html: report.hasHtml ? `${report.path}/replication_analysis.html` : null,
+            csv: report.hasCsv ? `${report.path}/replication_analysis.csv` : null,
+            png: report.hasPng ? `${report.path}/replication_analysis.png` : null
+        };
+
+        this.setState({
+            selectedReport: report,
+            showLagReportModal: true,
+            reportUrls
+        });
+    }
+
+    closeLagReportModal() {
+        this.setState({
+            showLagReportModal: false,
+            selectedReport: null,
+            reportUrls: null
+        });
+    }
+
+    render() {
+        const { showing, onClose } = this.props;
+        const { loading, reports, error, showLagReportModal, reportUrls } = this.state;
+
+        return (
+            <>
+                <Modal
+                    variant="large"
+                    title={_("View Existing Report")}
+                    isOpen={showing}
+                    onClose={onClose}
+                    actions={[
+                        <Button key="close" variant="primary" onClick={onClose}>
+                            {_("Close")}
+                        </Button>
+                    ]}
+                >
+                    <div>
+                        <Card isFullHeight>
+                            <CardBody>
+                                {error && (
+                                    <Alert
+                                        variant="danger"
+                                        title={_("Error loading reports")}
+                                        isInline
+                                    >
+                                        {error}
+                                    </Alert>
+                                )}
+
+                                {loading ? (
+                                    <div className="ds-center">
+                                        <Spinner size="lg" />
+                                        <p className="ds-margin-top">{_("Loading reports...")}</p>
+                                    </div>
+                                ) : (
+                                    <ExistingLagReportsTable
+                                        reports={reports}
+                                        onSelectReport={this.handleSelectReport}
+                                        addNotification={this.props.addNotification}
+                                    />
+                                )}
+                            </CardBody>
+                        </Card>
+                    </div>
+                </Modal>
+
+                {showLagReportModal && (
+                    <LagReportModal
+                        showing={showLagReportModal}
+                        reportName={_("Report")}
+                        reportUrls={reportUrls}
+                        onClose={this.closeLagReportModal}
+                    />
+                )}
+            </>
+        );
+    }
+}
+
 // Prototypes and defaultProps
+ScatterLineChart.propTypes = {
+    chartData: PropTypes.object,
+    title: PropTypes.string,
+    yAxisLabel: PropTypes.string,
+    xAxisLabel: PropTypes.string,
+    minY: PropTypes.number,
+    maxY: PropTypes.number,
+    defaultShowLegend: PropTypes.bool,
+    onPointClick: PropTypes.func
+};
+
+ScatterLineChart.defaultProps = {
+    chartData: null,
+    title: "",
+    yAxisLabel: "Value",
+    xAxisLabel: "",
+    minY: null,
+    maxY: null,
+    defaultShowLegend: true,
+    onPointClick: null
+};
+
 AgmtDetailsModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
@@ -1145,7 +3360,7 @@ ReportCredentialsModal.propTypes = {
     port: PropTypes.number,
     binddn: PropTypes.string,
     bindpw: PropTypes.string,
-    pwInputInterractive: PropTypes.bool,
+    pwInputInteractive: PropTypes.bool,
     newEntry: PropTypes.bool,
     addConfig: PropTypes.func,
     editConfig: PropTypes.func
@@ -1157,7 +3372,7 @@ ReportCredentialsModal.defaultProps = {
     port: 389,
     binddn: "",
     bindpw: "",
-    pwInputInterractive: false,
+    pwInputInteractive: false,
     newEntry: false,
 };
 
@@ -1170,7 +3385,7 @@ ReportConnectionModal.propTypes = {
     port: PropTypes.number,
     binddn: PropTypes.string,
     bindpw: PropTypes.string,
-    pwInputInterractive: PropTypes.bool,
+    pwInputInteractive: PropTypes.bool,
     addConn: PropTypes.func,
 };
 
@@ -1181,7 +3396,7 @@ ReportConnectionModal.defaultProps = {
     port: 636,
     binddn: "",
     bindpw: "",
-    pwInputInterractive: false,
+    pwInputInteractive: false,
 };
 
 ReportAliasesModal.propTypes = {
@@ -1235,6 +3450,31 @@ FullReportContent.defaultProps = {
     reportRefreshing: false
 };
 
+LagReportModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    reportUrls: PropTypes.object
+};
+
+LagReportModal.defaultProps = {
+    showModal: false,
+    reportUrls: {}
+};
+
+ChooseLagReportModal.propTypes = {
+    showing: PropTypes.bool,
+    onClose: PropTypes.func,
+    reportDirectory: PropTypes.string,
+    addNotification: PropTypes.func
+};
+
+ChooseLagReportModal.defaultProps = {
+    showing: false,
+    onClose: () => {},
+    reportDirectory: '/tmp',
+    addNotification: () => {}
+};
+
 export {
     TaskLogModal,
     AgmtDetailsModal,
@@ -1243,5 +3483,9 @@ export {
     ReportConnectionModal,
     ReportAliasesModal,
     ReportLoginModal,
-    FullReportContent
+    FullReportContent,
+    LagReportModal,
+    ChooseLagReportModal,
+    CSNDetailModal
 };
+

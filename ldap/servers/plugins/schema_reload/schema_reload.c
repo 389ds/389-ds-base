@@ -125,6 +125,7 @@ typedef struct _task_data
 static void
 schemareload_thread(void *arg)
 {
+    slapi_set_thread_name("schema-reload");
     Slapi_Task *task = (Slapi_Task *)arg;
     int rv = 0;
     int total_work = 2;
@@ -224,6 +225,15 @@ schemareload_add(Slapi_PBlock *pb,
     Slapi_Task *task = NULL;
     task_data *mytaskdata = NULL;
     char *bind_dn;
+
+    if (config_get_schemamod() == 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "schemareload",
+                      "schemareload_add - "
+                      "Schema modification is disabled - rejecting reload task\n");
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
 
     *returncode = LDAP_SUCCESS;
     if (slapi_entry_attr_get_ref(e, "cn") == NULL) {

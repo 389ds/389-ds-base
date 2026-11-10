@@ -44,11 +44,15 @@
 #define MEMBEROF_DEFERRED_UPDATE_ATTR "memberOfDeferredUpdate"
 #define MEMBEROF_AUTO_ADD_OC      "memberOfAutoAddOC"
 #define MEMBEROF_NEED_FIXUP       "memberOfNeedFixup"
+#define MEMBEROF_LAUNCH_FIXUP     "memberOfLaunchFixup"
 #define NSMEMBEROF                "nsMemberOf"
 #define MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE "memberOfEntryScopeExcludeSubtree"
 #define DN_SYNTAX_OID             "1.3.6.1.4.1.1466.115.121.1.12"
 #define NAME_OPT_UID_SYNTAX_OID   "1.3.6.1.4.1.1466.115.121.1.34"
 #define SHUTDOWN_TIMEOUT          60   /* systemctl timeout is by default 90s */
+#define MEMBEROF_SPECIFIC_GROUP_FILTER         "memberOfSpecificGroupFilter"
+#define MEMBEROF_EXCLUDE_SPECIFIC_GROUP_FILTER "memberOfExcludeSpecificGroupFilter"
+#define MEMBEROF_SPECIFIC_GROUP_OC "memberOfSpecificGroupOC"
 
 
 /*
@@ -127,6 +131,12 @@ typedef struct memberofconfig
     int entryScopeCount;
     Slapi_DN **entryScopeExcludeSubtrees;
     int entryExcludeScopeCount;
+    Slapi_Filter **specificGroupFilter;
+    Slapi_Filter **excludeSpecificGroupFilter;
+    int specificGroupFilterCount;
+    int excludeSpecificGroupFilterCount;
+    char **specificGroupOC;
+    int specificGroupOCCount;
     Slapi_Filter *group_filter;
     Slapi_Attr **group_slapiattrs;
     int skip_nested;
@@ -138,6 +148,8 @@ typedef struct memberofconfig
     PLHashTable *fixup_cache;
     Slapi_Task *task;
     int need_fixup;
+    PRBool launch_fixup;
+    bool is_lmdb;
 } MemberOfConfig;
 
 /* The key to access the hash table is the normalized DN

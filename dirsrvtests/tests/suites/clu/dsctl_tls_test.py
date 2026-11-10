@@ -11,7 +11,7 @@ import pytest
 import ssl
 import os
 import re
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.nss_ssl import NssSsl
 
 log = logging.getLogger(__name__)
@@ -57,11 +57,11 @@ def test_tls_command_returns_error_text(topo):
     # dsctl localhost tls import-ca
     try:
         invalid_file = topo.standalone.confdir + '/dse.ldif'
-        tls.add_cert(nickname="bad", input_file=invalid_file)
+        tls.add_cert(nickname="bad", cert_file=invalid_file)
         assert False
     except ValueError as e:
         assert '255' not in str(e)
-        assert 'Unable to load PEM file' in str(e)
+        assert 'Unable to load certificate' in str(e)
 
     # dsctl localhost tls import-server-cert
     try:

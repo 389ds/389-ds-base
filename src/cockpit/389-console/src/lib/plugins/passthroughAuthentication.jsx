@@ -17,7 +17,7 @@ import {
 import { PassthroughAuthURLsTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, getApiErrorMessage } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -212,7 +212,7 @@ class PassthroughAuthentication extends React.Component {
         this.props.toggleLoadingHandler();
         log_cmd("loadURLs", "Get Passthrough Authentication Plugin Configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const tableKey = this.state.tableKey + 1;
@@ -223,9 +223,9 @@ class PassthroughAuthentication extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     if (err !== 0) {
-                        console.log("loadURLs failed", errMsg.desc);
+                        console.log("loadURLs failed", errMsg);
                     }
                     this.props.toggleLoadingHandler();
                 });
@@ -302,7 +302,7 @@ class PassthroughAuthentication extends React.Component {
         log_cmd("deleteURL", "Delete the Passthrough Authentication Plugin URL entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -312,10 +312,10 @@ class PassthroughAuthentication extends React.Component {
                     this.closeConfirmDeleteURL();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the URL removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the URL removal operation - $0"), errMsg)
                     );
                     this.loadURLs();
                     this.closeConfirmDeleteURL();
@@ -372,7 +372,7 @@ class PassthroughAuthentication extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -385,10 +385,10 @@ class PassthroughAuthentication extends React.Component {
                     this.handleCloseURLModal();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the URL $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the URL $0 operation - $1"), action, errMsg)
                     );
                     this.loadURLs();
                     this.handleCloseURLModal();
@@ -623,6 +623,7 @@ class PassthroughAuthentication extends React.Component {
                         <Button
                             variant="primary"
                             onClick={this.handleShowAddURLModal}
+                            className="ds-margin-top"
                         >
                             {_("Add URL")}
                         </Button>

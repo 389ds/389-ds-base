@@ -1139,6 +1139,7 @@ views_dn_views_cb(Slapi_Entry *e, void *callback_data)
             if (attrType && !strcasecmp(attrType, VIEW_FILTER_ATTR)) {
                 if (!slapi_attr_get_bervals_copy(dnAttr, &dnVals)) {
                     /* add filter */
+                    slapi_ch_free_string(&pView->viewfilter);
                     pView->viewfilter = slapi_ch_strdup(dnVals[0]->bv_val);
                 }
 
@@ -1716,5 +1717,6 @@ views_cache_backend_state_change(void *handle __attribute__((unused)), char *be_
 static void
 views_cache_act_on_change_thread(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("views-cache");
     views_cache_create();
 }

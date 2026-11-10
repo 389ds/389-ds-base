@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -22,7 +22,7 @@ from lib389._constants import CONSUMER_REPLICAID, REPLICA_RDWR_TYPE, REPLICA_FLA
                               REPLICA_FLAGS_RDONLY, REPLICA_ID, REPLICA_TYPE, REPLICA_SUFFIX, REPLICA_BINDDN, \
                               RDN_REPLICA, REPLICA_FLAGS, REPLICA_RUV_UUID, REPLICA_OC_TOMBSTONE, DN_MAPPING_TREE, \
                               DN_CONFIG, DN_PLUGIN, REPLICATION_BIND_DN, REPLICATION_BIND_PW, ReplicaRole, \
-                              defaultProperties
+                              defaultProperties, DIRSRV_STATE_ONLINE
 from lib389.properties import REPLICA_OBJECTCLASS_VALUE, REPLICA_OBJECTCLASS_VALUE, REPLICA_SUFFIX, \
                               REPLICA_PROPNAME_TO_ATTRNAME, REPL_BINDDN, REPL_TYPE, REPL_ID, REPL_FLAGS, \
                               REPL_BIND_GROUP, SER_HOST, SER_PORT, SER_SECURE_PORT, SER_ROOT_DN, SER_ROOT_PW, \
@@ -30,9 +30,10 @@ from lib389.properties import REPLICA_OBJECTCLASS_VALUE, REPLICA_OBJECTCLASS_VAL
 
 from lib389.utils import (normalizeDN, escapeDNValue, ensure_bytes, ensure_str,
                           ensure_list_str, ds_is_older, copy_with_permissions,
-                          ds_supports_new_changelog)
+                          ds_supports_new_changelog, get_timeout_scale)
 from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389._mapped_object_lint import lint_get_attr_val_utf8
 from lib389.passwd import password_generate
 from lib389.mappingTree import MappingTrees
 from lib389.agreement import Agreements
@@ -44,6 +45,7 @@ from lib389.idm.group import Groups
 from lib389.idm.services import ServiceAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.conflicts import ConflictEntries
+from lib389.dseldif import DSEldif
 from lib389.lint import (DSREPLLE0001, DSREPLLE0002, DSREPLLE0003, DSREPLLE0004,
                          DSREPLLE0005, DSREPLLE0006, DSCLLE0001)
 
@@ -612,21 +614,20 @@ class ReplicaLegacy(object):
                 if not status:
                     self.log.info("No status yet")
                 elif status.find(ensure_bytes("replica busy")) > -1:
-                    self.log.info("Update failed - replica busy - status", status)
+                    self.log.info(f"Update failed - replica busy - status {status}")
                     done = True
                     hasError = 2
                 elif status.find(ensure_bytes("Total update succeeded")) > -1:
-                    self.log.info("Update succeeded: status ", status)
+                    self.log.info(f"Update succeeded: status {status}")
                     done = True
                 elif inprogress.lower() == ensure_bytes('true'):
-                    self.log.info("Update in progress yet not in progress: status ",
-                          status)
+                    self.log.info(f"Update in progress yet not in progress: status {status}")
                 else:
-                    self.log.info("Update failed: status", status)
+                    self.log.info(f"Update failed: status {status}")
                     hasError = 1
                     done = True
             else:
-                self.log.debug("Update in progress: status", status)
+                self.log.debug(f"Update in progress: status {status}")
 
         return done, hasError
 
@@ -822,6 +823,32 @@ class ReplicaLegacy(object):
             raise ValueError('Failed to update replica: ' + str(e))
 
 
+class NormalizedRidDict(dict):
+    """A dict whose key is a Normalized Replica ID
+    """
+
+    @staticmethod
+    def normalize_rid(rid):
+        return int(rid)
+
+    def __init__(self):
+        super().__init__()
+
+    def __getitem__(self, key):
+        nkey = NormalizedRidDict.normalize_rid(key)
+        return super().__getitem__(nkey)
+
+    def __setitem__(self, key, value):
+        nkey = NormalizedRidDict.normalize_rid(key)
+        super().__setitem__(nkey, value)
+
+    def get(self, key, vdef=None):
+        try:
+            return self[key]
+        except KeyError:
+            return vdef
+
+
 class RUV(object):
     """Represents the server in memory RUV object. The RUV contains each
     update vector the server knows of, along with knowledge of CSN state of the
@@ -839,11 +866,11 @@ class RUV(object):
         else:
             self._log = logging.getLogger(__name__)
         self._rids = []
-        self._rid_url = {}
-        self._rid_rawruv = {}
-        self._rid_csn = {}
-        self._rid_maxcsn = {}
-        self._rid_modts = {}
+        self._rid_url = NormalizedRidDict()
+        self._rid_rawruv = NormalizedRidDict()
+        self._rid_csn = NormalizedRidDict()
+        self._rid_maxcsn = NormalizedRidDict()
+        self._rid_modts = NormalizedRidDict()
         self._data_generation = None
         self._data_generation_csn = None
         # Process the array of data
@@ -891,7 +918,7 @@ class RUV(object):
             ValueError("Wrong CSN value was supplied")
 
         timestamp = int(csn[:8], 16)
-        time_str = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        time_str = datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         # We are parsing shorter CSN which contains only timestamp
         if len(csn) == 8:
             return time_str
@@ -935,9 +962,10 @@ class RUV(object):
         :returns: str
         """
         self._log.debug("Allocated rids: %s" % self._rids)
+        rids = [ int(rid) for rid in self._rids ]
         for i in range(1, 65534):
             self._log.debug("Testing ... %s" % i)
-            if str(i) not in self._rids:
+            if i not in rids:
                 return str(i)
         raise Exception("Unable to alloc rid!")
 
@@ -965,6 +993,10 @@ class RUV(object):
             if my_csn < other_csn:
                 return False
         return True
+
+    def __str__(self):
+        return str(self.format_ruv())
+
 
 
 class ChangelogLDIF(object):
@@ -1154,8 +1186,8 @@ class Changelog5(DSLdapObject):
     def _lint_cl_trimming(self):
         """Check that cl trimming is at least defined to prevent unbounded growth"""
         try:
-            if self.get_attr_val_utf8('nsslapd-changelogmaxentries') is None and \
-                self.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
+            if lint_get_attr_val_utf8(self, 'nsslapd-changelogmaxentries') is None and \
+                lint_get_attr_val_utf8(self, 'nsslapd-changelogmaxage') is None:
                 report = copy.deepcopy(DSCLLE0001)
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
                 report['check'] = f'changelog:cl_trimming'
@@ -1255,6 +1287,9 @@ class Replica(DSLdapObject):
                                 report['check'] = f'replication:agmts_status'
                                 yield report
                         elif status['state'] == 'amber':
+                            if "can't acquire busy replica" in status['reason']:
+                                # Ignore replica busy condition
+                                continue
                             # Warning
                             report = copy.deepcopy(DSREPLLE0003)
                             report['detail'] = report['detail'].replace('SUFFIX', suffix)
@@ -1783,6 +1818,24 @@ class Replicas(DSLdapObjects):
 
         return replica
 
+    def _list_from_dse(self, full_dn=False):
+        dse = DSEldif(self._instance)
+        replica_dn_list = dse.get_replicas()
+        replicas = []
+
+        if full_dn:
+            return replica_dn_list
+        else:
+            for dn in replica_dn_list:
+                replicas.append(Replica(self._instance, dn=dn))
+            return replicas
+
+    def list(self, paged_search=None, paged_critical=True, full_dn=False):
+        """List backends via LDAP when online; read ``dse.ldif`` when offline (e.g. healthcheck)."""
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            return self._list_from_dse(full_dn=full_dn)
+        return super(Replicas, self).list(paged_search=paged_search, paged_critical=paged_critical, full_dn=full_dn)
+
     def get(self, selector=[], dn=None):
         """Get a child entry (DSLdapObject, Replica, etc.) with dn or selector
         using a base DN and objectClasses of our object (DSLdapObjects, Replicas, etc.)
@@ -2076,6 +2129,13 @@ class ReplicationManager(object):
 
         agmt_name = self._inst_to_agreement_name(to_instance)
 
+        # Default timeout
+        timeout = 5
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         # add a temp agreement from A -> B
         from_agreements = from_replica.get_agreements()
         temp_agmt = from_agreements.create(properties={
@@ -2084,7 +2144,7 @@ class ReplicationManager(object):
             'nsDS5ReplicaBindDN': brm.dn,
             'nsDS5ReplicaBindMethod': 'simple' ,
             'nsDS5ReplicaTransportInfo': 'LDAP',
-            'nsds5replicaTimeout': '5',
+            'nsds5replicaTimeout': str(timeout),
             'description': "temp_%s" % agmt_name,
             'nsDS5ReplicaHost': to_instance.host,
             'nsDS5ReplicaPort': str(to_instance.port),
@@ -2156,13 +2216,15 @@ class ReplicationManager(object):
         # to allow the tot_init to occur.
         self._bootstrap_replica(from_r, to_r, to_instance)
 
+        # Set bind DN group BEFORE creating agreements: the supplier's replication
+        # thread starts immediately on agreement creation and will fail auth permanently
+        # if nsDS5ReplicaBindDNGroup is not yet configured on the consumer.
+        to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
+
         # Now put in an agreement from to -> from
         # both ends.
         self.ensure_agreement(from_instance, to_instance)
         self.ensure_agreement(to_instance, from_instance, init=True)
-
-        # Now fix our replica credentials from -> to
-        to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
 
         # Now finally test it ...
         self.test_replication(from_instance, to_instance)
@@ -2213,12 +2275,14 @@ class ReplicationManager(object):
         # to allow the tot_init to occur.
         self._bootstrap_replica(from_r, to_r, to_instance)
 
+        # Set bind DN group BEFORE creating agreements: the supplier's replication
+        # thread starts immediately on agreement creation and will fail auth permanently
+        # if nsDS5ReplicaBindDNGroup is not yet configured on the consumer.
+        to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
+
         # Now put in an agreement from to -> from
         # both ends.
         self.ensure_agreement(from_instance, to_instance)
-
-        # Now fix our replica credentials from -> to
-        to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
 
         # Now finally test it ...
         self.test_replication(from_instance, to_instance)
@@ -2267,12 +2331,14 @@ class ReplicationManager(object):
         # to allow the tot_init to occur.
         self._bootstrap_replica(from_r, to_r, to_instance)
 
+        # Set bind DN group BEFORE creating agreements: the supplier's replication
+        # thread starts immediately on agreement creation and will fail auth permanently
+        # if nsDS5ReplicaBindDNGroup is not yet configured on the consumer.
+        to_r.set('nsDS5ReplicaBindDNGroup', repl_group.dn)
+
         # Now put in an agreement from to -> from
         # both ends.
         self.ensure_agreement(from_instance, to_instance)
-
-        # Now fix our replica credentials from -> to
-        to_r.set('nsDS5ReplicaBindDNGroup', repl_group.dn)
 
         # Now finally test it ...
         # If from_instance replica isn't read-write (hub, probably), we will test it later
@@ -2364,13 +2430,20 @@ class ReplicationManager(object):
         assert dn is not None
         assert creds is not None
 
+        # Default timeout
+        timeout = 5
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         agmt = from_agmts.create(properties={
             'cn': agmt_name,
             'nsDS5ReplicaRoot': self._suffix,
             'nsDS5ReplicaBindDN': dn,
             'nsDS5ReplicaBindMethod': 'simple' ,
             'nsDS5ReplicaTransportInfo': 'LDAP',
-            'nsds5replicaTimeout': '5',
+            'nsds5replicaTimeout': str(timeout),
             'description': agmt_name,
             'nsDS5ReplicaHost': to_instance.host,
             'nsDS5ReplicaPort': str(to_instance.port),
@@ -2467,6 +2540,11 @@ class ReplicationManager(object):
         :type to_instance: lib389.DirSrv
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         from_replicas = Replicas(from_instance)
         from_r = from_replicas.get(self._suffix)
 
@@ -2497,6 +2575,11 @@ class ReplicationManager(object):
         :type timeout: int
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         from_replicas = Replicas(from_instance)
         from_r = from_replicas.get(self._suffix)
 
@@ -2536,6 +2619,11 @@ class ReplicationManager(object):
         :type timeout: int
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         # Touch something then wait_for_replication.
         from_groups = Groups(from_instance, basedn=self._suffix, rdn=None)
         to_groups = Groups(to_instance, basedn=self._suffix, rdn=None)
@@ -2586,6 +2674,11 @@ class ReplicationManager(object):
         :type timeout: int
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         # It's the same ....
         self.wait_for_replication(from_instance, to_instance, timeout)
 
@@ -2599,6 +2692,11 @@ class ReplicationManager(object):
         :type timeout: int
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         for p in permutations(instances, 2):
             a, b = p
             self.test_replication(a, b, timeout)

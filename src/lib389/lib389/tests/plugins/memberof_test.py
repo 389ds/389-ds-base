@@ -10,7 +10,7 @@
 import pytest
 from time import sleep
 
-from lib389.topologies import topology_st
+from lib389.tests.topologies import topology_st
 from lib389.plugins import MemberOfPlugin
 from lib389.properties import BACKEND_NAME, BACKEND_SUFFIX
 from lib389._constants import DEFAULT_SUFFIX

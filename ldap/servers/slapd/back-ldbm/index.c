@@ -446,27 +446,26 @@ index_addordel_entry(
         }
 
         slapi_sdn_done(&parent);
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            Slapi_Attr *attr;
-            /* Even if this is a tombstone, we have to add it to entryrdn
-             * to maintain the full DN
-             */
-            result = entryrdn_index_entry(be, e, flags, txn);
+
+        Slapi_Attr *attr;
+        /* Even if this is a tombstone, we have to add it to entryrdn
+         * to maintain the full DN
+         */
+        result = entryrdn_index_entry(be, e, flags, txn);
+        if (result != 0) {
+            ldbm_nasty("index_addordel_entry", errmsg, 1023, result);
+            return (result);
+        }
+        /* To maintain tombstonenumsubordinates,
+            * parentid is needed for tombstone, as well. */
+        slapi_entry_attr_find(e->ep_entry, LDBM_PARENTID_STR, &attr);
+        if (attr) {
+            svals = attr_get_present_values(attr);
+            result = index_addordel_values_sv(be, LDBM_PARENTID_STR, svals, NULL,
+                                              e->ep_id, flags, txn);
             if (result != 0) {
-                ldbm_nasty("index_addordel_entry", errmsg, 1023, result);
+                ldbm_nasty("index_addordel_entry", errmsg, 1022, result);
                 return (result);
-            }
-            /* To maintain tombstonenumsubordinates,
-             * parentid is needed for tombstone, as well. */
-            slapi_entry_attr_find(e->ep_entry, LDBM_PARENTID_STR, &attr);
-            if (attr) {
-                svals = attr_get_present_values(attr);
-                result = index_addordel_values_sv(be, LDBM_PARENTID_STR, svals, NULL,
-                                                  e->ep_id, flags, txn);
-                if (result != 0) {
-                    ldbm_nasty("index_addordel_entry", errmsg, 1022, result);
-                    return (result);
-                }
             }
         }
     } else { /* NOT a tombstone or delete a tombstone */
@@ -479,14 +478,7 @@ index_addordel_entry(
             svals = attr_get_present_values(attr);
             if (!entryrdn_done && (0 == strcmp(type, LDBM_ENTRYDN_STR))) {
                 entryrdn_done = 1;
-                if (entryrdn_get_switch()) { /* subtree-rename: on */
-                    /* skip "entrydn" */
-                    continue;
-                } else {
-                    /* entrydn is case-normalized */
-                    slapi_values_set_flags(svals,
-                                           SLAPI_ATTR_FLAG_NORMALIZED_CIS);
-                }
+                continue;
             }
             result = index_addordel_values_sv(be, type, svals, NULL,
                                               e->ep_id, flags, txn);
@@ -496,25 +488,23 @@ index_addordel_entry(
             }
         }
 
-        if (!entryrdn_get_noancestorid()) {
-            /* update ancestorid index . . . */
-            /* . . . only if we are not deleting a tombstone entry -
-             * tombstone entries are not in the ancestor id index -
-             * see bug 603279
-             */
-            if (!((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_DEL))) {
-                result = ldbm_ancestorid_index_entry(be, e, flags, txn);
-                if (result != 0) {
-                    return (result);
-                }
-            }
-        }
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            result = entryrdn_index_entry(be, e, flags, txn);
+        /*
+         * update ancestorid index . . .
+         * . . . only if we are not deleting a tombstone entry -
+         * tombstone entries are not in the ancestor id index -
+         * see bug 603279
+         */
+        if (!((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_DEL))) {
+            result = ldbm_ancestorid_index_entry(be, e, flags, txn);
             if (result != 0) {
-                ldbm_nasty("index_addordel_entry", errmsg, 1031, result);
                 return (result);
             }
+        }
+
+        result = entryrdn_index_entry(be, e, flags, txn);
+        if (result != 0) {
+            ldbm_nasty("index_addordel_entry", errmsg, 1031, result);
+            return (result);
         }
     }
 
@@ -891,6 +881,67 @@ index_read(
     return index_read_ext(be, (char *)type, indextype, val, txn, err, NULL);
 }
 
+/* Prepare an index key (hashed if too long, encrypted if needed from attribute value */
+int
+prepare_key(backend *be, struct attrinfo *a, char **buf, size_t *buflen,
+            int flags, const char *prefix, const struct berval *bvp, dbi_val_t *key)
+{
+    /* Key format is [Hash?] [prefix] [val] [\0] */
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    size_t plen = strlen(prefix);
+    struct berval *hashed_bvp = NULL;
+    struct berval *encrypted_bvp = NULL;
+    int rc = 0;
+
+    /* Hash large index key if necessary */
+    if (INDEX_KEY_LENGTH(bvp->bv_len,plen) >=  li->li_max_key_len) {
+        rc = attrcrypt_hash_large_index_key(be, prefix, a, bvp, &hashed_bvp);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
+                          "Failed to hash large index key for %s\n", a->ai_type);
+            return rc;
+        } else {
+            bvp = hashed_bvp;
+        }
+    }
+
+    /* Encrypt the index key if necessary */
+    if (rc == 0 && a->ai_attrcrypt && (0 == (flags & BE_INDEX_DONT_ENCRYPT))) {
+        rc = attrcrypt_encrypt_index_key(be, a, bvp, &encrypted_bvp);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "addordel_values_sv",
+                          "Failed to encrypt index key for %s\n", a->ai_type);
+        } else {
+            bvp = encrypted_bvp;
+        }
+    }
+    if (hashed_bvp) {
+        prefix = slapi_ch_smprintf("%c%s",HASH_PREFIX, prefix);
+        plen++;
+    }
+    if (buf && buflen) {
+        if (plen+bvp->bv_len+1 > *buflen) {
+            *buflen = plen+bvp->bv_len+1;
+            *buf = slapi_ch_realloc(*buf, *buflen);
+        }
+        dblayer_value_concat(be, key, *buf, *buflen, prefix, plen, bvp->bv_val, bvp->bv_len, "", 1);
+    } else {
+        dblayer_value_concat(be, key, NULL, 0, prefix, plen, bvp->bv_val, bvp->bv_len, "", 1);
+    }
+
+    if (hashed_bvp) {
+        ber_bvfree(hashed_bvp);
+        hashed_bvp = NULL;
+        slapi_ch_free_string((char**)&prefix);
+    }
+    if (encrypted_bvp) {
+        ber_bvfree(encrypted_bvp);
+        encrypted_bvp = NULL;
+    }
+    return rc;
+}
+
+
 /*
  * Extended version of index_read.
  * The unindexed flag can be used to distinguish between a
@@ -927,7 +978,6 @@ index_read_ext_allids(
     struct berval *hashed_val = NULL;
     int is_and = 0;
     unsigned int ai_flags = 0;
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
     *err = 0;
 
@@ -940,7 +990,7 @@ index_read_ext_allids(
     prefix = index_index2prefix(indextype);
     if (prefix == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids", "NULL prefix\n");
-        return NULL;
+        return idl_alloc(0);
     }
     if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
         slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "=> ( \"%s\" %s \"%s\" )\n",
@@ -956,15 +1006,15 @@ index_read_ext_allids(
     if (ai == NULL) {
         index_free_prefix(prefix);
         slapi_ch_free_string(&basetmp);
-        return NULL;
+        return idl_alloc(0);
     }
 
     slapi_log_err(SLAPI_LOG_ARGS, "index_read_ext_allids", "indextype: \"%s\" indexmask: 0x%x\n",
                   indextype, ai->ai_indexmask);
 
-    /* If entryrdn switch is on AND the type is entrydn AND the prefix is '=',
+    /* If the type is entrydn AND the prefix is '=',
      * use the entryrdn index directly */
-    if (entryrdn_get_switch() && (*prefix == '=') &&
+    if (*prefix == '=' &&
         (0 == PL_strcasecmp(basetype, LDBM_ENTRYDN_STR))) {
         int rc = 0;
         ID id = 0;
@@ -975,7 +1025,7 @@ index_read_ext_allids(
         slapi_ch_free_string(&basetmp);
         if (NULL == val || NULL == val->bv_val) {
             /* entrydn value was not given */
-            return NULL;
+            return idl_alloc(0);
         }
         slapi_sdn_init_dn_byval(&sdn, val->bv_val);
         rc = entryrdn_index_read(be, &sdn, &id, txn);
@@ -984,11 +1034,11 @@ index_read_ext_allids(
             /* return an empty list */
             return idl_alloc(0);
         } else if (rc) { /* failure */
-            return NULL;
+            return idl_alloc(0);
         } else { /* success */
             rc = idl_append_extend(&idl, id);
             if (rc) { /* failure */
-                return NULL;
+                return idl_alloc(0);
             }
             return idl;
         }
@@ -1030,44 +1080,15 @@ index_read_ext_allids(
     }
     if ((*err = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE)) != 0) {
         slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids",
-                      "<=  NULL (index file open for attr %s)\n",
+                      "<=  empty IDL (index file open for attr %s)\n",
                       basetype);
         index_free_prefix(prefix);
         slapi_ch_free_string(&basetmp);
-        return (NULL);
+        return idl_alloc(0);
     }
 
     if (val != NULL) {
-        size_t vlen;
-        int ret = 0;
-
-        /* If necessary, hash this index key */
-        if (val->bv_len >=  li->li_max_key_len) {
-            ret = attrcrypt_hash_large_index_key(be, &prefix, ai, val, &hashed_val);
-            if (ret) {
-                slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
-                              "Failed to hash large index key for %s\n", basetype);
-                *err = DBI_RC_OTHER;
-                index_free_prefix(prefix);
-                slapi_ch_free_string(&basetmp);
-                return (NULL);
-            }
-            if (hashed_val) {
-                val = hashed_val;
-            }
-        }
-        /* If necessary, encrypt this index key */
-        ret = attrcrypt_encrypt_index_key(be, ai, val, &encrypted_val);
-        if (ret) {
-            slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
-                          "Failed to encrypt index key for %s\n", basetype);
-        }
-        if (encrypted_val) {
-            val = encrypted_val;
-        }
-        vlen = val->bv_len;
-        dblayer_value_concat(be, &key, buf, sizeof(buf),
-            prefix, strlen(prefix), val->bv_val, vlen, "", 1);
+        (void) prepare_key(be, ai, NULL, 0, 0, prefix, val, &key);
     } else {
         dblayer_value_concat(be, &key, buf, sizeof(buf), prefix, strlen(prefix),
             "", 1, NULL, 0);
@@ -1077,17 +1098,26 @@ index_read_ext_allids(
     }
     for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
         *err = NEW_IDL_DEFAULT;
-        PRIntervalTime interval;
         idl_free(&idl);
         idl = idl_fetch_ext(be, db, &key, db_txn, ai, err, allidslimit);
         if (*err == DBI_RC_RETRY) {
             ldbm_nasty("index_read_ext_allids", "index read retrying transaction", 1045, *err);
-#ifdef FIX_TXN_DEADLOCKS
-#error can only retry here if txn == NULL - otherwise, have to abort and retry txn
-#endif
-            interval = PR_MillisecondsToInterval(slapi_rand() % 100);
-            DS_Sleep(interval);
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "index_read_ext_allids",
+                          "DBI_RC_RETRY on retry %d/%d for %s\n",
+                          retry_count + 1, IDL_FETCH_RETRY_COUNT, basetype);
+            if (NULL != db_txn) {
+                /* Only the caller can retry its own transaction */
+                break;
+            }
+            if (retry_count + 1 < IDL_FETCH_RETRY_COUNT) {
+                ldbm_fetch_retry_sleep(retry_count);
+            }
             continue;
+        } else if (*err == DBI_RC_NOTFOUND) {
+            /* Key not found in index - this is normal, not an error */
+            idl_free(&idl);
+            idl = idl_alloc(0);
+            break;
         } else if (*err != 0 || idl == NULL) {
             /* The database might not exist. We have to assume it means empty set */
             slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "Failed to access idl index for %s\n", basetype);
@@ -1099,12 +1129,20 @@ index_read_ext_allids(
             break;
         }
     }
-    if (retry_count == IDL_FETCH_RETRY_COUNT) {
-        ldbm_nasty("index_read_ext_allids", "index_read retry count exceeded", 1046, *err);
+    if (*err == DBI_RC_RETRY) {
+        if (NULL == db_txn && retry_count == IDL_FETCH_RETRY_COUNT) {
+            slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
+                          "Index read on %s gave up after %d attempts due to "
+                          "transient lock conflicts. Error is %d\n",
+                          basetype, IDL_FETCH_RETRY_COUNT, *err);
+        }
+        /* Never return NULL on a transient failure */
+        if (idl == NULL) {
+            idl = idl_alloc(0);
+        }
     } else if (*err != 0 && *err != DBI_RC_NOTFOUND) {
         ldbm_nasty("index_read_ext_allids", errmsg, 1050, *err);
     }
-    slapi_ch_free_string(&basetmp);
     dblayer_value_free(be, &key);
 
     dblayer_release_index_file(be, ai, db);
@@ -1117,6 +1155,16 @@ index_read_ext_allids(
     if (encrypted_val) {
         ber_bvfree(encrypted_val);
     }
+
+    /* Ensure we never return NULL - always return valid IDL */
+    if (idl == NULL) {
+        slapi_log_err(SLAPI_LOG_WARNING, "index_read_ext_allids",
+                      "Returning empty IDL for %s after error %d\n",
+                      basetype, *err);
+        idl = idl_alloc(0);
+    }
+
+    slapi_ch_free_string(&basetmp);
 
     slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "<=  %lu candidates\n",
                   (u_long)IDL_NIDS(idl));
@@ -1200,11 +1248,28 @@ retry:
     ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY, key, &data); /* both key and data could be allocated */
     /* data allocated here, we don't need it */
     dblayer_value_free(be, &data);
-    if (DBI_RC_NOTFOUND == ret) {
+    if (DBI_RC_NOTFOUND == ret && key->size > 0) {
         /* If this happens, it means that we tried to seek to a key which has just been deleted */
-        /* So, we seek to the nearest one instead */
+        /* So, we seek to the nearest one instead; the seek rewrites the
+         * key, so keep a copy to tell whether we landed on it or past it */
+        dbi_val_t sought = {0};
+        char *keydup = slapi_ch_malloc(key->size);
+        memcpy(keydup, key->data, key->size);
+        dblayer_value_set(be, &sought, keydup, key->size);
         ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_NEAR_KEY, key, &data); /* both key and data could be allocated */
         /* a new key and data are allocated here, need to free them both */
+        dblayer_value_free(be, &data);
+        if (DBI_RC_SUCCESS == ret && !KEY_EQ(key, &sought)) {
+            /* The nearest key is already past the sought one: return it
+             * as the next key */
+            dblayer_value_free(be, &sought);
+            goto error;
+        }
+        dblayer_value_free(be, &sought);
+    } else if (DBI_RC_NOTFOUND == ret) {
+        /* Empty sought key from the old idl walk: keep its legacy
+         * land-on-first-then-advance behavior */
+        ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_NEAR_KEY, key, &data); /* both key and data could be allocated */
         dblayer_value_free(be, &data);
     }
     if (0 != ret) {
@@ -1627,8 +1692,20 @@ index_range_read_ext(
     dblayer_value_init(be, &lowerkey);   /* Clear lowerkey to avoid double free */
     *err = 0;
     if (coreop == SLAPI_OP_GREATER) {
-        *err = index_range_next_key(be, db, &cur_key, db_txn);
-        if (*err) {
+        /* The seek rewrote cur_key with the landed key: rebuild the
+         * bound and step off it only if the walk landed exactly on it */
+        dbi_val_t bound = {0};
+        set_range_limit(be, val, prefix, plen, &bound);
+        if (KEY_EQ(&cur_key, &bound)) {
+            *err = index_range_next_key(be, db, &cur_key, db_txn);
+        }
+        dblayer_value_free(be, &bound);
+        if (DBI_RC_NOTFOUND == *err) {
+            /* the bound key is the last key: the range is empty */
+            *err = 0;
+            idl = idl_alloc(0);
+            goto error;
+        } else if (*err) {
             slapi_log_err(SLAPI_LOG_ERR, "index_range_read_ext",
                           "(%s,%s) op==GREATER, no next key: %i)\n",
                           type, prefix, *err);
@@ -1640,20 +1717,53 @@ index_range_read_ext(
     }
 
     if (idl_get_idl_new()) { /* new idl */
-        /*
-         * li->li_flags is not set when doing internal search (as in bulk import)
-         * and since idl_new_range_fetch is broken for lmdb (because of bulk read operations)
-         * better use idl_lmdb_range_fetch in that case (which work on bdb but may be a
-         * bit slower)
-         */
-        if ((li->li_flags & (LI_LMDB_IMPL|LI_BDB_IMPL)) == LI_BDB_IMPL) {
-            idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
-                                      ai, err, allidslimit, sizelimit, &expire_time,
-                                      lookthrough_limit, operator);
-        } else {
-            idl = idl_lmdb_range_fetch(be, db, &cur_key, &upperkey, db_txn,
-                                      ai, err, allidslimit, sizelimit, &expire_time,
-                                      lookthrough_limit, operator);
+        int retry_count = 0;
+        int idl_flags = *err; /* *err carries NEW_IDL_* input flags (e.g. NEW_IDL_NO_ALLID) */
+
+        /* A transient lock conflict (DBI_RC_RETRY) aborts the whole walk.
+         * Retrying is safe: the fetchers leave the caller's cur_key intact
+         * on failure and their internal read txn is already aborted. */
+        for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
+            if (retry_count > 0) {
+                /* Drop partial results, restore the input flags */
+                idl_free(&idl);
+                *err = idl_flags;
+            }
+            /*
+             * li->li_flags is not set when doing internal search (as in bulk import)
+             * and since idl_new_range_fetch is broken for lmdb (because of bulk read operations)
+             * better use idl_lmdb_range_fetch in that case (which work on bdb but may be a
+             * bit slower)
+             */
+            if ((li->li_flags & (LI_LMDB_IMPL|LI_BDB_IMPL)) == LI_BDB_IMPL) {
+                idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
+                                          ai, err, allidslimit, sizelimit, &expire_time,
+                                          lookthrough_limit, operator);
+            } else {
+                idl = idl_lmdb_range_fetch(be, db, &cur_key, &upperkey, db_txn,
+                                          ai, err, allidslimit, sizelimit, &expire_time,
+                                          lookthrough_limit, operator);
+            }
+            if (*err != DBI_RC_RETRY) {
+                break;
+            }
+            if (db_txn != NULL) {
+                /* Only the caller can retry its own transaction */
+                break;
+            }
+            ldbm_nasty("index_range_read_ext", "Retrying range fetch", 1091, *err);
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "index_range_read_ext",
+                          "DBI_RC_RETRY on range fetch retry %d/%d for %s\n",
+                          retry_count + 1, IDL_FETCH_RETRY_COUNT, type);
+            if (retry_count + 1 < IDL_FETCH_RETRY_COUNT) {
+                ldbm_fetch_retry_sleep(retry_count);
+            }
+        }
+        if (*err == DBI_RC_RETRY && NULL == db_txn) {
+            slapi_log_err(SLAPI_LOG_ERR, "index_range_read_ext",
+                          "Range read on the %s index gave up after %d attempts "
+                          "due to transient lock conflicts. Error is %d\n",
+                          type, IDL_FETCH_RETRY_COUNT, *err);
         }
     } else { /* old idl */
         int retry_count = 0;
@@ -1723,6 +1833,9 @@ index_range_read_ext(
 #ifdef FIX_TXN_DEADLOCKS
 #error if txn != NULL, have to abort and retry the transaction, not just the fetch
 #endif
+                    if (retry_count + 1 < IDL_FETCH_RETRY_COUNT) {
+                        ldbm_fetch_retry_sleep(retry_count);
+                    }
                     continue;
                 } else {
                     break;
@@ -1834,6 +1947,7 @@ index_range_read(
     return index_range_read_ext(pb, be, type, indextype, operator, val, nextval, range, txn, err, 0);
 }
 
+
 static int
 addordel_values_sv(
     backend *be,
@@ -1852,15 +1966,10 @@ addordel_values_sv(
     int i = 0;
     dbi_val_t key = {0};
     dbi_txn_t *db_txn = NULL;
-    size_t plen, vlen, len;
     char *tmpbuf = NULL;
     size_t tmpbuflen = 0;
-    char *realbuf;
     char *prefix = NULL;
     const struct berval *bvp;
-    struct berval *hashed_bvp = NULL;
-    struct berval *encrypted_bvp = NULL;
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     char *index_id = get_index_name(be, db, a);
 
     slapi_log_err(SLAPI_LOG_TRACE, "addordel_values_sv", "%s_values\n",
@@ -1899,65 +2008,13 @@ addordel_values_sv(
         return (rc);
     }
 
-    plen = strlen(prefix);
     for (i = 0; vals[i] != NULL; i++) {
         bvp = slapi_value_get_berval(vals[i]);
 
-        /* Hash large index key if necessary */
-        if (bvp->bv_len >=  li->li_max_key_len) {
-            rc = attrcrypt_hash_large_index_key(be, &prefix, a, bvp, &hashed_bvp);
-            if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
-                              "Failed to hash large index key for %s\n", a->ai_type);
-                break;
-            } else {
-                bvp = hashed_bvp;
-                plen = strlen(prefix);
-            }
+        rc = prepare_key(be, a, &tmpbuf, &tmpbuflen, flags, prefix, bvp, &key);
+        if (rc) {
+            break;
         }
-        /* Encrypt the index key if necessary */
-        {
-            if (a->ai_attrcrypt && (0 == (flags & BE_INDEX_DONT_ENCRYPT))) {
-                rc = attrcrypt_encrypt_index_key(be, a, bvp, &encrypted_bvp);
-                if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR, "addordel_values_sv",
-                                  "Failed to encrypt index key for %s\n", a->ai_type);
-                } else {
-                    bvp = encrypted_bvp;
-                }
-            }
-        }
-
-        vlen = bvp->bv_len;
-        len = plen + vlen;
-
-        if (len < tmpbuflen) {
-            realbuf = tmpbuf;
-        } else {
-            tmpbuf = slapi_ch_realloc(tmpbuf, len + 1);
-            tmpbuflen = len + 1;
-            realbuf = tmpbuf;
-        }
-
-        assert(realbuf); /* For coverity */
-        memcpy(realbuf, prefix, plen);
-        memcpy(realbuf + plen, bvp->bv_val, vlen);
-        realbuf[len] = '\0';
-        /* Free the encrypted berval if necessary */
-        if (hashed_bvp) {
-            ber_bvfree(hashed_bvp);
-            hashed_bvp = NULL;
-        }
-        if (encrypted_bvp) {
-            ber_bvfree(encrypted_bvp);
-            encrypted_bvp = NULL;
-        }
-        /* should be okay to use USERMEM here because we know what
-         * the key is and it should never return a different value
-         * than the one we pass in.
-         */
-        dblayer_value_set_buffer(be, &key, realbuf, plen + vlen + 1);
-        key.ulen = tmpbuflen;
 
         if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
             char encbuf[BUFSIZ];
@@ -1990,10 +2047,6 @@ addordel_values_sv(
         if (rc != 0) {
             ldbm_nasty(NASTY_MSG("addordel_values_sv"), index_id, 1130, rc);
             break;
-        }
-        if (NULL != key.dptr && realbuf != key.dptr) { /* realloc'ed */
-            tmpbuf = key.dptr;
-            tmpbuflen = key.size;
         }
     }
     index_free_prefix(prefix);

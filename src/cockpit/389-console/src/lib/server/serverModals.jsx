@@ -12,6 +12,7 @@ import {
     ValidatedOptions,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
+import { DsNumberInput } from "../dsNumberInput.jsx";
 
 const _ = cockpit.gettext;
 
@@ -191,16 +192,15 @@ export class SASLMappingModal extends React.Component {
                             {_("SASL Mapping Priority")}
                         </GridItem>
                         <GridItem span={9}>
-                            <TextInput
+                            <DsNumberInput
                                 value={this.props.priority}
-                                type="number"
                                 id="saslPriority"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="saslPriority"
-                                onChange={(e, str) => {
+                                min={1}
+                                max={100}
+                                validated={this.props.error.saslPriority ? ValidatedOptions.error : ValidatedOptions.default}
+                                onChange={(e) => {
                                     this.props.handleChange(e);
                                 }}
-                                validated={this.props.error.saslPriority ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText  >
                                 {_("Priority must be between 1 and 100")}

@@ -123,7 +123,7 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     rc = dblayer_new_cursor(be, db, NULL, &dbc);
     if (0 != rc) {
         slapi_log_err(SLAPI_LOG_ERR, "usn_get_last_usn",
-                      "Failed to create a cursor: %d", rc);
+                      "Failed to create a cursor: %d\n", rc);
         goto bail;
     }
 

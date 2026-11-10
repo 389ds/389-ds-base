@@ -26,6 +26,7 @@
 
 #undef SDN_DEBUG
 
+static char *safe_PL_strcasestr(char *start, char *end, const char *needle);
 static void add_rdn_av(char *avstart, char *avend, int *rdn_av_countp, struct berval **rdn_avsp, struct berval *avstack);
 static void reset_rdn_avs(struct berval **rdn_avsp, int *rdn_av_countp);
 static void sort_rdn_avs(struct berval *avs, int count, int escape);
@@ -58,7 +59,7 @@ struct ndn_cache {
 
 /*
  * This means we need 1 MB minimum per thread
- * 
+ *
  */
 #define NDN_CACHE_MINIMUM_CAPACITY 1048576
 /*
@@ -127,7 +128,7 @@ static void ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len);
 
 #define MAYBEDN(eq) (                 \
     (eq) && ((eq) != subtypestart) && \
-    ((eq) != subtypestart + strlen(subtypestart) - 3))
+    ((eq) != d - 3))
 
 #define B4TYPE 0
 #define INTYPE 1
@@ -470,7 +471,7 @@ static int
 ISEOV(char *s, char *ends)
 {
     char *p;
-    for (p = s; p && *p && p < ends; p++) {
+    for (p = s; p && (p < ends) && *p; p++) {
         if (SEPARATOR(*p)) {
             return 1;
         } else if (!ISBLANK(*p)) {
@@ -745,8 +746,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                                 (ISPLUS(*(s + 1)) || subrdn_av_count > 0)) {
                                 /* if subtypestart is not valid DN,
                                   * we do not do sorting.*/
-                                char *p = PL_strcasestr(subtypestart, "\\3d");
-                                if (MAYBEDN(p)) {
+                                if (MAYBEDN(safe_PL_strcasestr(subtypestart, d, "\\3d"))) {
                                     add_rdn_av(subtypestart, d,
                                                &subrdn_av_count,
                                                &subrdn_avs,
@@ -826,8 +826,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             (ISPLUSSTR(s + 1) || subrdn_av_count > 0)) {
                             /* if subtypestart is not valid DN,
                              * we do not do sorting.*/
-                            char *p = PL_strcasestr(subtypestart, "\\3d");
-                            if (MAYBEDN(p)) {
+                            if (MAYBEDN(safe_PL_strcasestr(subtypestart, d, "\\3d"))) {
                                 add_rdn_av(subtypestart, d, &subrdn_av_count,
                                            &subrdn_avs, subinitial_rdn_av_stack);
                             } else {
@@ -872,7 +871,16 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     if (n == 0) { /* don't change \00 */
                         *d++ = *++s;
                         *d++ = *++s;
-                    } else if (n == 32) { /* leave \20 (space) intact */
+                    } else if ((state == INVALUE1ST) &&
+                               ((n == 32) || (n ==35))) {
+                        /*
+                         * RFC 4514
+                         * ; The following characters are to be escaped when they appear
+                         * ; in the value to be encoded: ESC, one of <escaped>, leading
+                         * ; SHARP or SPACE, trailing SPACE, and NULL.
+                         *
+                         * Leave intact the heading SPACE and SHARP
+                         */
                         *d++ = *s;
                         *d++ = *++s;
                         *d++ = *++s;
@@ -959,6 +967,23 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                         d += 3;
                     }
 
+                    if (subtypestart && subrdn_av_count > 0) {
+                        if (MAYBEDN(safe_PL_strcasestr(subtypestart, d, "\\3d"))) {
+                            add_rdn_av(subtypestart, d,
+                                       &subrdn_av_count,
+                                       &subrdn_avs,
+                                       subinitial_rdn_av_stack);
+                        } else {
+                            reset_rdn_avs(&subrdn_avs,
+                                          &subrdn_av_count);
+                            subtypestart = NULL;
+                        }
+                        if (subrdn_av_count > 1) {
+                            sort_rdn_avs(subrdn_avs,
+                                         subrdn_av_count, 1);
+                        }
+                    }
+
                     state = B4SEPARATOR;
                     s++;
                 }
@@ -996,8 +1021,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             (ISPLUS(*s) || subrdn_av_count > 0)) {
                             /* if subtypestart is not valid DN,
                              * we do not do sorting.*/
-                            char *p = PL_strcasestr(subtypestart, "\\3d");
-                            if (MAYBEDN(p)) {
+                            if (MAYBEDN(safe_PL_strcasestr(subtypestart, d, "\\3d"))) {
                                 add_rdn_av(subtypestart, d, &subrdn_av_count,
                                            &subrdn_avs, subinitial_rdn_av_stack);
                             } else {
@@ -1209,6 +1233,21 @@ slapi_create_rdn_value(const char *fmt, ...)
     }
     slapi_ch_free_string(&src);
     return dest;
+}
+
+/*
+ * NUL-safe wrapper around PL_strcasestr: temporarily NUL-terminates
+ * the buffer at 'end' so the search stays within [start, end).
+ */
+static char *
+safe_PL_strcasestr(char *start, char *end, const char *needle)
+{
+    char saved = *end;
+    char *p;
+    *end = '\0';
+    p = PL_strcasestr(start, needle);
+    *end = saved;
+    return p;
 }
 
 /*
@@ -1580,7 +1619,7 @@ slapi_dn_find_parent_ext(const char *dn, int is_tombstone)
                                  sizeof(RUV_STORAGE_ENTRY_UNIQUEID) - 1)) {
                 head = (char *)dn;
             } else {
-                head = strchr(dn, ',');
+                head = (char *)strchr(dn, ',');
                 if (head) {
                     head++;
                 } else {
@@ -1610,6 +1649,8 @@ slapi_dn_find_parent_ext(const char *dn, int is_tombstone)
                     }
                     if (*s) {
                         return (s);
+                    } else {
+                        return (NULL);
                     }
                 }
             }
@@ -3008,7 +3049,7 @@ ndn_cache_get_stats(uint64_t *hits, uint64_t *tries, uint64_t *size, uint64_t *m
     uint64_t freq_evicts;
     uint64_t recent_evicts;
     uint64_t p_weight;
-    cache_char_stats(cache, 
+    cache_char_stats(cache,
         &reader_hits,
         &reader_includes,
         &write_hits,

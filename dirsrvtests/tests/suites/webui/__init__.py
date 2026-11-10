@@ -11,9 +11,12 @@ import pytest
 import distro
 import os
 import time
+import logging
 
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
+
+log = logging.getLogger(__name__)
 
 pytest.importorskip('playwright')
 
@@ -38,7 +41,10 @@ def check_cockpit_version_is_lower(version):
 # the iframe selection differs for chromium and firefox browser
 def determine_frame_selection(page, browser_name):
     if browser_name == 'firefox':
-        frame = page.query_selector('iframe[name=\"cockpit1:localhost/389-console\"]').content_frame()
+        element = page.query_selector('iframe[name=\"cockpit1:localhost/389-console\"]')
+        if element is None:
+            return None
+        frame = element.content_frame()
     else:
         frame = page.frame('cockpit1:localhost/389-console')
 
@@ -69,20 +75,26 @@ def remove_instance_through_lib(topology):
 
 
 def remove_instance_through_webui(topology, page, browser_name):
-    frame = check_frame_assignment(page, browser_name)
-
-    log.info('Check if instance exist')
-    if topology.standalone.exists():
-        log.info('Delete instance')
-        frame.wait_for_selector('#ds-action')
-        frame.click('#ds-action')
-        frame.click('#remove-ds')
-        frame.check('#modalChecked')
-        frame.click('//button[normalize-space(.)=\'Remove Instance\']')
+    try:
         frame = check_frame_assignment(page, browser_name)
-        frame.is_visible("#no-inst-create-btn")
-        time.sleep(1)
-        log.info('Instance deleted')
+
+        log.info('Check if instance exist')
+        if topology.standalone.exists():
+            log.info('Delete instance')
+            frame.wait_for_selector('#ds-action')
+            frame.click('#ds-action')
+            frame.click('#remove-ds')
+            frame.check('#modalChecked')
+            frame.click('//button[normalize-space(.)=\'Remove Instance\']')
+            frame = check_frame_assignment(page, browser_name)
+            frame.is_visible("#no-inst-create-btn")
+            time.sleep(1)
+            log.info('Instance deleted')
+    except Exception as e:
+        log.warning(f'WebUI instance removal failed, falling back to lib389: {e}')
+        if topology.standalone.exists():
+            topology.standalone.delete()
+            time.sleep(1)
 
 
 def setup_login(page):
@@ -102,7 +114,7 @@ def setup_login(page):
     page.click("#login-button")
     time.sleep(2)
 
-    if RHEL in distro.linux_distribution():
+    if RHEL in distro.name():
         page.wait_for_selector('text=Red Hat Directory Server')
         page.click('text=Red Hat Directory Server')
     else:
@@ -125,15 +137,33 @@ def setup_page(topology_st, page, browser_name, request):
 def enable_replication(frame):
     log.info('Check if replication is enabled, if not enable it in order to proceed further with test.')
     frame.get_by_role('tab', name='Replication').click()
-    time.sleep(2)
+
+    suffix_btn = frame.get_by_role('button', name='dc=example,dc=com')
+    suffix_btn.wait_for()
+    suffix_btn.click()
+
+    frame.locator('#suffix-page').wait_for()
+
     if frame.get_by_role('button', name='Enable Replication').is_visible():
+        log.info('Enabling replication for dc=example,dc=com suffix')
         frame.get_by_role('button', name='Enable Replication').click()
         frame.fill('#enableBindPW', 'redhat')
         frame.fill('#enableBindPWConfirm', 'redhat')
-        frame.get_by_role("dialog", name="Enable Replication").get_by_role("button",
-                                                                           name="Enable Replication").click()
+
+        dropdown_btn = frame.get_by_role('combobox', name='Type to filter')
+        dropdown_btn.click()
+        supplier_option = frame.get_by_text('Supplier').first
+        supplier_option.wait_for()
+        supplier_option.click()
+
+        number_input = frame.get_by_role('dialog').get_by_role('spinbutton', name='number input')
+        number_input.fill('2')
+
+        frame.get_by_role("dialog", name="Enable Replication").get_by_role("button", name="Enable Replication").click()
+
         frame.get_by_role('button', name='Add Replication Manager').wait_for()
         assert frame.get_by_role('button', name='Add Replication Manager').is_visible()
+
 
 def load_ldap_browser_tab(frame):
     frame.get_by_role('tab', name='LDAP Browser', exact=True).click()
@@ -165,17 +195,17 @@ def create_entry(frame, entry_type, entry_data):
     prepare_page_for_entry(frame, entry_type)
 
     if entry_type == 'User':
-        frame.get_by_role("button", name="Options menu").click()
+        frame.get_by_role("button", name="Basic Account").click()
         frame.get_by_role("option", name="Posix Account").click()
         frame.get_by_role("button", name="Next", exact=True).click()
         frame.get_by_role("button", name="Next", exact=True).click()
 
-        for row, value in enumerate(entry_data.values()):
-            if row > 5:
+        for row, value in enumerate(entry_data.values(), start=1):
+            if row > 6:
                 break
-            frame.get_by_role("button", name=f"Place row {row} in edit mode").click()
+            frame.get_by_role("button", name=f"Edit row {row}").click()
             frame.get_by_role("textbox", name="_").fill(value)
-            frame.get_by_role("button", name=f"Save row edits for row {row}").click()
+            frame.get_by_role("button", name=f"Save edits of row {row}").click()
 
     elif entry_type == 'Group':
         frame.get_by_role("button", name="Next").click()
@@ -184,9 +214,9 @@ def create_entry(frame, entry_type, entry_data):
 
     elif entry_type == 'Organizational Unit':
         frame.get_by_role("button", name="Next", exact=True).click()
-        frame.get_by_role("button", name="Place row 0 in edit mode").click()
+        frame.get_by_role("button", name="Edit row 1").click()
         frame.get_by_role("textbox", name="_").fill(entry_data['ou_name'])
-        frame.get_by_role("button", name="Save row edits for row 0").click()
+        frame.get_by_role("button", name="Save edits of row 1").click()
 
     elif entry_type == 'Role':
         frame.locator("#namingVal").fill(entry_data['role_name'])
@@ -194,16 +224,17 @@ def create_entry(frame, entry_type, entry_data):
         frame.get_by_role("button", name="Next", exact=True).click()
 
     elif entry_type == 'custom Entry':
+        frame.get_by_role("textbox", name="Search input").fill('account')
         frame.get_by_role("checkbox", name="Select row 0").check()
         frame.get_by_role("button", name="Next", exact=True).click()
         frame.get_by_role("checkbox", name="Select row 1").check()
         frame.get_by_role("button", name="Next", exact=True).click()
-        frame.get_by_role("button", name="Place row 0 in edit mode").click()
+        frame.get_by_role("button", name="Edit row 1").click()
         frame.get_by_role("textbox", name="_").fill(entry_data['uid'])
-        frame.get_by_role("button", name="Save row edits for row 0").click()
-        frame.get_by_role("button", name="Place row 1 in edit mode").click()
+        frame.get_by_role("button", name="Save edits of row 1").click()
+        frame.get_by_role("button", name="Edit row 2").click()
         frame.get_by_role("textbox", name="_").fill(entry_data['entry_name'])
-        frame.get_by_role("button", name="Save row edits for row 1").click()
+        frame.get_by_role("button", name="Save edits of row 2").click()
 
     finish_entry_creation(frame, entry_type, entry_data)
 

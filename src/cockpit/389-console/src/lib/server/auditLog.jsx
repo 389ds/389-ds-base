@@ -1,11 +1,10 @@
 import cockpit from "cockpit";
 import React from "react";
-import { listsEqual, log_cmd } from "../tools.jsx";
+import { listsEqual, log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
 	Form,
-	FormGroup,
 	FormSelect,
 	FormSelectOption,
 	Grid,
@@ -22,11 +21,7 @@ import {
 	TextVariants,
 	TimePicker
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
@@ -71,7 +66,7 @@ export class ServerAuditLog extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            loading: true,
+            loading: false,
             loaded: false,
             activeTabKey: 0,
             saveSettingsDisabled: true,
@@ -92,21 +87,9 @@ export class ServerAuditLog extends React.Component {
         };
 
         this.handleOnDisplayAttrSelect = (event, selection) => {
-            if (this.state.displayAttrs.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        displayAttrs: prevState.displayAttrs.filter((item) => item !== selection),
-                        isDisplayAttrOpen: false
-                    }), () => { this.validateSaveBtn("settings", "none", "none") }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        displayAttrs: [...prevState.displayAttrs, selection],
-                        isDisplayAttrOpen: false
-                    }), () => { this.validateSaveBtn("settings", "none", "none") }
-                );
-            }
+            this.setState({
+                displayAttrs: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateSaveBtn("settings", "none", "none") });
         };
         this.handleOnDisplayAttrToggle = (_event, isDisplayAttrOpen) => {
             this.setState({
@@ -220,11 +203,9 @@ export class ServerAuditLog extends React.Component {
         });
     }
 
-    handleTimeChange(time_str) {
+    handleTimeChange = (_event, time, hour, min, seconds, isValid) => {
         let disableSaveBtn = true;
-        const time_parts = time_str.split(":");
-        let hour = time_parts[0];
-        let min = time_parts[1];
+
         if (hour.length === 2 && hour[0] === "0") {
             hour = hour[1];
         }
@@ -307,36 +288,41 @@ export class ServerAuditLog extends React.Component {
 
         log_cmd("saveConfig", "Saving audit log settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
-                    this.refreshConfig();
+                    this.props.reload();
+                    this.refreshConfig(1);
                     this.props.addNotification(
                         "success",
                         _("Successfully updated Audit Log settings")
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.refreshConfig();
+                    const errMsg = getApiErrorMessage(err);
+                    this.props.reload();
+                    this.refreshConfig(1);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error saving Audit Log settings - $0"), errMsg.desc)
+                        cockpit.format(_("Error saving Audit Log settings - $0"), errMsg)
                     );
                 });
     }
 
-    refreshConfig() {
-        this.setState({
-            loading: true,
-            loaded: false,
-        });
+    refreshConfig(loading) {
+        if (!loading) {
+            this.setState({
+                loading: true,
+                loaded: false,
+            });
+        }
+
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
         log_cmd("refreshConfig", "load Audit Log configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -371,18 +357,18 @@ export class ServerAuditLog extends React.Component {
                         saveRotationDisabled: true,
                         saveExpDisabled: true,
                         'nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
-                        'nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
+                        'nsslapd-auditlog-logexpirationtime': parseInt(attrs['nsslapd-auditlog-logexpirationtime'][0]),
                         'nsslapd-auditlog-logexpirationtimeunit': attrs['nsslapd-auditlog-logexpirationtimeunit'][0],
                         'nsslapd-auditlog-logging-enabled': enabled,
-                        'nsslapd-auditlog-logmaxdiskspace': attrs['nsslapd-auditlog-logmaxdiskspace'][0],
-                        'nsslapd-auditlog-logminfreediskspace': attrs['nsslapd-auditlog-logminfreediskspace'][0],
+                        'nsslapd-auditlog-logmaxdiskspace': parseInt(attrs['nsslapd-auditlog-logmaxdiskspace'][0]),
+                        'nsslapd-auditlog-logminfreediskspace': parseInt(attrs['nsslapd-auditlog-logminfreediskspace'][0]),
                         'nsslapd-auditlog-logrotationsync-enabled': attrs['nsslapd-auditlog-logrotationsync-enabled'][0],
-                        'nsslapd-auditlog-logrotationsynchour': attrs['nsslapd-auditlog-logrotationsynchour'][0],
-                        'nsslapd-auditlog-logrotationsyncmin': attrs['nsslapd-auditlog-logrotationsyncmin'][0],
-                        'nsslapd-auditlog-logrotationtime': attrs['nsslapd-auditlog-logrotationtime'][0],
+                        'nsslapd-auditlog-logrotationsynchour': parseInt(attrs['nsslapd-auditlog-logrotationsynchour'][0]),
+                        'nsslapd-auditlog-logrotationsyncmin': parseInt(attrs['nsslapd-auditlog-logrotationsyncmin'][0]),
+                        'nsslapd-auditlog-logrotationtime': parseInt(attrs['nsslapd-auditlog-logrotationtime'][0]),
                         'nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
-                        'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
-                        'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+                        'nsslapd-auditlog-maxlogsize': parseInt(attrs['nsslapd-auditlog-maxlogsize'][0]),
+                        'nsslapd-auditlog-maxlogsperdir': parseInt(attrs['nsslapd-auditlog-maxlogsperdir'][0]),
                         'nsslapd-auditlog-compress': compressed,
                         'nsslapd-auditlog-logbuffering': buffering,
                         'nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
@@ -391,18 +377,18 @@ export class ServerAuditLog extends React.Component {
                         displayAllAttrs,
                         // Record original values
                         '_nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
-                        '_nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
+                        '_nsslapd-auditlog-logexpirationtime': parseInt(attrs['nsslapd-auditlog-logexpirationtime'][0]),
                         '_nsslapd-auditlog-logexpirationtimeunit': attrs['nsslapd-auditlog-logexpirationtimeunit'][0],
                         '_nsslapd-auditlog-logging-enabled': enabled,
-                        '_nsslapd-auditlog-logmaxdiskspace': attrs['nsslapd-auditlog-logmaxdiskspace'][0],
-                        '_nsslapd-auditlog-logminfreediskspace': attrs['nsslapd-auditlog-logminfreediskspace'][0],
+                        '_nsslapd-auditlog-logmaxdiskspace': parseInt(attrs['nsslapd-auditlog-logmaxdiskspace'][0]),
+                        '_nsslapd-auditlog-logminfreediskspace': parseInt(attrs['nsslapd-auditlog-logminfreediskspace'][0]),
                         '_nsslapd-auditlog-logrotationsync-enabled': attrs['nsslapd-auditlog-logrotationsync-enabled'][0],
-                        '_nsslapd-auditlog-logrotationsynchour': attrs['nsslapd-auditlog-logrotationsynchour'][0],
-                        '_nsslapd-auditlog-logrotationsyncmin': attrs['nsslapd-auditlog-logrotationsyncmin'][0],
-                        '_nsslapd-auditlog-logrotationtime': attrs['nsslapd-auditlog-logrotationtime'][0],
+                        '_nsslapd-auditlog-logrotationsynchour': parseInt(attrs['nsslapd-auditlog-logrotationsynchour'][0]),
+                        '_nsslapd-auditlog-logrotationsyncmin': parseInt(attrs['nsslapd-auditlog-logrotationsyncmin'][0]),
+                        '_nsslapd-auditlog-logrotationtime': parseInt(attrs['nsslapd-auditlog-logrotationtime'][0]),
                         '_nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
-                        '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
-                        '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+                        '_nsslapd-auditlog-maxlogsize': parseInt(attrs['nsslapd-auditlog-maxlogsize'][0]),
+                        '_nsslapd-auditlog-maxlogsperdir': parseInt(attrs['nsslapd-auditlog-maxlogsperdir'][0]),
                         '_nsslapd-auditlog-compress': compressed,
                         '_nsslapd-auditlog-logbuffering': buffering,
                         '_nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
@@ -412,10 +398,10 @@ export class ServerAuditLog extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading Audit Log configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading Audit Log configuration - $0"), errMsg)
                     );
                     this.setState({
                         loading: false,
@@ -431,6 +417,11 @@ export class ServerAuditLog extends React.Component {
         let buffering = false;
         let display_attrs = [];
         let displayAllAttrs = this.state.displayAllAttrs;
+
+        this.setState({
+            loading: true,
+            loaded: false,
+        });
 
         if (attrs['nsslapd-auditlog-logging-enabled'][0] === "on") {
             enabled = true;
@@ -468,7 +459,7 @@ export class ServerAuditLog extends React.Component {
             'nsslapd-auditlog-logrotationtime': attrs['nsslapd-auditlog-logrotationtime'][0],
             'nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
             'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
-            'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+            'nsslapd-auditlog-maxlogsperdir': parseInt(attrs['nsslapd-auditlog-maxlogsperdir'][0]),
             'nsslapd-auditlog-compress': compressed,
             'nsslapd-auditlog-logbuffering': buffering,
             'nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
@@ -488,7 +479,7 @@ export class ServerAuditLog extends React.Component {
             '_nsslapd-auditlog-logrotationtime': attrs['nsslapd-auditlog-logrotationtime'][0],
             '_nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
             '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
-            '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+            '_nsslapd-auditlog-maxlogsperdir': parseInt(attrs['nsslapd-auditlog-maxlogsperdir'][0]),
             '_nsslapd-auditlog-compress': compressed,
             '_nsslapd-auditlog-logbuffering': buffering,
             '_nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
@@ -534,7 +525,7 @@ export class ServerAuditLog extends React.Component {
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>{_("Settings")}</TabTitleText>}>
                         <Checkbox
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             id="nsslapd-auditlog-logging-enabled"
                             isChecked={this.state['nsslapd-auditlog-logging-enabled']}
                             onChange={(e, checked) => {
@@ -543,99 +534,96 @@ export class ServerAuditLog extends React.Component {
                             title={_("Enable audit logging (nsslapd-auditlog-logging-enabled).")}
                             label={_("Enable Audit Logging")}
                         />
-                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
-                            <FormGroup
-                                label={_("Audit Log Location")}
-                                fieldId="nsslapd-auditlog"
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal>
+                            <Grid
                                 title={_("Enable audit logging (nsslapd-auditlog).")}
                             >
-                                <TextInput
-                                    value={this.state['nsslapd-auditlog']}
-                                    type="text"
-                                    id="nsslapd-auditlog"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="nsslapd-auditlog"
-                                    onChange={(e, str) => {
-                                        this.handleChange(e, "settings");
-                                    }}
-                                />
-                            </FormGroup>
-                            <FormGroup
-                                label={time_format_title}
-                                fieldId="nsslapd-auditlog-time-format"
-                                title={_("Time format using strftime formatting (nsslapd-auditlog-time-format). This only applies to the JSON log format")}
-                            >
-                                <TextInput
-                                    value={this.state['nsslapd-auditlog-time-format']}
-                                    type="text"
-                                    id="nsslapd-auditlog-time-format"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="nsslapd-auditlog-time-format"
-                                    onChange={(e, str) => {
-                                        this.handleChange(e, "settings");
-                                    }}
-                                />
-                            </FormGroup>
-                            <FormGroup
-                                label={_("Log Format")}
-                                fieldId="nsslapd-auditlog-log-format"
-                                title={_("Choose the log format (nsslapd-auditlog-log-format).")}
-                            >
-                                <FormSelect
-                                    id="nsslapd-auditlog-log-format"
-                                    value={this.state['nsslapd-auditlog-log-format']}
-                                    onChange={(e, str) => {
-                                        this.handleChange(e, "settings");
-                                    }}
-                                    aria-label="FormSelect Input"
-                                >
-                                    <FormSelectOption key="0" value="default" label="Default" />
-                                    <FormSelectOption key="1" value="json" label="JSON" />
-                                    <FormSelectOption key="2" value="json-pretty" label="JSON (pretty)" />
-                                </FormSelect>
-                            </FormGroup>
-                        </Form>
-                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
-                            <FormGroup
-                                label={_("Display Attributes")}
-                                fieldId="nsslapd-auditlog-display-attrs"
-                                title={_("Display attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}
-                            >
-                                <div className={this.state.displayAllAttrs ? "ds-hidden" : "ds-margin-bottom"}>
-                                    <Select
-                                        variant={SelectVariant.typeaheadMulti}
-                                        typeAheadAriaLabel="Type an attribute"
-                                        onToggle={(event, isOpen) => this.handleOnDisplayAttrToggle(event, isOpen)}
-                                        onSelect={this.handleOnDisplayAttrSelect}
-                                        onClear={this.handleOnDisplayAttrClear}
-                                        selections={this.state.displayAttrs}
-                                        isOpen={this.state.isDisplayAttrOpen}
-                                        aria-labelledby="typeAhead-audit-display-attr"
-                                        placeholderText={_("Type an attribute...")}
-                                        noResultsFoundText={_("There are no matching attributes")}
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Audit Log Location")}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <TextInput
+                                        value={this.state['nsslapd-auditlog']}
+                                        type="text"
+                                        id="nsslapd-auditlog"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="nsslapd-auditlog"
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "settings");
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title={_("Time format using strftime formatting (nsslapd-auditlog-time-format). This only applies to the JSON log format")}>
+                                <GridItem className="ds-label" span={3}>
+                                    {time_format_title}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <TextInput
+                                        value={this.state['nsslapd-auditlog-time-format']}
+                                        type="text"
+                                        id="nsslapd-auditlog-time-format"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="nsslapd-auditlog-time-format"
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "settings");
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title={_("Choose the log format (nsslapd-auditlog-log-format).")}>
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Log Format")}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <FormSelect
+                                        id="nsslapd-auditlog-log-format"
+                                        value={this.state['nsslapd-auditlog-log-format']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "settings");
+                                        }}
+                                        aria-label="FormSelect Input"
                                     >
-                                        {this.state.attributes.map((attr, index) => (
-                                            <SelectOption
-                                                key={index}
-                                                value={attr}
-                                            />
-                                        ))}
-                                    </Select>
-                                </div>
-                                <Checkbox
-                                    className="ds-lower-field-md"
-                                    id="displayAllAttrs"
-                                    isChecked={this.state.displayAllAttrs}
-                                    onChange={(e, checked) => {
-                                        this.handleChange(e, "settings");
-                                    }}
-                                    title={_("Display all attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}
-                                    label={_("All Attributes")}
-                                />
-                            </FormGroup>
+                                        <FormSelectOption key="0" value="default" label="Default" />
+                                        <FormSelectOption key="1" value="json" label="JSON" />
+                                        <FormSelectOption key="2" value="json-pretty" label="JSON (pretty)" />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                            <Grid title={_("Display attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}>
+                                <GridItem className="ds-label" span={3}>
+                                    {_("Display Attributes")}
+                                </GridItem>
+                                <GridItem span={5}>
+                                    <div className={this.state.displayAllAttrs ? "ds-hidden" : "ds-margin-bottom"}>
+                                        <TypeaheadSelect
+                                            isMulti={true}
+                                            ariaLabel="Type an attribute"
+                                            onToggle={this.handleOnDisplayAttrToggle}
+                                            onSelect={this.handleOnDisplayAttrSelect}
+                                            onClear={this.handleOnDisplayAttrClear}
+                                            selected={this.state.displayAttrs}
+                                            isOpen={this.state.isDisplayAttrOpen}
+                                            placeholder={_("Type an attribute...")}
+                                            noResultsText={_("There are no matching attributes")}
+                                            options={this.state.attributes}
+                                        />
+                                    </div>
+                                    <Checkbox
+                                        className="ds-lower-field-md"
+                                        id="displayAllAttrs"
+                                        isChecked={this.state.displayAllAttrs}
+                                        onChange={(e, checked) => {
+                                            this.handleChange(e, "settings");
+                                        }}
+                                        title={_("Display all attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}
+                                        label={_("All Attributes")}
+                                    />
+                                </GridItem>
+                            </Grid>
                         </Form>
                         <Checkbox
-                            className="ds-left-margin-md ds-margin-top-lg"
+                            className="ds-left-margin ds-margin-top-lg"
                             id="nsslapd-auditlog-logbuffering"
                             isChecked={this.state['nsslapd-auditlog-logbuffering']}
                             onChange={(e, checked) => {
@@ -660,7 +648,7 @@ export class ServerAuditLog extends React.Component {
                         </Button>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>{_("Rotation Policy")}</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title={_("The maximum number of logs that are archived (nsslapd-auditlog-maxlogsperdir).")}
@@ -709,38 +697,36 @@ export class ServerAuditLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Create New Log Every ...")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <div className="ds-container">
-                                        <NumberInput
-                                            value={this.state['nsslapd-auditlog-logrotationtime']}
-                                            min={-1}
-                                            max={2147483647}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-auditlog-logrotationtime", "rotation") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-auditlog-logrotationtime", -1, 2147483647, "rotation") }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-auditlog-logrotationtime", "rotation") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={3}
-                                        />
-                                        <GridItem span={2} className="ds-left-indent">
-                                            <FormSelect
-                                                id="nsslapd-auditlog-logrotationtimeunit"
-                                                value={this.state['nsslapd-auditlog-logrotationtimeunit']}
-                                                onChange={(e, str) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                                aria-label="FormSelect Input"
-                                            >
-                                                <FormSelectOption key="0" value="minute" label={_("minute")} />
-                                                <FormSelectOption key="1" value="hour" label={_("hour")} />
-                                                <FormSelectOption key="2" value="day" label={_("day")} />
-                                                <FormSelectOption key="3" value="week" label={_("week")} />
-                                                <FormSelectOption key="4" value="month" label={_("month")} />
-                                            </FormSelect>
-                                        </GridItem>
-                                    </div>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditlog-logrotationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditlog-logrotationtime", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditlog-logrotationtime", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditlog-logrotationtime", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-auditlog-logrotationtimeunit"
+                                        value={this.state['nsslapd-auditlog-logrotationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "rotation");
+                                        }}
+                                        aria-label="log rotation time unit select"
+                                    >
+                                        <FormSelectOption key="0" value="minute" label={_("minute")} />
+                                        <FormSelectOption key="1" value="hour" label={_("hour")} />
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
                                 </GridItem>
                             </Grid>
                             <Grid title={_("The time when the log should be rotated (nsslapd-auditlog-logrotationsynchour, nsslapd-auditlog-logrotationsyncmin).")}>
@@ -759,13 +745,13 @@ export class ServerAuditLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Compress Rotated Logs")}
                                 </GridItem>
-                                <GridItem span={8}>
+                                <GridItem className="ds-label" span={8}>
                                     <Switch
                                         id="nsslapd-auditlog-compress"
                                         isChecked={this.state['nsslapd-auditlog-compress']}
                                         onChange={(_event, value) => this.handleSwitchChange(value)}
                                         aria-label="nsslapd-auditlog-compress"
-                                    />`
+                                    />
                                 </GridItem>
                             </Grid>
                         </Form>
@@ -773,7 +759,7 @@ export class ServerAuditLog extends React.Component {
                             key="save rot settings"
                             isDisabled={this.state.saveRotationDisabled || this.state.loading}
                             variant="primary"
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             onClick={() => {
                                 this.saveConfig("rotation");
                             }}
@@ -786,7 +772,7 @@ export class ServerAuditLog extends React.Component {
                     </Tab>
 
                     <Tab eventKey={2} title={<TabTitleText>{_("Deletion Policy")}</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title={_("The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditlog-logmaxdiskspace).")}
@@ -838,36 +824,34 @@ export class ServerAuditLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     {_("Log File is Older Than ...")}
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <div className="ds-container">
-                                        <NumberInput
-                                            value={this.state['nsslapd-auditlog-logexpirationtime']}
-                                            min={-1}
-                                            max={2147483647}
-                                            onMinus={() => { this.onMinusConfig("nsslapd-auditlog-logexpirationtime", "exp") }}
-                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-auditlog-logexpirationtime", -1, 2147483647, "exp") }}
-                                            onPlus={() => { this.onPlusConfig("nsslapd-auditlog-logexpirationtime", "exp") }}
-                                            inputName="input"
-                                            inputAriaLabel="number input"
-                                            minusBtnAriaLabel="minus"
-                                            plusBtnAriaLabel="plus"
-                                            widthChars={3}
-                                        />
-                                        <GridItem span={2} className="ds-left-indent">
-                                            <FormSelect
-                                                id="nsslapd-auditlog-logexpirationtimeunit"
-                                                value={this.state['nsslapd-auditlog-logexpirationtimeunit']}
-                                                onChange={(e, str) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                                aria-label="FormSelect Input"
-                                            >
-                                                <FormSelectOption key="2" value="day" label={_("day")} />
-                                                <FormSelectOption key="3" value="week" label={_("week")} />
-                                                <FormSelectOption key="4" value="month" label={_("month")} />
-                                            </FormSelect>
-                                        </GridItem>
-                                    </div>
+                                <GridItem span={1}>
+                                    <NumberInput
+                                        value={this.state['nsslapd-auditlog-logexpirationtime']}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditlog-logexpirationtime", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditlog-logexpirationtime", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditlog-logexpirationtime", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
+                                    />
+                                </GridItem>
+                                <GridItem offset={5} span={1}>
+                                    <FormSelect
+                                        id="nsslapd-auditlog-logexpirationtimeunit"
+                                        value={this.state['nsslapd-auditlog-logexpirationtimeunit']}
+                                        onChange={(e, str) => {
+                                            this.handleChange(e, "exp");
+                                        }}
+                                        aria-label="log expiration time unit select"
+                                    >
+                                        <FormSelectOption key="2" value="day" label={_("day")} />
+                                        <FormSelectOption key="3" value="week" label={_("week")} />
+                                        <FormSelectOption key="4" value="month" label={_("month")} />
+                                    </FormSelect>
                                 </GridItem>
                             </Grid>
                         </Form>
@@ -875,7 +859,7 @@ export class ServerAuditLog extends React.Component {
                             key="save del settings"
                             isDisabled={this.state.saveExpDisabled || this.state.loading}
                             variant="primary"
-                            className="ds-margin-top-xlg"
+                            className="ds-margin-top-xlg ds-left-margin"
                             onClick={() => {
                                 this.saveConfig("exp");
                             }}
@@ -908,7 +892,7 @@ export class ServerAuditLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Audit Log Settings")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh log settings")}
                                     onClick={() => {

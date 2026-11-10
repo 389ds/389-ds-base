@@ -13,7 +13,7 @@ import pytest
 from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from .. import setup_page, check_frame_assignment, setup_login
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
@@ -168,8 +168,8 @@ def test_linked_attributes_plugin_visibility(topology_st, page, browser_name):
 
     log.info('Click on Plugins tab, click on Linked Attributes plugin and check if element is loaded.')
     frame.get_by_role('tab', name='Plugins', exact=True).click()
-    frame.get_by_text('Linked Attributes').wait_for()
-    frame.get_by_text('Linked Attributes').click()
+    frame.locator('[data-ouia-component-id="linkedAttributes"]').wait_for()
+    frame.locator('[data-ouia-component-id="linkedAttributes"]').click()
     frame.get_by_role('button', name='Add Config').wait_for()
     assert frame.get_by_role('button', name='Add Config').is_visible()
 
@@ -230,8 +230,8 @@ def test_memberof_plugin_visibility(topology_st, page, browser_name):
     frame.get_by_role('tab', name='Plugins', exact=True).click()
     frame.get_by_text('Plugin is disabledMemberOf').wait_for()
     frame.get_by_text('Plugin is disabledMemberOf').click()
-    frame.locator('#memberOfConfigEntry').wait_for()
-    assert frame.locator('#memberOfConfigEntry').is_visible()
+    frame.get_by_role('button', name='Create Config').wait_for()
+    assert frame.get_by_role('button', name='Create Config').is_visible()
 
 
 def test_ldap_pass_through_auth_plugin_visibility(topology_st, page, browser_name):
@@ -254,8 +254,8 @@ def test_ldap_pass_through_auth_plugin_visibility(topology_st, page, browser_nam
 
     log.info('Click on Plugins tab, click on LDAP Pass Through Auth plugin and check if element is loaded.')
     frame.get_by_role('tab', name='Plugins', exact=True).click()
-    frame.get_by_text('LDAP Pass Through Auth').wait_for()
-    frame.get_by_text('LDAP Pass Through Auth').click()
+    frame.locator('[data-ouia-component-id="passthroughAuthentication"]').wait_for()
+    frame.locator('[data-ouia-component-id="passthroughAuthentication"]').click()
     frame.get_by_role('button', name='Add URL').wait_for()
     assert frame.get_by_role('button', name='Add URL').is_visible()
 
@@ -280,8 +280,8 @@ def test_pam_pass_through_auth_plugin_visibility(topology_st, page, browser_name
 
     log.info('Click on Plugins tab, click on PAM Pass Through Auth plugin and check if element is loaded.')
     frame.get_by_role('tab', name='Plugins', exact=True).click()
-    frame.get_by_text('PAM Pass Through Auth').wait_for()
-    frame.get_by_text('PAM Pass Through Auth').click()
+    frame.locator('[data-ouia-component-id="pamPassthroughAuthentication"]').wait_for()
+    frame.locator('[data-ouia-component-id="pamPassthroughAuthentication"]').click()
     frame.get_by_role('button', name='Add Config').wait_for()
     assert frame.get_by_role('button', name='Add Config').is_visible()
 
@@ -306,8 +306,8 @@ def test_posix_winsync_plugin_visibility(topology_st, page, browser_name):
 
     log.info('Click on Plugins tab, click on Posix Winsync plugin and check if element is loaded.')
     frame.get_by_role('tab', name='Plugins', exact=True).click()
-    frame.get_by_text('Posix Winsync').wait_for()
-    frame.get_by_text('Posix Winsync').click()
+    frame.locator('[data-ouia-component-id="winsync"]').wait_for()
+    frame.locator('[data-ouia-component-id="winsync"]').click()
     frame.locator('#posixWinsyncCreateMemberOfTask').wait_for()
     assert frame.locator('#posixWinsyncCreateMemberOfTask').is_visible()
 
@@ -332,8 +332,8 @@ def test_referential_integrity_plugin_visibility(topology_st, page, browser_name
 
     log.info('Click on Plugins tab, click on Referential Integrity plugin and check if element is loaded.')
     frame.get_by_role('tab', name='Plugins', exact=True).click()
-    frame.get_by_text('Referential Integrity').wait_for()
-    frame.get_by_text('Referential Integrity').click()
+    frame.locator('[data-ouia-component-id="referentialIntegrity"]').wait_for()
+    frame.locator('[data-ouia-component-id="referentialIntegrity"]').click()
     frame.locator('#entryScope').wait_for()
     assert frame.locator('#entryScope').is_visible()
 
@@ -358,8 +358,8 @@ def test_retro_changelog_plugin_visibility(topology_st, page, browser_name):
 
     log.info('Click on Plugins tab, click on Retro Changelog plugin and check if element is loaded.')
     frame.get_by_role('tab', name='Plugins', exact=True).click()
-    frame.get_by_text('Retro Changelog').wait_for()
-    frame.get_by_text('Retro Changelog').click()
+    frame.locator('[data-ouia-component-id="retroChangelog"]').wait_for()
+    frame.locator('[data-ouia-component-id="retroChangelog"]').click()
     frame.locator('#isReplicated').wait_for()
     assert frame.locator('#isReplicated').is_visible()
 
@@ -384,8 +384,8 @@ def test_rootdn_access_control_plugin_visibility(topology_st, page, browser_name
 
     log.info('Click on Plugins tab, click on RootDN Access Control plugin and check if element is loaded.')
     frame.get_by_role('tab', name='Plugins', exact=True).click()
-    frame.get_by_text('RootDN Access Control').wait_for()
-    frame.get_by_text('RootDN Access Control').click()
+    frame.locator('[data-ouia-component-id="rootDnaAccessControl"]').wait_for()
+    frame.locator('[data-ouia-component-id="rootDnaAccessControl"]').click()
     frame.locator('#allowMon').wait_for()
     assert frame.locator('#allowMon').is_visible()
 

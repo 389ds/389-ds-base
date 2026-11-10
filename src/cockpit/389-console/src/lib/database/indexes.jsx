@@ -1,8 +1,9 @@
 import cockpit from "cockpit";
 import React from "react";
+import { LogViewer } from '@patternfly/react-log-viewer';
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { IndexTable } from "./databaseTables.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -18,14 +19,26 @@ import {
 	TextContent,
 	TextVariants
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
+
+function IndexTaskLog(props) {
+    const buffer = props.buffer || "";
+    if (buffer === "") {
+        return null;
+    }
+    return (
+        <LogViewer
+            data={buffer}
+            isTextWrapped={false}
+            hasLineNumbers={false}
+            scrollToRow={buffer.length}
+            height="200px"
+        />
+    );
+}
 
 export class SuffixIndexes extends React.Component {
     constructor (props) {
@@ -44,6 +57,8 @@ export class SuffixIndexes extends React.Component {
             _mrs: [],
             showConfirmReindex: false,
             reindexAttrName: "",
+            reindexBuffer: "",
+            reindexCompleted: false,
             showConfirmDeleteIndex: false,
             deleteAttrName: "",
             saving: false,
@@ -74,21 +89,9 @@ export class SuffixIndexes extends React.Component {
 
         // Select Attribute
         this.handleAttributeSelect = (event, selection) => {
-            if (this.state.indexName.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        indexName: prevState.indexName.filter((item) => item !== selection),
-                        isAttributeOpen: false
-                    }), () => { this.validateSaveBtn() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        indexName: [...prevState.indexName, selection],
-                        isAttributeOpen: false
-                    }), () => { this.validateSaveBtn() }
-                );
-            }
+            this.setState({
+                indexName: Array.isArray(selection) ? selection : [selection],
+            }, () => { this.validateSaveBtn() });
         };
         this.handleAttributeToggle = (_event, isAttributeOpen) => {
             this.setState({
@@ -164,7 +167,7 @@ export class SuffixIndexes extends React.Component {
         ];
         log_cmd("loadIndexes (suffix config)", "Get matching rules", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const mrContent = JSON.parse(content);
                     const mrs = [];
@@ -180,7 +183,7 @@ export class SuffixIndexes extends React.Component {
                     ];
                     log_cmd("loadIndexes (suffix config)", "Get current index list", idx_cmd);
                     cockpit
-                            .spawn(idx_cmd, { superuser: true, err: "message" })
+                            .spawn(idx_cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const idxContent = JSON.parse(content);
                                 const indexList = idxContent.items;
@@ -190,7 +193,7 @@ export class SuffixIndexes extends React.Component {
                                 ];
                                 log_cmd("loadIndexes (suffix config)", "Get attrs", attr_cmd);
                                 cockpit
-                                        .spawn(attr_cmd, { superuser: true, err: "message" })
+                                        .spawn(attr_cmd, { superuser: "require", err: "message" })
                                         .done(content => {
                                             const attrContent = JSON.parse(content);
                                             const attrs = [];
@@ -210,19 +213,19 @@ export class SuffixIndexes extends React.Component {
                                             }
                                         })
                                         .fail(err => {
-                                            const errMsg = JSON.parse(err);
+                                            const errMsg = getApiErrorMessage(err);
                                             this.props.addNotification(
                                                 "error",
-                                                cockpit.format(_("Failed to get attributes - $0"), errMsg.desc)
+                                                cockpit.format(_("Failed to get attributes - $0"), errMsg)
                                             );
                                         });
                             });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to get matching rules - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to get matching rules - $0"), errMsg)
                     );
                 });
     }
@@ -244,12 +247,19 @@ export class SuffixIndexes extends React.Component {
             modalChecked: false,
             modalSpinning: false,
             saveBtnDisabled: true,
+            reindexBuffer: "",
+            reindexCompleted: false,
         });
     }
 
     closeIndexModal() {
+        this.invalidateReindexWatch();
         this.setState({
-            showIndexModal: false
+            showIndexModal: false,
+            reindexBuffer: "",
+            reindexCompleted: false,
+            modalSpinning: false,
+            saving: false,
         });
         if (this.state.isMatchingruleOpen) {
             this.setState({
@@ -287,6 +297,14 @@ export class SuffixIndexes extends React.Component {
             saveBtnDisabled = true;
         }
 
+        // Reindexing an existing index does not require another setting change.
+        if (this.state.reindexOnAdd &&
+            this.state.indexName.length > 0 && this.state.indexName[0] !== "" &&
+            (this.state.indexTypeEq || this.state.indexTypeSub ||
+             this.state.indexTypePres || this.state.indexTypeApprox)) {
+            saveBtnDisabled = false;
+        }
+
         this.setState({
             saveBtnDisabled,
         });
@@ -302,21 +320,9 @@ export class SuffixIndexes extends React.Component {
 
     // Edit Matching Rules
     handleMatchingruleSelect(event, selection) {
-        const new_mrs = [...this.state.mrs];
-        if (new_mrs.includes(selection)) {
-            const index = new_mrs.indexOf(selection);
-            new_mrs.splice(index, 1);
-            this.setState({
-                mrs: new_mrs,
-                isMatchingruleOpen: false,
-            }, () => { this.validateSaveBtn() });
-        } else {
-            new_mrs.push(selection);
-            this.setState({
-                mrs: new_mrs,
-                isMatchingruleOpen: false,
-            }, () => { this.validateSaveBtn() });
-        }
+        this.setState({
+            mrs: Array.isArray(selection) ? selection : [],
+        }, () => { this.validateSaveBtn() });
     }
 
     saveIndex() {
@@ -341,40 +347,46 @@ export class SuffixIndexes extends React.Component {
         for (let i = 0; i < this.state.mrs.length; i++) {
             cmd.push('--matching-rule=' + this.state.mrs[i]);
         }
-        if (this.state.reindexOnAdd) {
-            cmd.push('--reindex');
-        }
+
+        const reindexAfterAdd = this.state.reindexOnAdd;
+        const attrName = this.state.indexName[0];
 
         this.setState({
             saving: true,
+            reindexBuffer: "",
+            reindexCompleted: false,
         });
 
         log_cmd("saveIndex", "Create new index", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     // this.loadIndexes();
                     this.props.reload(this.props.suffix);
-                    this.closeIndexModal();
-                    if (this.state.reindexOnAdd) {
-                        this.reindexAttr(this.state.indexName[0]);
-                    }
                     this.props.addNotification(
                         "success",
                         _("Successfully created new index")
                     );
-                    this.setState({
-                        saving: false,
-                        saveBtnDisabled: true,
-                    });
+                    if (!this.state.showIndexModal) {
+                        return;
+                    }
+                    if (reindexAfterAdd) {
+                        this.reindexAttr(attrName);
+                    } else {
+                        this.closeIndexModal();
+                        this.setState({
+                            saving: false,
+                            saveBtnDisabled: true,
+                        });
+                    }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.closeIndexModal();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error creating index - $0"), errMsg.desc)
+                        cockpit.format(_("Error creating index - $0"), errMsg)
                     );
                     this.setState({
                         saving: false,
@@ -413,12 +425,19 @@ export class SuffixIndexes extends React.Component {
             modalChecked: false,
             modalSpinning: false,
             saveBtnDisabled: true,
+            reindexBuffer: "",
+            reindexCompleted: false,
         });
     }
 
     closeEditIndexModal() {
+        this.invalidateReindexWatch();
         this.setState({
-            showEditIndexModal: false
+            showEditIndexModal: false,
+            reindexBuffer: "",
+            reindexCompleted: false,
+            modalSpinning: false,
+            saving: false,
         });
         if (this.state.isMatchingruleOpen) {
             this.setState({
@@ -427,39 +446,66 @@ export class SuffixIndexes extends React.Component {
         }
     }
 
+    invalidateReindexWatch() {
+        this._reindexGen = (this._reindexGen || 0) + 1;
+    }
+
     reindexAttr(attr) {
+        const attrName = Array.isArray(attr) ? attr[0] : attr;
         const reindex_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "index", "reindex", "--wait", "--attr=" + attr, this.props.suffix,
+            "backend", "index", "reindex", "--watch", "--attr=" + attrName, this.props.suffix,
         ];
+
+        this.invalidateReindexWatch();
+        const gen = this._reindexGen;
 
         this.setState({
             modalSpinning: true,
+            saving: true,
+            reindexBuffer: "",
+            reindexCompleted: false,
         });
+        let buffer = "";
         log_cmd("reindexAttr", "index attribute", reindex_cmd);
         cockpit
-                .spawn(reindex_cmd, { superuser: true, err: "message" })
+                .spawn(reindex_cmd, { pty: true, superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        "Attribute (" + attr + ") has successfully been reindexed"
+                        cockpit.format(_("Attribute ($0) has successfully been reindexed"), attrName)
                     );
+                    if (gen !== this._reindexGen) {
+                        return;
+                    }
                     this.setState({
                         saving: false,
                         modalSpinning: false,
-                        showConfirmReindex: false,
+                        reindexCompleted: true,
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error indexing attribute $0 - $1"), attr, errMsg.desc)
+                        cockpit.format(_("Error indexing attribute $0 - $1"), attrName, errMsg)
                     );
+                    if (gen !== this._reindexGen) {
+                        return;
+                    }
                     this.setState({
                         saving: false,
                         modalSpinning: false,
-                        showConfirmReindex: false,
+                        reindexCompleted: true,
+                    });
+                })
+                .stream(line => {
+                    if (gen !== this._reindexGen) {
+                        return;
+                    }
+                    buffer += line;
+                    this.setState({
+                        reindexBuffer: buffer
                     });
                 });
     }
@@ -522,41 +568,51 @@ export class SuffixIndexes extends React.Component {
             cmd.push('--del-type=approx');
         }
 
+        const reindexAfterEdit = this.state.reindexOnAdd;
+        const attrName = this.state.indexName[0];
+
         if (cmd.length > 8) {
             // We have changes, do it
             this.setState({
                 saving: true,
+                reindexBuffer: "",
+                reindexCompleted: false,
             });
             log_cmd("saveEditIndex", "Edit index", cmd);
             cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
+                    .spawn(cmd, { superuser: "require", err: "message" })
                     .done(content => {
                         this.props.reload(this.props.suffix);
-                        this.closeEditIndexModal();
                         this.props.addNotification(
                             "success",
                             _("Successfully edited index")
                         );
-                        if (this.state.reindexOnAdd) {
-                            this.reindexAttr(this.state.indexName);
+                        if (!this.state.showEditIndexModal) {
+                            return;
+                        }
+                        if (reindexAfterEdit) {
+                            this.reindexAttr(attrName);
                         } else {
+                            this.closeEditIndexModal();
                             this.setState({
                                 saving: false,
                             });
                         }
                     })
                     .fail(err => {
-                        const errMsg = JSON.parse(err);
+                        const errMsg = getApiErrorMessage(err);
                         this.props.reload(this.props.suffix);
                         this.closeEditIndexModal();
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error editing index - $0"), errMsg.desc)
+                            cockpit.format(_("Error editing index - $0"), errMsg)
                         );
                         this.setState({
                             saving: false,
                         });
                     });
+        } else if (reindexAfterEdit) {
+            this.reindexAttr(attrName);
         }
     }
 
@@ -566,13 +622,20 @@ export class SuffixIndexes extends React.Component {
             showConfirmReindex: true,
             modalChecked: false,
             modalSpinning: false,
+            reindexBuffer: "",
+            reindexCompleted: false,
         });
     }
 
     closeConfirmReindex(item) {
+        this.invalidateReindexWatch();
         this.setState({
             reindexAttrName: "",
-            showConfirmReindex: false
+            showConfirmReindex: false,
+            modalSpinning: false,
+            saving: false,
+            reindexBuffer: "",
+            reindexCompleted: false,
         });
     }
 
@@ -610,7 +673,7 @@ export class SuffixIndexes extends React.Component {
         });
         log_cmd("deleteIndex", "deleteEdit index", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.addNotification(
                         "success",
@@ -620,11 +683,11 @@ export class SuffixIndexes extends React.Component {
                     this.closeConfirmDeleteIndex();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error deleting index - $0"), errMsg.desc)
+                        cockpit.format(_("Error deleting index - $0"), errMsg)
                     );
                     this.closeConfirmDeleteIndex();
                 });
@@ -679,6 +742,7 @@ export class SuffixIndexes extends React.Component {
                                 variant="primary"
                                 type="button"
                                 onClick={this.handleShowIndexModal}
+                                className="ds-margin-top"
                             >
                                 {_("Add Index")}
                             </Button>
@@ -717,6 +781,9 @@ export class SuffixIndexes extends React.Component {
                     isMatchingruleOpen={this.state.isMatchingruleOpen}
                     saving={this.state.saving}
                     saveBtnDisabled={this.state.saveBtnDisabled}
+                    spinning={this.state.modalSpinning}
+                    reindexBuffer={this.state.reindexBuffer}
+                    reindexCompleted={this.state.reindexCompleted}
                 />
                 <EditIndexModal
                     showModal={this.state.showEditIndexModal}
@@ -738,6 +805,9 @@ export class SuffixIndexes extends React.Component {
                     isMatchingruleOpen={this.state.isMatchingruleOpen}
                     saving={this.state.saving}
                     saveBtnDisabled={this.state.saveBtnDisabled}
+                    spinning={this.state.modalSpinning}
+                    reindexBuffer={this.state.reindexBuffer}
+                    reindexCompleted={this.state.reindexCompleted}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmReindex}
@@ -745,12 +815,12 @@ export class SuffixIndexes extends React.Component {
                     handleChange={this.onChange}
                     actionHandler={this.reindexIndex}
                     spinning={this.state.modalSpinning}
-                    item={this.state.reindexAttrName}
+                    item={this.state.reindexBuffer !== "" ? <IndexTaskLog buffer={this.state.reindexBuffer} /> : this.state.reindexAttrName}
                     checked={this.state.modalChecked}
                     mTitle={_("Reindex Attribute")}
                     mMsg={_("Are you sure you want to reindex this attribute?")}
                     mSpinningMsg={_("Reindexing ...")}
-                    mBtnName={_("Reindex")}
+                    mBtnName={this.state.reindexCompleted ? null : _("Reindex")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteIndex}
@@ -790,7 +860,10 @@ class AddIndexModal extends React.Component {
             onMatchingruleSelect,
             isMatchingruleOpen,
             saving,
-            saveBtnDisabled
+            saveBtnDisabled,
+            spinning,
+            reindexBuffer,
+            reindexCompleted
         } = this.props;
 
         const availMR = [];
@@ -803,10 +876,35 @@ class AddIndexModal extends React.Component {
         }
         let saveBtnName = _("Create Index");
         const extraPrimaryProps = {};
-        if (saving) {
+        if (spinning) {
+            saveBtnName = _("Reindexing ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Reindexing");
+        } else if (saving) {
             saveBtnName = _("Creating ...");
             extraPrimaryProps.spinnerAriaValueText = _("Creating");
         }
+
+        const actions = [];
+        if (!reindexCompleted) {
+            actions.push(
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={saveHandler}
+                    isLoading={saving}
+                    spinnerAriaValueText={saving ? saveBtnName : undefined}
+                    {...extraPrimaryProps}
+                    isDisabled={saveBtnDisabled || saving}
+                >
+                    {saveBtnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="cancel" variant="link" onClick={closeHandler}>
+                {reindexCompleted ? _("Close") : _("Cancel")}
+            </Button>
+        );
 
         return (
             <Modal
@@ -815,22 +913,7 @@ class AddIndexModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 aria-labelledby="ds-modal"
-                actions={[
-                    <Button
-                        key="confirm"
-                        variant="primary"
-                        onClick={saveHandler}
-                        isLoading={saving}
-                        spinnerAriaValueText={saving ? _("Creating") : undefined}
-                        {...extraPrimaryProps}
-                        isDisabled={saveBtnDisabled || saving}
-                    >
-                        {saveBtnName}
-                    </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
-                    </Button>
-                ]}
+                actions={actions}
             >
                 <Form isHorizontal autoComplete="off">
                     <TextContent title={_("Select an attribute to index")}>
@@ -838,26 +921,18 @@ class AddIndexModal extends React.Component {
                             {_("Select An Attribute")}
                         </Text>
                     </TextContent>
-                    <Select
-                        variant={SelectVariant.typeahead}
-                        typeAheadAriaLabel={_("Type a attribute name to index")}
-                        onToggle={onAttributeToggle}
-                        onClear={onAttributeClear}
+                    <TypeaheadSelect
+                        selected={attributeName}
                         onSelect={onAttributeSelect}
-                        selections={attributeName}
+                        onClear={onAttributeClear}
+                        options={availAttrs}
                         isOpen={isAttributeOpen}
-                        aria-labelledby="typeAhead-attr-add"
-                        placeholderText={_("Type a attribute name to index..")}
-                        noResultsFoundText={_("There are no matching entries")}
+                        onToggle={onAttributeToggle}
+                        placeholder={_("Type a attribute name to index..")}
+                        noResultsText={_("There are no matching entries")}
+                        ariaLabel={_("Type a attribute name to index")}
                         validated={attributeName.length === 0 || attributeName[0] === "" ? "error" : "default"}
-                    >
-                        {availAttrs.map((attr, index) => (
-                            <SelectOption
-                                key={index}
-                                value={attr}
-                            />
-                        ))}
-                    </Select>
+                    />
                     <TextContent className="ds-margin-top">
                         <Text component={TextVariants.h4}>
                             {_("Index Types")}
@@ -921,26 +996,18 @@ class AddIndexModal extends React.Component {
                                 </Text>
                             </TextContent>
                             <div className="ds-indent ds-margin-top">
-                                <Select
-                                    id="addMatchingRules"
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a matching rule name"
-                                    onToggle={onMatchingruleAddToggle}
+                                <TypeaheadSelect
+                                    selected={mrs}
                                     onSelect={onMatchingruleSelect}
                                     onClear={onMatchingruleAddClear}
-                                    selections={mrs}
+                                    options={availMR}
                                     isOpen={isMatchingruleOpen}
-                                    aria-labelledby="typeAhead-mr-add"
-                                    placeholderText={_("Type a matching rule name...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {availMR.map((mrs, index) => (
-                                        <SelectOption
-                                           key={index}
-                                           value={mrs}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={onMatchingruleAddToggle}
+                                    placeholder={_("Type a matching rule name...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a matching rule name"
+                                    isMulti={true}
+                                />
                             </div>
                         </GridItem>
                     </Grid>
@@ -956,6 +1023,7 @@ class AddIndexModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
+                    <IndexTaskLog buffer={reindexBuffer} />
                     <hr />
                 </Form>
             </Modal>
@@ -986,12 +1054,18 @@ class EditIndexModal extends React.Component {
             onMatchingruleSelect,
             isMatchingruleOpen,
             saving,
-            saveBtnDisabled
+            saveBtnDisabled,
+            spinning,
+            reindexBuffer,
+            reindexCompleted
         } = this.props;
 
         let saveBtnName = _("Save Index");
         const extraPrimaryProps = {};
-        if (saving) {
+        if (spinning) {
+            saveBtnName = _("Reindexing ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Reindexing");
+        } else if (saving) {
             saveBtnName = _("Saving index ...");
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
@@ -1113,6 +1187,28 @@ class EditIndexModal extends React.Component {
 
         const title = <div>{_("Edit Database Index (")}<b>{indexName[0]}</b>)</div>;
 
+        const actions = [];
+        if (!reindexCompleted) {
+            actions.push(
+                <Button
+                    key="confirm"
+                    variant="primary"
+                    onClick={saveHandler}
+                    isLoading={saving}
+                    spinnerAriaValueText={saving ? saveBtnName : undefined}
+                    {...extraPrimaryProps}
+                    isDisabled={saveBtnDisabled || saving}
+                >
+                    {saveBtnName}
+                </Button>
+            );
+        }
+        actions.push(
+            <Button key="cancel" variant="link" onClick={closeHandler}>
+                {reindexCompleted ? _("Close") : _("Cancel")}
+            </Button>
+        );
+
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -1120,22 +1216,7 @@ class EditIndexModal extends React.Component {
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
-                actions={[
-                    <Button
-                        key="confirm"
-                        variant="primary"
-                        onClick={saveHandler}
-                        isLoading={saving}
-                        spinnerAriaValueText={saving ? _("Saving") : undefined}
-                        {...extraPrimaryProps}
-                        isDisabled={saveBtnDisabled || saving}
-                    >
-                        {saveBtnName}
-                    </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
-                    </Button>
-                ]}
+                actions={actions}
             >
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
@@ -1173,25 +1254,18 @@ class EditIndexModal extends React.Component {
                                 </Text>
                             </TextContent>
                             <div className="ds-indent ds-margin-top">
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a matching rule name"
-                                    onToggle={onMatchingruleEditToggle}
+                                <TypeaheadSelect
+                                    selected={currentMrs}
                                     onSelect={onMatchingruleSelect}
                                     onClear={onMatchingruleEditClear}
-                                    selections={currentMrs}
+                                    options={availMR}
                                     isOpen={isMatchingruleOpen}
-                                    aria-labelledby="typeAhead-mr-edit"
-                                    placeholderText={_("Type a matching rule name...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {availMR.map((mr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={mr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={onMatchingruleEditToggle}
+                                    placeholder={_("Type a matching rule name...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a matching rule name"
+                                    isMulti={true}
+                                />
                             </div>
                         </GridItem>
                     </Grid>
@@ -1207,6 +1281,7 @@ class EditIndexModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
+                    <IndexTaskLog buffer={reindexBuffer} />
                     <hr />
                 </Form>
             </Modal>
@@ -1246,6 +1321,9 @@ AddIndexModal.propTypes = {
     indexTypeSub:  PropTypes.bool,
     indexTypeApprox:  PropTypes.bool,
     reindexOnAdd:  PropTypes.bool,
+    spinning: PropTypes.bool,
+    reindexBuffer: PropTypes.string,
+    reindexCompleted: PropTypes.bool,
 };
 
 AddIndexModal.defaultProps = {
@@ -1259,6 +1337,9 @@ AddIndexModal.defaultProps = {
     indexTypeSub:  false,
     indexTypeApprox:  false,
     reindexOnAdd:  false,
+    spinning: false,
+    reindexBuffer: "",
+    reindexCompleted: false,
 };
 
 EditIndexModal.propTypes = {
@@ -1275,6 +1356,9 @@ EditIndexModal.propTypes = {
     indexTypeSub:  PropTypes.bool,
     indexTypeApprox:  PropTypes.bool,
     reindexOnAdd:  PropTypes.bool,
+    spinning: PropTypes.bool,
+    reindexBuffer: PropTypes.string,
+    reindexCompleted: PropTypes.bool,
 };
 
 EditIndexModal.defaultProps = {
@@ -1288,4 +1372,7 @@ EditIndexModal.defaultProps = {
     indexTypeSub:  false,
     indexTypeApprox:  false,
     reindexOnAdd:  false,
+    spinning: false,
+    reindexBuffer: "",
+    reindexCompleted: false,
 };

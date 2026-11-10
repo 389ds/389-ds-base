@@ -360,6 +360,14 @@ int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, dbi_txn_t *txn, i
     return priv->dblayer_get_entries_count_fn(db, txn, count);
 }
 
+int dblayer_get_inst_entries_count(Slapi_Backend *be)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    dblayer_private *priv = dblayer_get_priv(be);
+    return priv->dblayer_get_inst_entries_count_fn(li, inst);
+}
+
 const char *dblayer_op2str(dbi_op_t op)
 {
     static const char *str[] = {
@@ -454,6 +462,7 @@ int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Sl
     li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = (char*) "libback-ldbm";
     li->li_directory = get_li_directory(dbfilename);
+    li->li_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, plgname);
@@ -541,6 +550,10 @@ dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome)
     li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = (char*) "libback-ldbm";
     li->li_directory = slapi_ch_strdup(dbhome);
+    /* Set SLAPI_TASK_RUNNING_FROM_COMMANDLINE to tell that
+     * read-only bdb is usable with dbscan
+     */
+    li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, dbimpl_name);

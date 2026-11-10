@@ -11,7 +11,7 @@ import pytest
 import os
 import time
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_m2 as topo
+from test389.topologies import topology_m2 as topo
 from lib389.replica import BootstrapReplicationManager,  Replicas
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts,  UserAccount
 from lib389.idm.group import Group

@@ -23,32 +23,21 @@ export function generateUniqueId () {
 
 const _ = cockpit.gettext;
 
-// Convert DS timestamp to a friendly string: 20180921142257Z -> 10/21/2018, 2:22:57 PM
-function getDateString (timestamp) {
-    if (!!timestamp === false) {
-        console.log('Not a real timestamp!');
-        return '';
-    }
-
-    const year = timestamp.substring(0, 4);
-    const month = timestamp.substring(4, 6);
-    const day = timestamp.substring(6, 8);
-    const hour = timestamp.substring(8, 10);
-    const minute = timestamp.substring(10, 12);
-    const sec = timestamp.substring(12, 14);
-
-    const value = `${year}-${month}-${day}T${hour}:${minute}:${sec}Z`;
-    const myDate = new Date(value);
-    return myDate.toLocaleString();
-}
-
-function getModDateUTC (modDate) {
+function getModDate (modDate, format) {
     if (!modDate) {
-    // Some entries ( for instance "cn=plugins,cn=config" )
-    // don't have the modifyTimestamp attribute present.
-    // console.log('Not a real modifyTimestamp value!')
+        // Some entries ( for instance "cn=plugins,cn=config" )
+        // don't have the modifyTimestamp attribute present.
         return '';
     }
+    const FORMAT_OPTIONS = {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+    };
     const y = modDate.substring(0, 4);
     const m = modDate.substring(4, 6);
     const d = modDate.substring(6, 8);
@@ -56,11 +45,17 @@ function getModDateUTC (modDate) {
     const min = modDate.substring(10, 12);
     const sec = modDate.substring(12, 14);
     const value = `${y}-${m}-${d}T${h}:${min}:${sec}Z`;
-    // const date = new Date();
-    // date.setTime(Date.parse(value));
-
     const date = new Date(value);
-    return date.toUTCString();
+
+    // Apply the same format, just change the timezone
+    if (format === "local") {
+        return date.toLocaleString('en-US', FORMAT_OPTIONS);
+    } else {
+        return date.toLocaleString('en-US', {
+            ...FORMAT_OPTIONS,
+            timeZone: 'UTC'
+        });
+    }
 }
 
 export function getUserSuffixes (serverId, suffixCallback) {
@@ -75,7 +70,7 @@ export function getUserSuffixes (serverId, suffixCallback) {
     ];
     log_cmd("getUserSuffixes", "list suffixes", suffixCmd);
     cockpit
-            .spawn(suffixCmd, { superuser: true, err: "message" })
+            .spawn(suffixCmd, { superuser: "require", err: "message" })
             .done(content => {
                 const suffList = JSON.parse(content);
                 suffixCallback(suffList.items);
@@ -104,7 +99,7 @@ export function ldapPing (serverId, pingCallback) {
 
     log_cmd("ldapPing", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(() => {
                 pingCallback(true);
             })
@@ -154,7 +149,7 @@ export function getRootSuffixEntryDetails (params, entryDetailsCallback) {
     let result = {};
     const entryArray = []; // Will contain the entry but the numSubordinates and modifyTimestamp.
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 // console.log('typeof data = ' + typeof data);
                 // console.log('SUCCESS ' + data);
@@ -188,7 +183,8 @@ export function getRootSuffixEntryDetails (params, entryDetailsCallback) {
                     {
                         dn,
                         numSubordinates,
-                        modifyTimestamp: getModDateUTC(modifyTimestamp),
+                        modifyTimestamp: getModDate(modifyTimestamp, "utc"),
+                        modifyTimestampLocal: getModDate(modifyTimestamp, "local"),
                         parentId: params.parentId,
                         fullEntry: entryArray,
                         errorCode: 0
@@ -225,6 +221,90 @@ function getResourceLimits () {
     return limits;
 }
 
+function parseSearchResult(searchResult) {
+    const lines = searchResult.split('\n');
+    const allEntries = [];
+    let ldapsubentry = false;
+    let isRole = false;
+    let isLockable = false;
+    let objectclasses = [];
+    let dn = '';
+    let uid = '';
+    let cn = '';
+    let numSubordinates = '0';
+    let modifyTimestamp = '';
+    lines.map(currentLine => {
+        const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
+            'organization', 'person', 'account', 'organizationalunit',
+            'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
+            'posixgroup', 'mailrecipient', 'nsroledefinition', 'inetorgperson',
+            'organizationalperson', 'nsorgperson'];
+        if (isAttributeLine(currentLine, 'dn:')) {
+            // Convert base64-encoded DNs
+            const pos = currentLine.indexOf(':');
+            if (currentLine.startsWith('dn::')) {
+                dn = b64DecodeUnicode(currentLine.substring(pos + 2).trim());
+            } else {
+                dn = currentLine.substring(pos + 1).trim();
+            }
+            ldapsubentry = false;
+            isRole = false;
+            isLockable = false;
+            objectclasses = [];
+            uid = '';
+            cn = '';
+        } else if (isAttributeLine(currentLine, 'numSubordinates:')) {
+            numSubordinates = (currentLine.split(':')[1]).trim();
+        } else if (isAttributeLine(currentLine, 'modifyTimestamp:')) {
+            modifyTimestamp = (currentLine.split(':')[1]).trim();
+        } else if (isAttributeLine(currentLine, 'uid:')) {
+            uid = currentLine.substring(currentLine.indexOf(':') + 1).trim();
+        } else if (isAttributeLine(currentLine, 'cn:')) {
+            cn = currentLine.substring(currentLine.indexOf(':') + 1).trim();
+        } else if (currentLine.toLowerCase().startsWith('objectclass:')) {
+            const ocVal = currentLine.substring(currentLine.indexOf(':') + 1).trim().toLowerCase();
+            objectclasses.push(ocVal);
+            if (ocVal === 'ldapsubentry') {
+                ldapsubentry = true;
+            } else if (ocVal === 'nsroledefinition') {
+                isRole = true;
+            }
+        }
+        for (const accountOC of accountObjectclasses) {
+            if (isAttributeLine(currentLine, `objectclass: ${accountOC}`)) {
+                isLockable = true;
+            }
+        }
+
+        if (currentLine === '' && dn !== '') {
+            const userPwpInfo = buildEntryUserPwpInfo(dn, objectclasses, uid, cn);
+            const result = JSON.stringify(
+                {
+                    dn,
+                    numSubordinates,
+                    modifyTimestamp: getModDate(modifyTimestamp, "utc"),
+                    modifyTimestampLocal: getModDate(modifyTimestamp, "local"),
+                    ldapsubentry,
+                    isRole,
+                    isLockable,
+                    isUser: userPwpInfo.isUser,
+                    userPwpLookup: userPwpInfo.userPwpLookup,
+                });
+            allEntries.push(result);
+
+            // Reset the variables:
+            dn = '';
+            numSubordinates = '0';
+            modifyTimestamp = '';
+            objectclasses = [];
+            uid = '';
+            cn = '';
+        }
+        return [];
+    });
+    return allEntries;
+}
+
 export function getSearchEntries (params, resultCallback) {
     /*
      params.serverId,
@@ -233,7 +313,7 @@ export function getSearchEntries (params, resultCallback) {
      params.searchScope
      params.sizeLimit,
      params.timeLimit
-  */
+    */
     const cmd = [
         'ldapsearch',
         '-LLL',
@@ -257,13 +337,9 @@ export function getSearchEntries (params, resultCallback) {
     ];
 
     log_cmd("getSearchEntries", "", cmd);
-    let dn = '';
-    let numSubordinates = '0';
-    let modifyTimestamp = '';
     let searchResult = null;
-    const allEntries = [];
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' }) // string.split("\n\r")
+            .spawn(cmd, { superuser: "require", err: 'message' }) // string.split("\n\r")
             .done(data => {
                 searchResult = data;
             })
@@ -284,115 +360,38 @@ export function getSearchEntries (params, resultCallback) {
                 if (searchResult === null) {
                     return;
                 }
-                const lines = searchResult.split('\n');
-                let ldapsubentry = false;
-                let isRole = false;
-                let isLockable = false;
-                lines.map(currentLine => {
-                    const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
-                        'organization', 'person', 'account', 'organizationalunit',
-                        'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
-                        'posixgroup', 'mailrecipient', 'nsroledefinition'];
-                    if (isAttributeLine(currentLine, 'dn:')) {
-                        // Convert base64-encoded DNs
-                        const pos = currentLine.indexOf(':');
-                        if (currentLine.startsWith('dn::')) {
-                            dn = b64DecodeUnicode(currentLine.substring(pos + 2).trim());
-                        } else {
-                            dn = currentLine.substring(pos + 1).trim();
-                        }
-                        ldapsubentry = false;
-                        isRole = false;
-                        isLockable = false;
-                    } else if (isAttributeLine(currentLine, 'numSubordinates:')) {
-                        numSubordinates = (currentLine.split(':')[1]).trim();
-                    } else if (isAttributeLine(currentLine, 'modifyTimestamp:')) {
-                        modifyTimestamp = (currentLine.split(':')[1]).trim();
-                    } else if (isAttributeLine(currentLine, 'objectclass: ldapsubentry')) {
-                        ldapsubentry = true;
-                    } else if (isAttributeLine(currentLine, 'objectclass: nsroledefinition')) {
-                        isRole = true;
-                    }
-                    for (const accountOC of accountObjectclasses) {
-                        if (isAttributeLine(currentLine, `objectclass: ${accountOC}`)) {
-                            isLockable = true;
-                        }
-                    }
-
-                    if (currentLine === '' && dn !== '') {
-                        const result = JSON.stringify(
-                            {
-                                dn,
-                                numSubordinates,
-                                modifyTimestamp: getModDateUTC(modifyTimestamp),
-                                ldapsubentry,
-                                isRole,
-                                isLockable,
-                            });
-                        allEntries.push(result);
-
-                        // Reset the variables:
-                        dn = '';
-                        numSubordinates = '0';
-                        modifyTimestamp = '';
-                    }
-                    return [];
-                });
+                const allEntries = parseSearchResult(searchResult);
                 // Process the list of entries.
                 resultCallback(allEntries, null);
             });
 }
 
 export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCallback) {
-    /* const cmd = [
-    'ldapsearch',
-    '-LLL',
-    '-o',
-    'ldif-wrap=no',
-    '-Y',
-    'EXTERNAL',
-    '-b',
-    baseDn,
-    '-H',
-    'ldapi://%2fvar%2frun%2fslapd-' + serverId + '.socket',
-    '-s',
-    'base',
-    '(|(objectClass=*)(objectClass=ldapSubEntry))',
-    '*'
-  ]; */
-
-    // This is a base scope search. No need for a size limit.
     const timeLimit = getTimeLimit();
-    const optionTimeLimit = timeLimit > 0 ? `-l ${timeLimit}` : '';
-
     const cmd = [
-        '/usr/bin/sh',
-        '-c',
-        `ldapsearch -LLL -o ldif-wrap=no -Y EXTERNAL -b "${baseDn}"` +
-    ` -H ldapi://%2fvar%2frun%2fslapd-${serverId}.socket` +
-    ` ${optionTimeLimit}` +
-    ' -s base "(|(objectClass=*)(objectClass=ldapSubEntry))" nsRoleDN nsAccountLock \\*' // +
-    // ' | /usr/bin/head -c 150001' // Taking 1 additional character to check if the
-    // the entry was indeed bigger than 150K.
+        'ldapsearch',
+        '-LLL',
+        '-o',
+        'ldif-wrap=no',
+        '-Y',
+        'EXTERNAL',
+        '-b',
+        baseDn,
+        '-H',
+        'ldapi://%2fvar%2frun%2fslapd-' + serverId + '.socket',
+        ...(timeLimit > 0 ? ['-l', String(timeLimit)] : []),
+        '-s',
+        'base',
+        '(|(objectClass=*)(objectClass=ldapSubEntry))',
+        'nsRoleDN',
+        'nsAccountLock',
+        '*'
     ];
-
-    // TODO: The return code will always be 0 because of the ' | /usr/bin/head -c 150001' part.
-    // Need to find a way to retrieve the LDAP return code...
-    /*
-    [root@cette ~]# ldapsearch -LLL -o ldif-wrap=no -Y EXTERNAL -b "o=empty" -H ldapi://%2fvar%2frun%2fslapd-ALPS_Grenoble.socket -s base "(|(objectClass=*)(objectClass=ldapSubEntry))" \* | /usr/bin/head -c 150001 2>/dev/null
-    SASL/EXTERNAL authentication started
-    SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
-    SASL SSF: 0
-    No such object (32)
-    [root@cette ~]# echo $?
-    0
-    [root@cette ~]#
-  */
 
     log_cmd("getBaseLevelEntryAttributes", "", cmd);
     const entryArray = [];
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 // TODO: Make this configurable ( option to keep X number of characters )
                 const lines = data.split('\n');
@@ -463,7 +462,7 @@ export function getBaseLevelEntryFullAttributes (serverId, baseDn, entryAttribut
 
     log_cmd("getBaseLevelEntryFullAttributes", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 entryAttributesCallback(data);
             })
@@ -515,9 +514,9 @@ export function getOneLevelEntries (params, oneLevelCallback) {
         'one',
         filter,
         /* '-l',
-    timeLimit,
-    '-z',
-    sizeLimit, */
+        timeLimit,
+        '-z',
+        sizeLimit, */
         ...limits,
         '1.1',
         'numSubordinates',
@@ -526,13 +525,9 @@ export function getOneLevelEntries (params, oneLevelCallback) {
     ];
 
     log_cmd("getOneLevelEntries", "", cmd);
-    let dn = '';
-    let numSubordinates = '';
-    let modifyTimestamp = '';
     let searchResult = null;
-    const allEntries = [];
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' }) // string.split("\n\r")
+            .spawn(cmd, { superuser: "require", err: 'message' }) // string.split("\n\r")
             .done(data => {
                 searchResult = data;
             })
@@ -556,60 +551,7 @@ export function getOneLevelEntries (params, oneLevelCallback) {
                 if (searchResult === null) {
                     return;
                 }
-                const lines = searchResult.split('\n');
-                let ldapsubentry = false;
-                let isRole = false;
-                let isLockable = false;
-                lines.map(currentLine => {
-                    const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
-                        'organization', 'person', 'account', 'organizationalunit',
-                        'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
-                        'posixgroup', 'mailrecipient', 'nsroledefinition'];
-                    if (isAttributeLine(currentLine, 'dn:')) {
-                        // Convert base64-encoded DNs
-                        const pos = currentLine.indexOf(':');
-                        if (currentLine.startsWith('dn::')) {
-                            dn = b64DecodeUnicode(currentLine.substring(pos + 2).trim());
-                        } else {
-                            dn = currentLine.substring(pos + 1).trim();
-                        }
-                        ldapsubentry = false;
-                        isRole = false;
-                        isLockable = false;
-                    } else if (isAttributeLine(currentLine, 'numSubordinates:')) {
-                        numSubordinates = (currentLine.split(':')[1]).trim();
-                    } else if (isAttributeLine(currentLine, 'modifyTimestamp:')) {
-                        modifyTimestamp = (currentLine.split(':')[1]).trim();
-                    } else if (isAttributeLine(currentLine, 'objectclass: ldapsubentry')) {
-                        ldapsubentry = true;
-                    } else if (isAttributeLine(currentLine, 'objectclass: nsroledefinition')) {
-                        isRole = true;
-                    }
-                    for (const accountOC of accountObjectclasses) {
-                        if (isAttributeLine(currentLine, `objectclass: ${accountOC}`)) {
-                            isLockable = true;
-                        }
-                    }
-
-                    if (currentLine === '' && dn !== '') {
-                        const result = JSON.stringify(
-                            {
-                                dn,
-                                numSubordinates,
-                                modifyTimestamp: getModDateUTC(modifyTimestamp),
-                                ldapsubentry,
-                                isRole,
-                                isLockable,
-                            });
-                        allEntries.push(result);
-
-                        // Reset the variables:
-                        dn = '';
-                        numSubordinates = '0';
-                        modifyTimestamp = '';
-                    }
-                    return [];
-                });
+                const allEntries = parseSearchResult(searchResult);
                 // Process the list of entries.
                 oneLevelCallback(allEntries, params, null);
             });
@@ -618,36 +560,29 @@ export function getOneLevelEntries (params, oneLevelCallback) {
 // Generic search that returns an array of LDAP entries.
 // Returns an empty array in case of failure.
 export function runGenericSearch (params, searchCallback) {
-    /* const cmd = [
-    'ldapsearch',
-    '-LLL',
-    '-o',
-    'ldif-wrap=no',
-    '-Y',
-    'EXTERNAL',
-    '-b',
-    params.baseDn,
-    '-H',
-    'ldapi://%2fvar%2frun%2fslapd-' + params.serverId + '.socket',
-    '-s',
-    params.scope,
-    params.filter,
-    params.attributes
-  ]; */
-
+    const attributes = typeof params.attributes === 'string'
+        ? params.attributes.trim().split(/\s+/).filter(Boolean)
+        : [];
     const cmd = [
-        '/usr/bin/sh',
-        '-c',
-        'ldapsearch -LLL -o ldif-wrap=no -Y EXTERNAL -b "' + params.baseDn +
-    '" -H ldapi://%2fvar%2frun%2fslapd-' + params.serverId + '.socket' +
-    ' -s ' + params.scope +
-    ' "' + params.filter + '" ' +
-    params.attributes
+        'ldapsearch',
+        '-LLL',
+        '-o',
+        'ldif-wrap=no',
+        '-Y',
+        'EXTERNAL',
+        '-b',
+        params.baseDn,
+        '-H',
+        'ldapi://%2fvar%2frun%2fslapd-' + params.serverId + '.socket',
+        '-s',
+        params.scope,
+        params.filter,
+        ...attributes
     ];
 
     log_cmd("runGenericSearch", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 const resulEntries = data.split('\n\n'); // Split by empty line.
                 // console.log(`resulEntries = ${resulEntries}`);
@@ -659,86 +594,6 @@ export function runGenericSearch (params, searchCallback) {
                 console.log('FAIL err.exit_status ==> ' + err.exit_status);
                 console.log('FAIL err.message ==> ' + err.message);
                 searchCallback([]);
-            });
-}
-
-export function getMonitoringInfo (serverId, monitorEntryCallback) {
-    const cmd = [
-        'ldapsearch',
-        '-LLL',
-        '-o',
-        'ldif-wrap=no',
-        '-Y',
-        'EXTERNAL',
-        '-b',
-        'cn=monitor',
-        '-H',
-        'ldapi://%2fvar%2frun%2fslapd-' + serverId + '.socket',
-        '-s',
-        'base',
-        'version',
-        'threads',
-        'currentConnections',
-        'totalConnections',
-        'startTime'
-    ];
-
-    log_cmd("getMonitoringInfo", "", cmd);
-    // TODO: Use an object
-    // monitorObject = {version: version, threads: threads, ...}
-    let version = '';
-    let threads = '';
-    let currentConnections = '';
-    let totalConnections = '';
-    let startTime = '';
-    cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
-            .done(data => {
-                // console.log('SUCCESS ' + data);
-                const lines = data.split('\n');
-                lines.map(currentLine => {
-                    if (isAttributeLine(currentLine, 'version:')) {
-                        version = (currentLine.split(':')[1]).trim();
-                    } else if (isAttributeLine(currentLine, 'threads:')) {
-                        threads = (currentLine.split(':')[1]).trim();
-                        // console.log('threads = ' + threads);
-                    } else if (isAttributeLine(currentLine, 'currentConnections:')) {
-                        currentConnections = (currentLine.split(':')[1]).trim();
-                        // console.log('currentConnections = ' + currentConnections);
-                    } else if (isAttributeLine(currentLine, 'totalConnections:')) {
-                        totalConnections = (currentLine.split(':')[1]).trim();
-                        // console.log('currentConnections = ' + currentConnections);
-                    } else if (isAttributeLine(currentLine, 'startTime:')) {
-                        startTime = (currentLine.split(':')[1]).trim();
-                        // console.log('startTime = ' + startTime);
-                    }
-                    return [];
-                });
-                const result = JSON.stringify(
-                    {
-                        failed: false,
-                        version,
-                        threads,
-                        currentConnections,
-                        totalConnections,
-                        startTime: getDateString(startTime)
-                    }
-                );
-                monitorEntryCallback(result);
-            })
-            .fail((err) => {
-                console.log('FAIL err.message ==> ' + err.message);
-                // const m1 = JSON.parse(err)
-                // const m2 = JSON.parse(err).desc
-                // console.log('m1 = ' + m1);
-                // console.log('m2 = ' + m2);
-                const result = JSON.stringify(
-                    {
-                        failed: true,
-                        errMessage: err.message
-                    }
-                );
-                monitorEntryCallback(result);
             });
 }
 
@@ -771,7 +626,7 @@ export function listAccessLogs (logDirectory, logListCallback) {
     const logDataArray = [];
 
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 // console.log('SUCCESS ' + data);
                 const lines = data.split('\n');
@@ -833,7 +688,7 @@ export function modifyLdapEntry (params, ldifArray, modifyEntryCallback) {
     let result = {};
     log_cmd("modifyLdapEntry", "", cmd_copy);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .input(ldifData, true)
             .input()
             .done(data => {
@@ -873,12 +728,13 @@ export function getAllObjectClasses (serverId, allOcCallback) {
         'ldapi://%2fvar%2frun%2fslapd-' + serverId + '.socket',
         'schema',
         'objectclasses',
-        'list'
+        'list',
+        '--include-sup'
     ];
     const result = [];
     log_cmd("getAllObjectClasses", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 const myObject = JSON.parse(data);
                 for (const oc of myObject.items) {
@@ -910,7 +766,7 @@ export function getSingleValuedAttributes (serverId, svCallback) {
     const result = [];
     log_cmd("getSingleValuedAttributes", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 const myObject = JSON.parse(data);
                 for (const attr of myObject.items) {
@@ -940,7 +796,7 @@ export function getAttributesNameAndOid (serverId, attrCallback) {
     const result = [];
     log_cmd("getAttributesNameAndOid", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 const myObject = JSON.parse(data);
                 for (const attr of myObject.items) {
@@ -971,7 +827,7 @@ export function deleteLdapData (serverId, entryDN, numSubordinates, deleteCallba
     let result = {};
     log_cmd("deleteLdapData", "", cmd);
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
             .done(data => {
                 // console.log('SUCCESS - deleteLdapData() ==> ' + data);
                 result = { errorCode: 0, output: data };
@@ -1005,7 +861,7 @@ export function showCertificate (certificate, showCertCallback) {
     const certDataArray = [];
 
     cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
+            .spawn(cmd, { superuser: "require", err: 'message' })
     // .input(decodedCert)
             .done(data => {
                 // console.log('SUCCESS - showCertificate() ==> ' + data);
@@ -1196,7 +1052,7 @@ export function base64encode (fileName, encodingCallback) {
   const encodedValue = null;
   console.log('Command = ' + cmd.toString());
   cockpit
-    .spawn(cmd, { superuser: true, err: 'message' })
+    .spawn(cmd, { superuser: "require", err: 'message' })
     .done(data => {
       encodingCallback(data);
     })
@@ -1236,4 +1092,114 @@ export function getBaseDNFromTree (entrydn, treeViewRootSuffixes) {
         }
     }
     return "";
+}
+
+export function getBaseDnForEntry(entryDn, suffixList) {
+    if (!entryDn || !suffixList || suffixList.length === 0) {
+        return entryDn || "";
+    }
+    const dnLower = entryDn.toLowerCase();
+    let bestMatch = suffixList[0];
+    let found = false;
+    for (const suffix of suffixList) {
+        const suffixLower = suffix.toLowerCase();
+        if (dnLower.endsWith(suffixLower) && suffix.length >= bestMatch.length) {
+            bestMatch = suffix;
+            found = true;
+        }
+    }
+    if (found) {
+        return bestMatch;
+    } else {
+        return "";
+    }
+}
+
+export function isUserEntryForPwp(objectclasses) {
+    if (!objectclasses || objectclasses.length === 0) {
+        return false;
+    }
+    const ocs = objectclasses.map(oc => oc.toLowerCase());
+    if (ocs.includes('nsroledefinition') || ocs.includes('ldapsubentry')) {
+        return false;
+    }
+    if (ocs.includes('organizationalunit') || ocs.includes('organizationalrole')) {
+        return false;
+    }
+    if (ocs.includes('posixgroup') || ocs.includes('groupofnames') ||
+        ocs.includes('groupofuniquenames') || ocs.includes('domain')) {
+        return false;
+    }
+    if (ocs.includes('applicationprocess')) {
+        return true;
+    }
+    if (ocs.includes('posixaccount')) {
+        return true;
+    }
+    if (ocs.includes('nsperson') || ocs.includes('nsaccount') || ocs.includes('nsorgperson')) {
+        return true;
+    }
+    if (ocs.includes('person') || ocs.includes('inetorgperson') ||
+        ocs.includes('organizationalperson')) {
+        return true;
+    }
+    return false;
+}
+
+export function getUserPwpLookupFromEntry(dn, objectclasses, attrs = {}) {
+    if (!isUserEntryForPwp(objectclasses)) {
+        return null;
+    }
+    const ocs = objectclasses.map(oc => oc.toLowerCase());
+    const rdn = dn.split(',')[0];
+    const eqIdx = rdn.indexOf('=');
+    const rdnAttr = eqIdx >= 0 ? rdn.substring(0, eqIdx).toLowerCase() : '';
+    const rdnVal = eqIdx >= 0 ? rdn.substring(eqIdx + 1) : '';
+    const uid = (attrs.uid && attrs.uid[0]) || (rdnAttr === 'uid' ? rdnVal : '');
+    const cn = (attrs.cn && attrs.cn[0]) || (rdnAttr === 'cn' ? rdnVal : '');
+
+    if (ocs.includes('applicationprocess')) {
+        return cn ? { userType: 'service', selector: cn } : null;
+    }
+    if (ocs.includes('posixaccount')) {
+        return uid ? { userType: 'posix', selector: uid } : null;
+    }
+    if (ocs.includes('nsperson') || ocs.includes('nsaccount') || ocs.includes('nsorgperson')) {
+        if (uid !== '') {
+            return { userType: 'basic', selector: uid };
+        } else if (cn !== '') {
+            return { userType: 'basic', selector: cn };
+        }
+        return null;
+    }
+    if (ocs.includes('person') || ocs.includes('inetorgperson') ||
+        ocs.includes('organizationalperson')) {
+        return cn ? { userType: 'traditional', selector: cn } : null;
+    }
+    return null;
+}
+
+export function buildEntryUserPwpInfo(dn, objectclasses, uid = '', cn = '') {
+    const userPwpLookup = getUserPwpLookupFromEntry(
+        dn,
+        objectclasses,
+        {
+            uid: uid ? [uid] : [],
+            cn: cn ? [cn] : [],
+        }
+    );
+    return {
+        isUser: userPwpLookup !== null,
+        userPwpLookup,
+    };
+}
+
+export function fetchUserEffectivePasswordPolicy(serverId, baseDn, parentBaseDn, userType, selector) {
+    const cmd = [
+        "dsidm", "-j", "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket",
+        "-b", baseDn, "user", "--user-type", userType, "get-pwp", selector,
+        "--parent-dn", parentBaseDn
+    ];
+    log_cmd("fetchUserEffectivePasswordPolicy", "Load effective password policy", cmd);
+    return cockpit.spawn(cmd, { superuser: "require", err: "message" });
 }

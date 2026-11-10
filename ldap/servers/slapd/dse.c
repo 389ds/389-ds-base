@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -120,15 +120,16 @@ typedef struct dse_search_set
 
 static int dse_permission_to_write(struct dse *pdse, int loglevel);
 static int dse_write_file_nolock(struct dse *pdse);
-static int dse_apply_nolock(struct dse *pdse, IFP fp, caddr_t arg);
-static int dse_replace_entry(struct dse *pdse, Slapi_Entry *e, int write_file, int use_lock);
+static int dse_apply_nolock(struct dse *pdse, int32_t (*fp)(caddr_t, caddr_t), caddr_t arg);
+static int dse_replace_entry(struct dse *pdse, Slapi_Entry *e, int write_file, int use_lock, int *write_rc);
 static dse_search_set *dse_search_set_new(void);
 static void dse_search_set_delete(dse_search_set *ss);
 static void dse_search_set_clean(dse_search_set *ss);
 static void dse_free_entry(void **data);
 static void dse_search_set_add_entry(dse_search_set *ss, Slapi_Entry *e);
 static Slapi_Entry *dse_search_set_get_next_entry(dse_search_set *ss);
-static int dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb);
+static int dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb, int *write_rc);
+static int dse_report_write_failure(struct dse *pdse, int write_rc, int *returncode, char *returntext);
 static struct dse_node *dse_find_node(struct dse *pdse, const Slapi_DN *dn);
 static int dse_modify_plugin(Slapi_Entry *pre_entry, Slapi_Entry *post_entry, char *returntext);
 static int dse_add_plugin(Slapi_Entry *entry, char *returntext);
@@ -257,7 +258,7 @@ dse_find_node(struct dse *pdse, const Slapi_DN *dn)
         slapi_entry_set_sdn(fe, dn);
         searchNode.entry = fe;
 
-        n = (struct dse_node *)avl_find(pdse->dse_tree, &searchNode, entry_dn_cmp);
+        n = (struct dse_node *)avl_find(pdse->dse_tree, (caddr_t)&searchNode, entry_dn_cmp);
 
         slapi_entry_free(fe);
     }
@@ -491,7 +492,7 @@ dse_new_with_filelist(char *filename, char *tmpfilename, char *backfilename, cha
 }
 
 static int
-dse_internal_delete_entry(caddr_t data, caddr_t arg __attribute__((unused)))
+dse_internal_delete_entry(caddr_t data)
 {
     struct dse_node *n = (struct dse_node *)data;
     dse_node_delete(&n);
@@ -637,7 +638,7 @@ dse_updateNumSubordinates(Slapi_Entry *entry, int op)
     /* Now compute the new value */
     if (SLAPI_OPERATION_ADD == op) {
         current_sub_count++;
-    } else {
+    } else if (current_sub_count > 0) {
         current_sub_count--;
     }
     {
@@ -677,7 +678,7 @@ dse_updateNumSubOfParent(struct dse *pdse, const Slapi_DN *child, int op)
             /* Decrement the numsubordinate count of the parent entry */
             dse_updateNumSubordinates(parententry, op);
             /* no lock because caller should always have the write lock */
-            dse_replace_entry(pdse, parententry, 0, DSE_NO_LOCK);
+            dse_replace_entry(pdse, parententry, 0, DSE_NO_LOCK, NULL);
             slapi_entry_free(parententry);
         }
     }
@@ -845,7 +846,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb, int 
                              * This will free the entry if not added, so it is
                              * definitely consumed by this call
                              */
-                            if (dse_add_entry_pb(pdse, e, pb) == SCHEMA_VIOLATION) {
+                            if (dse_add_entry_pb(pdse, e, pb, NULL) == SCHEMA_VIOLATION) {
                                 /* schema violation, return failure */
                                 rc = 0;
                             }
@@ -1031,6 +1032,112 @@ dse_check_for_readonly_error(Slapi_PBlock *pb, struct dse *pdse)
     return rc; /* no error */
 }
 
+/* Trivial wrapper around slapi_re_comp to handle errors */
+static Slapi_Regex *
+recomp(const char *regexp)
+{
+    char *error = "";
+    Slapi_Regex *re = slapi_re_comp(regexp, &error);
+    if (re == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "is_readonly_set_in_dse",
+                      "Failed to compile '%s' regular expression. Error is %s\n",
+                      regexp, error);
+    }
+    slapi_ch_free_string(&error);
+    return re;
+}
+
+/*
+ * Check if "nsslapd-readonly: on" is in cn-config in dse.ldif file
+ * ( If the flag is set in memory but on in the file, the file should
+ *   be written (to let dsconf able to modify the nsslapd-readonly flag)
+ */
+static bool
+is_readonly_set_in_dse(const char *dsename)
+{
+    Slapi_Regex *re_config = recomp("^dn:\\s+cn=config\\s*$");
+    Slapi_Regex *re_isro = recomp("^" CONFIG_READONLY_ATTRIBUTE ":\\s+on\\s*$");
+    Slapi_Regex *re_eoe = recomp("^$");
+    bool isconfigentry = false;
+    bool isro = false;
+    FILE *fdse = NULL;
+    char line[128];
+
+    if (!dsename) {
+        goto done;
+    }
+    if (re_config == NULL || re_isro == NULL || re_eoe == NULL) {
+        goto done;
+    }
+    fdse = fopen(dsename, "r");
+    if (fdse == NULL) {
+        /* No dse file, we need to write it */
+        goto done;
+    }
+    while (fgets(line, (sizeof line), fdse)) {
+        /* Convert the read line to lowercase */
+        for (char *pt=line; *pt; pt++) {
+            if (isalpha(*pt)) {
+                *pt = tolower(*pt);
+            }
+        }
+        if (slapi_re_exec_nt(re_config, line)) {
+            isconfigentry = true;
+        }
+        if (slapi_re_exec_nt(re_eoe, line)) {
+            if (isconfigentry) {
+                /* End of config entry ==> readonly flag is not set */
+                break;
+            }
+        }
+        if (isconfigentry && slapi_re_exec_nt(re_isro, line)) {
+            /* Found readonly flag */
+            isro = true;
+            break;
+        }
+    }
+done:
+    if (fdse) {
+        (void) fclose(fdse);
+    }
+    slapi_re_free(re_config);
+    slapi_re_free(re_isro);
+    slapi_re_free(re_eoe);
+    return isro;
+}
+
+/*
+ * Check if dse.ldif can be written
+ * Beware that even in read-only mode dse.ldif file
+ * should still be written to change the nsslapd-readonly value
+ */
+static bool
+check_if_readonly(struct dse *pdse)
+{
+    static bool ro = false;
+
+    if (pdse->dse_filename == NULL) {
+        return false;
+    }
+    if (!slapi_config_get_readonly()) {
+        ro = false;
+        return ro;
+    }
+    if (ro) {
+        /* read-only mode and dse is up to date ==> Do not modify it. */
+        return ro;
+    }
+    /* First attempt to write the dse.ldif since readonly mode is enabled.
+     * Lets check if "nsslapd-readonly: on" is in cn=config entry
+     *  and allow to write the dse.ldif if it is the case
+     */
+    if (is_readonly_set_in_dse(pdse->dse_filename)) {
+        /* read-only mode and dse is up to date ==> Do not modify it. */
+        ro = true;
+    }
+    /* Read only mode but nsslapd-readonly value is not up to date. */
+    return ro;
+}
 
 /*
  * Write the AVL tree of entries back to the LDIF file.
@@ -1041,7 +1148,7 @@ dse_write_file_nolock(struct dse *pdse)
     FPWrapper fpw;
     int rc = 0;
 
-    if (dont_ever_write_dse_files) {
+    if (dont_ever_write_dse_files || check_if_readonly(pdse)) {
         return rc;
     }
 
@@ -1063,20 +1170,79 @@ dse_write_file_nolock(struct dse *pdse)
                               pdse->dse_tmpfile, rc, slapd_system_strerror(rc));
                 (void)PR_Close(fpw.fpw_prfd);
                 fpw.fpw_prfd = NULL;
-            } else {
+            } else if (PR_Sync(fpw.fpw_prfd) != PR_SUCCESS) {
+                /* Data not on stable storage: keep the current dse.ldif intact */
+                rc = PR_GetOSError();
+                slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot sync "
+                                                                      "temporary DSE file \"%s\": OS error %d (%s)\n",
+                              pdse->dse_tmpfile, rc, slapd_system_strerror(rc));
                 (void)PR_Close(fpw.fpw_prfd);
                 fpw.fpw_prfd = NULL;
+            } else if (PR_Close(fpw.fpw_prfd) != PR_SUCCESS) {
+                /* PR_Close releases the fd even on failure; do not close it again */
+                fpw.fpw_prfd = NULL;
+                rc = PR_GetOSError();
+                slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot close "
+                                                                      "temporary DSE file \"%s\": OS error %d (%s)\n",
+                              pdse->dse_tmpfile, rc, slapd_system_strerror(rc));
+            } else {
+                fpw.fpw_prfd = NULL;
                 if (pdse->dse_fileback != NULL) {
-                    rc = slapi_destructive_rename(pdse->dse_filename, pdse->dse_fileback);
-                    if (rc != 0) {
-                        slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot backup"
-                                                                              " DSE file \"%s\" to \"%s\": OS error %d (%s)\n",
-                                      pdse->dse_filename, pdse->dse_fileback,
-                                      rc, slapd_system_strerror(rc));
+                    /*
+                     * Refresh the backup without ever removing dse.ldif: make
+                     * the current file durable (it may come from an older
+                     * version or lib389), hard link it to a temporary name and
+                     * rename that over the backup. A failure here is logged
+                     * but does not prevent the new file from being installed.
+                     */
+                    char *bak_tmp = slapi_ch_smprintf("%s.tmp", pdse->dse_fileback);
+                    int cur_fd = open(pdse->dse_filename, O_RDONLY);
+                    if (cur_fd == -1) {
+                        if (errno != ENOENT) { /* ENOENT: first write, nothing to back up */
+                            int err = errno;
+                            slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                          "Cannot open DSE file \"%s\" to sync it:"
+                                          " OS error %d (%s)\n",
+                                          pdse->dse_filename, err, slapd_system_strerror(err));
+                        }
+                    } else {
+                        if (fsync(cur_fd) != 0) {
+                            int err = errno;
+                            slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                          "Cannot fsync DSE file \"%s\":"
+                                          " OS error %d (%s)\n",
+                                          pdse->dse_filename, err, slapd_system_strerror(err));
+                        }
+                        close(cur_fd);
                     }
+                    if (unlink(bak_tmp) != 0 && errno != ENOENT) {
+                        int err = errno;
+                        slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                      "Cannot remove stale file \"%s\":"
+                                      " OS error %d (%s)\n",
+                                      bak_tmp, err, slapd_system_strerror(err));
+                    }
+                    if (link(pdse->dse_filename, bak_tmp) != 0) {
+                        if (errno != ENOENT) {
+                            int err = errno;
+                            slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                          "Cannot backup DSE file \"%s\" to \"%s\":"
+                                          " OS error %d (%s)\n",
+                                          pdse->dse_filename, bak_tmp, err, slapd_system_strerror(err));
+                        }
+                    } else if (rename(bak_tmp, pdse->dse_fileback) != 0) {
+                        int err = errno;
+                        slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                      "Cannot rename \"%s\" to \"%s\":"
+                                      " OS error %d (%s)\n",
+                                      bak_tmp, pdse->dse_fileback, err, slapd_system_strerror(err));
+                        (void)unlink(bak_tmp);
+                    }
+                    slapi_ch_free_string(&bak_tmp);
                 }
-                rc = slapi_destructive_rename(pdse->dse_tmpfile, pdse->dse_filename);
-                if (rc != 0) {
+                /* rename() atomically replaces dse.ldif if it exists */
+                if (rename(pdse->dse_tmpfile, pdse->dse_filename) != 0) {
+                    rc = errno;
                     slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot rename"
                                                                           " temporary DSE file \"%s\" to \"%s\":"
                                                                           " OS error %d (%s)\n",
@@ -1085,18 +1251,18 @@ dse_write_file_nolock(struct dse *pdse)
                 }
                 /*
                  * We have now written to the tmp location, and renamed it
-                 * we need to open and fsync the dir to make the rename stick.
+                 * we need to open and fsync the dir to make the renames stick.
+                 * If the rename into place failed there is nothing to make durable.
                  */
-                int fp_configdir =
-#ifdef O_PATH
-                    open(pdse->dse_configdir, O_PATH | O_DIRECTORY)
-#else
-                    open(pdse->dse_configdir, O_RDONLY | O_DIRECTORY)
-#endif
-                    ;
-                if (fp_configdir != -1) {
-                    fsync(fp_configdir);
-                    close(fp_configdir);
+                if (rc == 0) {
+                    int err = slapi_fsync_dir(pdse->dse_configdir);
+                    if (err != 0) {
+                        slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock",
+                                      "Cannot fsync directory \"%s\":"
+                                      " OS error %d (%s)\n",
+                                      pdse->dse_configdir, err, slapd_system_strerror(err));
+                        rc = err;
+                    }
                 }
             }
         }
@@ -1107,6 +1273,46 @@ dse_write_file_nolock(struct dse *pdse)
     dse_backup_unlock();
 
     return rc;
+}
+
+/*
+ * A DSE mutator applied the change in memory (and the preop DSE callbacks
+ * already applied it to the running server) but dse_write_file_nolock()
+ * failed, so the change is not durable.  The change is deliberately not
+ * rolled back and the rest of the operation is still run; instead, if the
+ * operation would otherwise succeed (*returncode == 0), turn the result
+ * into LDAP_OPERATIONS_ERROR with an explanatory text.  An error that
+ * already occurred is kept as is.
+ *
+ * Only the result sent to the client is changed: SLAPI_PLUGIN_OPRETURN and
+ * the value returned by the DSE operation function are left alone, because
+ * the frontend (add.c, modify.c, delete.c) treats a non-zero return as
+ * "not applied" and would skip the ACI cache update, the audit log entry
+ * and persistent search, and tell the post-op plugins the operation failed.
+ *
+ * write_rc is the value reported by the mutator (0 means no problem).
+ * returntext must be a buffer of SLAPI_DSE_RETURNTEXT_SIZE bytes.
+ *
+ * Returns 1 if *returncode was changed, 0 otherwise.
+ */
+static int
+dse_report_write_failure(struct dse *pdse, int write_rc, int *returncode, char *returntext)
+{
+    if (write_rc == 0 || *returncode != 0) {
+        return 0;
+    }
+    slapi_log_err(SLAPI_LOG_ERR, "dse_report_write_failure",
+                  "The change was applied but could not be saved to \"%s\" "
+                  "(OS error %d: %s); it may be lost after a restart\n",
+                  pdse->dse_filename ? pdse->dse_filename : "(unknown)",
+                  write_rc, slapd_system_strerror(write_rc));
+    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "The change was applied but could not be saved to %s "
+                "(OS error %d: %s); it may be lost after a restart",
+                pdse->dse_filename ? pdse->dse_filename : "(unknown)",
+                write_rc, slapd_system_strerror(write_rc));
+    *returncode = LDAP_OPERATIONS_ERROR;
+    return 1;
 }
 
 /*
@@ -1166,9 +1372,14 @@ dse_write_entry(caddr_t data, caddr_t arg)
  *
  * return -1 for duplicate entry
  * return -2 for schema violation (SCHEMA_VIOLATION)
+ *
+ * If write_rc is not NULL, *write_rc is set to 0 if no file write was
+ * done or it succeeded, otherwise to the error from dse_write_file_nolock().
+ * The entry stays added in memory in that case; the return value is not
+ * affected.
  */
 static int
-dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb)
+dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb, int *write_rc)
 {
     int dont_write_file = 0, merge = 0; /* defaults */
     int rc = 0;
@@ -1176,15 +1387,18 @@ dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb)
     Slapi_Entry *schemacheckentry = NULL; /* to use for schema checking */
 
     PR_ASSERT(pb);
+    if (write_rc) {
+        *write_rc = 0;
+    }
     slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
     slapi_pblock_get(pb, SLAPI_DSE_MERGE_WHEN_ADDING, &merge);
 
     /* keep write lock during both tree update and file write operations */
     dse_lock_write(pdse, DSE_USE_LOCK);
     if (merge) {
-        rc = avl_insert(&(pdse->dse_tree), n, entry_dn_cmp, dupentry_merge);
+        rc = avl_insert(&(pdse->dse_tree), (caddr_t)n, entry_dn_cmp, dupentry_merge);
     } else {
-        rc = avl_insert(&(pdse->dse_tree), n, entry_dn_cmp, dupentry_disallow);
+        rc = avl_insert(&(pdse->dse_tree), (caddr_t)n, entry_dn_cmp, dupentry_disallow);
     }
     if (-1 != rc) {
         /* update num sub of parent with no lock; we already hold the write lock */
@@ -1198,7 +1412,10 @@ dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb)
             dse_node_delete(&n);
         }
         if (!dont_write_file) {
-            dse_write_file_nolock(pdse);
+            int wrc = dse_write_file_nolock(pdse);
+            if (write_rc) {
+                *write_rc = wrc;
+            }
         }
     } else {                 /* duplicate entry ignored */
         dse_node_delete(&n); /* This also deletes the contained entry */
@@ -1363,17 +1580,29 @@ dupentry_merge(caddr_t d1, caddr_t d2)
  * but we do not want to write out the file.  For example, if we update
  * the numsubordinates in the entry, this is an operational attribute that
  * we do not want saved to disk.
+ *
+ * If write_rc is not NULL, *write_rc is set to 0 if no file write was
+ * done or it succeeded, otherwise to the error from dse_write_file_nolock().
+ * The entry stays replaced in memory in that case; the return value is not
+ * affected.
  */
 static int
-dse_replace_entry(struct dse *pdse, Slapi_Entry *e, int write_file, int use_lock)
+dse_replace_entry(struct dse *pdse, Slapi_Entry *e, int write_file, int use_lock, int *write_rc)
 {
     int rc = -1;
+    if (write_rc) {
+        *write_rc = 0;
+    }
     if (NULL != e) {
         struct dse_node *n = dse_node_new(e);
         dse_lock_write(pdse, use_lock);
-        rc = avl_insert(&(pdse->dse_tree), n, entry_dn_cmp, dupentry_replace);
-        if (write_file)
-            dse_write_file_nolock(pdse);
+        rc = avl_insert(&(pdse->dse_tree), (caddr_t)n, entry_dn_cmp, dupentry_replace);
+        if (write_file) {
+            int wrc = dse_write_file_nolock(pdse);
+            if (write_rc) {
+                *write_rc = wrc;
+            }
+        }
         /* If the entry was replaced i.e. not added as a new entry, we need to
            free the old data, which is set in dupentry_replace */
         if (DSE_ENTRY_WAS_REPLACED == rc) {
@@ -1446,7 +1675,7 @@ dse_read_next_entry(char *buf, char **lastp)
  * searching, a read lock, for modifying in place, a write lock
  */
 static int
-dse_apply_nolock(struct dse *pdse, IFP fp, caddr_t arg)
+dse_apply_nolock(struct dse *pdse, int32_t (*fp)(caddr_t, caddr_t), caddr_t arg)
 {
     avl_apply(pdse->dse_tree, fp, arg, STOP_TRAVERSAL, AVL_INORDER);
     return 1;
@@ -1456,19 +1685,27 @@ dse_apply_nolock(struct dse *pdse, IFP fp, caddr_t arg)
 /*
  * Remove the entry from the tree.
  * Returns 1 if entry is removed and 0 if not.
+ *
+ * If write_rc is not NULL, *write_rc is set to 0 if no file write was
+ * done or it succeeded, otherwise to the error from dse_write_file_nolock().
+ * The entry stays removed in memory in that case; the return value is not
+ * affected.
  */
 static int
-dse_delete_entry(struct dse *pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
+dse_delete_entry(struct dse *pdse, Slapi_PBlock *pb, const Slapi_Entry *e, int *write_rc)
 {
     int dont_write_file = 0;
     struct dse_node *n = dse_node_new(e);
     struct dse_node *deleted_node = NULL;
 
+    if (write_rc) {
+        *write_rc = 0;
+    }
     slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
 
     /* keep write lock for both tree deleting and file writing */
     dse_lock_write(pdse, DSE_USE_LOCK);
-    if ((deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree, n, entry_dn_cmp))) {
+    if ((deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree, (caddr_t)n, entry_dn_cmp))) {
         dse_node_delete(&deleted_node);
     }
     dse_node_delete(&n);
@@ -1477,7 +1714,10 @@ dse_delete_entry(struct dse *pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
         /* Decrement the numsubordinate count of the parent entry */
         dse_updateNumSubOfParent(pdse, slapi_entry_get_sdn_const(e),
                                  SLAPI_OPERATION_DELETE);
-        dse_write_file_nolock(pdse);
+        int wrc = dse_write_file_nolock(pdse);
+        if (write_rc) {
+            *write_rc = wrc;
+        }
     }
     dse_lock_unlock(pdse, DSE_USE_LOCK);
 
@@ -1897,6 +2137,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     int dont_write_file = 0; /* default */
     int rc = SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
     int retval = -1;
+    int write_rc = 0;
     int need_be_postop = 0;
     int plugin_started = 0;
     int internal_op = 0;
@@ -2131,7 +2372,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 
     /* Change the entry itself both on disk and in the AVL tree */
     /* dse_replace_entry free's the existing entry. */
-    if (dse_replace_entry(pdse, ecc, !dont_write_file, DSE_USE_LOCK) != 0) {
+    if (dse_replace_entry(pdse, ecc, !dont_write_file, DSE_USE_LOCK, &write_rc) != 0) {
         returncode = LDAP_OPERATIONS_ERROR;
         retval = -1;
         goto done;
@@ -2196,6 +2437,12 @@ done:
     if (global_lock_owned) {
         global_backend_lock_unlock();
     }
+    /*
+     * The backend reports success because the change is applied (ACIs,
+     * audit log, persistent search and post-op plugins must see it); only
+     * the result sent to the client reports the persistence failure.
+     */
+    dse_report_write_failure(pdse, write_rc, &returncode, returntext);
     slapi_send_ldap_result(pb, returncode, NULL, returntext[0] ? returntext : NULL, 0, NULL);
 
     return dse_modify_return(retval, ec, ecc);
@@ -2343,6 +2590,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
     Slapi_DN *sdn = NULL;
     Slapi_DN parent;
+    int write_rc = 0;
     int need_be_postop = 0;
     PRBool global_lock_owned = PR_FALSE;
 
@@ -2519,7 +2767,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
 
     /* make copy for postop fns because add_entry_pb consumes the given entry */
     e_copy = slapi_entry_dup(e);
-    if (dse_add_entry_pb(pdse, e_copy, pb) != 0) {
+    if (dse_add_entry_pb(pdse, e_copy, pb, &write_rc) != 0) {
         rc = LDAP_OPERATIONS_ERROR;
         e = NULL; /* caller will free upon error */
         goto done;
@@ -2555,6 +2803,13 @@ done:
     if (global_lock_owned) {
         global_backend_lock_unlock();
     }
+    /*
+     * The backend reports success because the entry is added (ACIs, audit
+     * log, persistent search and post-op plugins must see it); only the
+     * result sent to the client reports the persistence failure.  rc is
+     * deliberately left unchanged.
+     */
+    dse_report_write_failure(pdse, write_rc, &returncode, returntext);
     slapi_send_ldap_result(pb, returncode, NULL, returntext[0] ? returntext : NULL, 0, NULL);
     return dse_add_return(rc, e);
 }
@@ -2585,6 +2840,7 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     Slapi_DN *sdn = NULL;
     Slapi_Entry *ec = NULL; /* copy of entry to delete */
     Slapi_Entry *orig_entry = NULL;
+    int write_rc = 0;
     int need_be_postop = 0;
     PRBool global_lock_owned = PR_FALSE;
 
@@ -2651,7 +2907,7 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
             }
             if (!returncode) {
-                if (dse_delete_entry(pdse, pb, ec) == 0) {
+                if (dse_delete_entry(pdse, pb, ec, &write_rc) == 0) {
                     returncode = LDAP_OPERATIONS_ERROR;
                 }
             }
@@ -2718,8 +2974,17 @@ done:
      */
     /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, orig_entry);
+    /*
+     * The backend reports success because the entry is deleted (ACIs, audit
+     * log, persistent search and post-op plugins must see it); only the
+     * result sent to the client reports the persistence failure.  The
+     * value returned is therefore saved before the helper changes
+     * returncode.
+     */
+    rc = returncode;
+    dse_report_write_failure(pdse, write_rc, &returncode, returntext);
     slapi_send_ldap_result(pb, returncode, NULL, returntext, 0, NULL);
-    return dse_delete_return(returncode, ec);
+    return dse_delete_return(rc, ec);
 }
 
 struct dse_callback *

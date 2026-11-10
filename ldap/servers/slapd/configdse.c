@@ -49,6 +49,7 @@ static const char *requires_restart[] = {
     "cn=config:nsslapd-numlisteners",
     "cn=config:" CONFIG_RETURN_EXACT_CASE_ATTRIBUTE,
     "cn=config:" CONFIG_SCHEMA_IGNORE_TRAILING_SPACES,
+    "cn=config:" CONFIG_THREAD_POOL_STATS_ATTRIBUTE,
     "cn=config,cn=ldbm:nsslapd-idlistscanlimit",
     "cn=config,cn=ldbm:nsslapd-parentcheck",
     "cn=config,cn=ldbm:nsslapd-dbcachesize",
@@ -287,12 +288,14 @@ load_config_dse(Slapi_PBlock *pb __attribute__((unused)),
         if (attr_name) {
             retval = config_set(attr_name, values, returntext, 1 /* force apply */);
             if ((strcasecmp(attr_name, CONFIG_MAXDESCRIPTORS_ATTRIBUTE) == 0) ||
-                (strcasecmp(attr_name, CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE) == 0)) {
+                (strcasecmp(attr_name, CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE) == 0) ||
+                (strcasecmp(attr_name, CONFIG_MAXSASLIOSIZE_ATTRIBUTE) == 0) ||
+                (strcasecmp(attr_name, CONFIG_SASL_MAXBUFSIZE) == 0)) {
                 /* We should not treat an LDAP_UNWILLING_TO_PERFORM as fatal for
-                 * the these config attributes.  This error is returned when
-                 * the value we are trying to set is higher than the current
-                 * process limit.  The set function will auto-adjust the runtime
-                 * value to the current process limit when this happens.  We want
+                 * these config attributes. This error is returned when
+                 * the value we are trying to set is higher than the allowed
+                 * limit. The set function will auto-adjust the runtime
+                 * value to the maximum when this happens. We want
                  * to allow the server to still start in this case. */
                 if (retval == LDAP_UNWILLING_TO_PERFORM) {
                     slapi_log_err(SLAPI_LOG_WARNING, "load_config_dse", "Config Warning: - %s\n", returntext);
@@ -506,7 +509,7 @@ postop_modify_config_dse(Slapi_PBlock *pb,
     static int num_requires_restart = sizeof(requires_restart) / sizeof(char *);
     LDAPMod **mods;
     int i, j;
-    char *p;
+    const char *p;
 
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     returntext[0] = '\0';

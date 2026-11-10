@@ -44,7 +44,7 @@ ERROR_LEVELS = {
                 + "methods used for a SASL bind"
     },
     "default": {
-        "level": 6384,
+        "level": 16384,
         "desc": "Default logging level"
     },
     "filter": {
@@ -186,6 +186,8 @@ ERROR_ATTR_MAP = {
     'nsslapd-errorlog-maxlogsize': 'Max log size',
     'nsslapd-errorlog-logbuffering': 'Buffering enabled',
     'nsslapd-errorlog-logminfreediskspace': 'Minimum free disk space',
+    'nsslapd-errorlog-time-format': 'Time format for JSON logging (strftime)',
+    'nsslapd-errorlog-log-format': 'Logging format',
 }
 
 SECURITY_ATTR_MAP = {
@@ -236,19 +238,20 @@ def get_log_config(inst, basedn, log, args):
     attr_map = {}
     levels = {}
 
-    match args.logtype:
-        case "access":
-            attr_map = ACCESS_ATTR_MAP
-            levels = ACCESS_LEVELS
-        case "error":
-            attr_map = ERROR_ATTR_MAP
-            levels = ERROR_LEVELS
-        case "security":
-            attr_map = SECURITY_ATTR_MAP
-        case "audit":
-            attr_map = AUDIT_ATTR_MAP
-        case "auditfail":
-            attr_map = AUDITFAIL_ATTR_MAP
+    if args.logtype == "access":
+        attr_map = ACCESS_ATTR_MAP
+        levels = ACCESS_LEVELS
+    elif args.logtype == "error":
+        attr_map = ERROR_ATTR_MAP
+        levels = ERROR_LEVELS
+    elif args.logtype == "security":
+        attr_map = SECURITY_ATTR_MAP
+    elif args.logtype == "audit":
+        attr_map = AUDIT_ATTR_MAP
+    elif args.logtype == "auditfail":
+        attr_map = AUDITFAIL_ATTR_MAP
+    else:
+        raise ValueError(f"Unknown logtype: {args.logtype}")
 
     sorted_results = []
     for attr, value in attrs.items():
@@ -676,7 +679,7 @@ def create_parser(subparsers):
             + "the server to delete rotated log files.",
         )
 
-        if log_type in ['access', 'audit']:
+        if log_type in ['access', 'audit', 'error']:
             # JSON logging
             set_log_format_parser = set_parsers.add_parser(
                 "log-format",

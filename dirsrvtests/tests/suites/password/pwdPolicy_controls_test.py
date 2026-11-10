@@ -12,7 +12,7 @@ import os
 import ldap
 import time
 from ldap.controls.ppolicy import PasswordPolicyControl
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts
 from lib389._constants import (DN_DM, PASSWORD, DEFAULT_SUFFIX)
 from lib389.idm.organizationalunit import OrganizationalUnits

@@ -99,7 +99,7 @@ def _find_next_notes(topology, Filter):
     topology.standalone.stop(timeout=10)
     file_path = topology.standalone.accesslog
     file_obj = open(file_path, "r")
-    regex = re.compile("filter=\"\(%s" % Filter)
+    regex = re.compile(r'filter="\(%s' % Filter)
     result = _find_notes_accesslog(file_obj, regex)
     file_obj.close() 
     topology.standalone.start(timeout=10)

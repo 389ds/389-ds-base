@@ -8,7 +8,7 @@
 import logging
 import os
 import pytest
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._mapped_object import DSLdapObject
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.idm.user import UserAccounts

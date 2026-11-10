@@ -3,6 +3,7 @@
 // Entry menu
 export const ENTRY_MENU = {
     search: 'search',
+    view: 'view',
     edit: 'edit',
     new: 'new',
     rename: 'rename',
@@ -13,7 +14,8 @@ export const ENTRY_MENU = {
     acis: 'acis',
     cos: 'cos',
     delete: 'delete',
-    refresh: 'refresh'
+    refresh: 'refresh',
+    getPwp: 'getPwp'
 };
 
 // Time limit for an LDAP search request.

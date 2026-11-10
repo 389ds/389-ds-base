@@ -34,6 +34,8 @@ Usage example
         'ldif_dir',
         'initconfig_dir',
         'tmpfiles_d',
+        'runtime_tmpfiles_d',
+        'sysusers_d',
     ]
 
 Module documentation

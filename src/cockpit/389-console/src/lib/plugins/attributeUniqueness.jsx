@@ -1,29 +1,30 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
+    Bullseye,
 	Button,
 	Checkbox,
 	Form,
+    FormHelperText,
 	FormSelect,
 	FormSelectOption,
 	Grid,
 	GridItem,
+    HelperText,
+    HelperTextItem,
 	Modal,
 	ModalVariant,
 	TextInput,
+    Spinner,
 	Switch,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -40,6 +41,8 @@ class AttributeUniqueness extends React.Component {
         super(props);
         this.state = {
             firstLoad: true,
+            saving: false,
+            loading: true,
             configRows: [],
             modalChecked: false,
             modalSpinning: false,
@@ -52,6 +55,8 @@ class AttributeUniqueness extends React.Component {
             attrNames: [],
             subtrees: [],
             subtreesOptions: [],
+            excludeSubtrees: [],
+            excludeSubtreesOptions: [],
             acrossAllSubtrees: false,
             topEntryOc: "",
             subtreeEnriesOc: "",
@@ -60,6 +65,8 @@ class AttributeUniqueness extends React.Component {
             _attrNames: [],
             _subtrees: [],
             _subtreesOptions: [],
+            _excludeSubtrees: [],
+            _excludeSubtreesOptions: [],
             _acrossAllSubtrees: false,
             _topEntryOc: "",
             _subtreeEnriesOc: "",
@@ -70,6 +77,7 @@ class AttributeUniqueness extends React.Component {
 
             isAttributeNameOpen: false,
             isSubtreesOpen: false,
+            isExcludeSubtreesOpen: false,
         };
 
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
@@ -91,21 +99,9 @@ class AttributeUniqueness extends React.Component {
 
         // Attribute Name
         this.handleAttributeNameSelect = (event, selection) => {
-            if (this.state.attrNames.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        attrNames: prevState.attrNames.filter((item) => item !== selection),
-                        isAttributeNameOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        attrNames: [...prevState.attrNames, selection],
-                        isAttributeNameOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                attrNames: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleAttributeNameToggle = (_event, isAttributeNameOpen) => {
             this.setState({
@@ -121,21 +117,13 @@ class AttributeUniqueness extends React.Component {
 
         // Subtrees
         this.handleSubtreesSelect = (event, selection) => {
-            if (this.state.subtrees.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        subtrees: prevState.subtrees.filter((item) => item !== selection),
-                        isAttributeNameOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        subtrees: [...prevState.subtrees, selection],
-                        isAttributeNameOpen: false
-                    }), () => { this.validateConfig() }
-                );
+            if (selection === "") {
+                this.setState({isSubtreesOpen: false});
+                return;
             }
+            this.setState({
+                subtrees: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleSubtreesToggle = (_event, isSubtreesOpen) => {
             this.setState({
@@ -145,14 +133,43 @@ class AttributeUniqueness extends React.Component {
         this.handleSubtreesClear = () => {
             this.setState({
                 subtrees: [],
-                isSubtreesOpen: false
+                isSubtreesOpen: false,
             }, () => { this.validateConfig() });
         };
         this.handleSubtreesCreateOption = newValue => {
-            if (!this.state.subtreesOptions.includes(newValue)) {
+            if (newValue && !this.state.subtreesOptions.includes(newValue)) {
                 this.setState({
                     subtreesOptions: [...this.state.subtreesOptions, newValue],
-                    isSubtreesOpen: false
+                    isSubtreesOpen: false,
+                }, () => { this.validateConfig() });
+            }
+        };
+        // Exclude Subtrees
+        this.handleExcludeSubtreesSelect = (event, selection) => {
+            if (selection === "") {
+                this.setState({isExcludeSubtreesOpen: false});
+                return;
+            }
+            this.setState({
+                excludeSubtrees: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
+        };
+        this.handleExcludeSubtreesToggle = (_event, isExcludeSubtreesOpen) => {
+            this.setState({
+                isExcludeSubtreesOpen
+            }, () => { this.validateConfig() });
+        };
+        this.handleExcludeSubtreesClear = () => {
+            this.setState({
+                excludeSubtrees: [],
+                isExcludeSubtreesOpen: false
+            }, () => { this.validateConfig() });
+        };
+        this.handleExcludeSubtreesCreateOption = newValue => {
+            if (newValue && !this.state.excludeSubtreesOptions.includes(newValue)) {
+                this.setState({
+                    excludeSubtreesOptions: [...this.state.excludeSubtreesOptions, newValue],
+                    isExcludeSubtreesOpen: false,
                 }, () => { this.validateConfig() });
             }
         };
@@ -162,18 +179,32 @@ class AttributeUniqueness extends React.Component {
         const errObj = {};
         let all_good = true;
 
-        // Must have a subtree and attribute set
-        for (const attrList of ['attrNames', 'subtrees']) {
+        // Must have a attribute set and (subtrees or entry oc)
+        for (const attrList of ['attrNames']) {
             if (this.state[attrList].length === 0) {
                 errObj[attrList] = true;
                 all_good = false;
             }
         }
 
+        if (this.state['subtrees'].length === 0 && this.state['subtreeEnriesOc'] === "") {
+            // Ok we need one or the other
+            errObj['subtrees'] = true;
+            errObj['subtreeEnriesOc'] = true;
+            all_good = false;
+        }
+
         // Validate the subtree dn's
         for (const dn of this.state.subtrees) {
             if (!valid_dn(dn)) {
                 errObj.subtrees = true;
+                all_good = false;
+                break;
+            }
+        }
+        for (const dn of this.state.excludeSubtrees) {
+            if (!valid_dn(dn)) {
+                errObj.excludeSubtrees = true;
                 all_good = false;
                 break;
             }
@@ -188,7 +219,7 @@ class AttributeUniqueness extends React.Component {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
             const attrLists = [
-                'subtrees', 'attrNames'
+                'subtrees', 'excludeSubtrees', 'attrNames'
             ];
             for (const check_attr of attrLists) {
                 if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
@@ -266,19 +297,20 @@ class AttributeUniqueness extends React.Component {
         ];
         log_cmd("loadConfigs", "Get Attribute Uniqueness Plugin configs", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const myObject = JSON.parse(content);
                     const tableKey = this.state.tableKey + 1;
                     this.setState({
                         configRows: myObject.items.map(item => item.attrs),
-                        tableKey
+                        tableKey,
+                        loading: false
                     });
                 })
                 .fail(err => {
                     if (err !== 0) {
-                        const errMsg = JSON.parse(err);
-                        console.log("loadConfigs failed", errMsg.desc);
+                        const errMsg = getApiErrorMessage(err);
+                        console.log("loadConfigs failed", errMsg);
                     }
                 });
     }
@@ -300,13 +332,16 @@ class AttributeUniqueness extends React.Component {
                 configName: "",
                 attrNames: [],
                 subtrees: [],
+                excludeSubtrees: [],
                 acrossAllSubtrees: false,
                 topEntryOc: "",
-                subtreeEnriesOc: ""
+                subtreeEnriesOc: "",
+                error: {},
             });
         } else {
             let configAttrNamesList = [];
             let configSubtreesList = [];
+            let configExcludeSubtreesList = [];
             const cmd = [
                 "dsconf",
                 "-j",
@@ -320,13 +355,15 @@ class AttributeUniqueness extends React.Component {
             log_cmd("openModal", "Fetch the Attribute Uniqueness Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
-                        superuser: true,
+                        superuser: "require",
                         err: "message"
                     })
                     .done(content => {
                         const configEntry = JSON.parse(content).attrs;
                         this.setState({
                             configEntryModalShow: true,
+                            saveBtnDisabled: true,
+                            error: {},
                             newEntry: false,
                             configName: configEntry.cn === undefined ? "" : configEntry.cn[0],
                             configEnabled: !(
@@ -380,6 +417,14 @@ class AttributeUniqueness extends React.Component {
                             }
                             this.setState({ subtrees: configSubtreesList, _subtrees: [...configSubtreesList] });
                         }
+                        if (configEntry["uniqueness-exclude-subtrees"] === undefined) {
+                            this.setState({ excludeSubtrees: [], _excludeSubtrees: [] });
+                        } else {
+                            for (const value of configEntry["uniqueness-exclude-subtrees"]) {
+                                configExcludeSubtreesList = [...configExcludeSubtreesList, value];
+                            }
+                            this.setState({ excludeSubtrees: configExcludeSubtreesList, _excludeSubtrees: [...configExcludeSubtreesList] });
+                        }
                     })
                     .fail(_ => {
                         this.setState({
@@ -388,6 +433,7 @@ class AttributeUniqueness extends React.Component {
                             configName: "",
                             attrNames: [],
                             subtrees: [],
+                            excludeSubtrees: [],
                             acrossAllSubtrees: false,
                             topEntryOc: "",
                             subtreeEnriesOc: "",
@@ -407,6 +453,7 @@ class AttributeUniqueness extends React.Component {
             configEnabled,
             attrNames,
             subtrees,
+            excludeSubtrees,
             acrossAllSubtrees,
             topEntryOc,
             subtreeEnriesOc
@@ -418,7 +465,7 @@ class AttributeUniqueness extends React.Component {
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "plugin",
             "attr-uniq",
-            action,
+            action, // "add" or "set"
             configName,
             "--enabled",
             configEnabled ? "on" : "off",
@@ -427,7 +474,7 @@ class AttributeUniqueness extends React.Component {
         ];
 
         if (subtrees.length === 0 && subtreeEnriesOc.length === 0) {
-            // There mustr a subtree or entry OC sets
+            // There must be a subtree or entry OC sets
             this.props.addNotification(
                 "error",
                 _("There must be at least one Subtree or Subtree Entries OC set")
@@ -439,49 +486,75 @@ class AttributeUniqueness extends React.Component {
             saving: true
         });
 
-        // Delete attributes if the user set an empty value to the field
-        if (!(action === "add" && attrNames.length === 0)) {
+        if (action === "add") {
             cmd = [...cmd, "--attr-name"];
             if (attrNames.length !== 0) {
                 for (const value of attrNames) {
                     cmd = [...cmd, value];
                 }
-            } else if (action === "add") {
-                cmd = [...cmd, ""];
-            } else {
-                cmd = [...cmd, "delete"];
             }
-        }
-
-        if (!(action === "add" && subtrees.length === 0)) {
-            cmd = [...cmd, "--subtree"];
             if (subtrees.length !== 0) {
+                cmd = [...cmd, "--subtree"];
                 for (const value of subtrees) {
                     cmd = [...cmd, value];
                 }
-            } else if (action === "add") {
-                cmd = [...cmd, ""];
-            } else {
-                cmd = [...cmd, "delete"];
             }
-        }
-
-        cmd = [...cmd, "--top-entry-oc"];
-        if (topEntryOc.length !== 0) {
-            cmd = [...cmd, topEntryOc];
-        } else if (action === "add") {
-            cmd = [...cmd, ""];
+            if (excludeSubtrees.length !== 0) {
+                cmd = [...cmd, "--exclude-subtree"];
+                for (const value of excludeSubtrees) {
+                    cmd = [...cmd, value];
+                }
+            }
+            if (topEntryOc.length !== 0) {
+                cmd = [...cmd, "--top-entry-oc", topEntryOc];
+            }
+            if (subtreeEnriesOc.length !== 0) {
+                cmd = [...cmd, "--subtree-entries-oc", subtreeEnriesOc];
+            }
         } else {
-            cmd = [...cmd, "delete"];
-        }
-
-        cmd = [...cmd, "--subtree-entries-oc"];
-        if (subtreeEnriesOc.length !== 0) {
-            cmd = [...cmd, subtreeEnriesOc];
-        } else if (action === "add") {
-            cmd = [...cmd, ""];
-        } else {
-            cmd = [...cmd, "delete"];
+            // Set/edit
+            if (!listsEqual(this.state['attrNames'], this.state['_attrNames'])) {
+                cmd = [...cmd, "--attr-name"];
+                for (const value of attrNames) {
+                    cmd = [...cmd, value];
+                }
+            }
+            if (!listsEqual(this.state['subtrees'], this.state['_subtrees'])) {
+                cmd = [...cmd, "--subtree"];
+                if (subtrees.length === 0) {
+                    // Remove all values
+                    cmd = [...cmd, "delete"];
+                } else {
+                    for (const value of subtrees) {
+                        cmd = [...cmd, value];
+                    }
+                }
+            }
+            if (!listsEqual(this.state['excludeSubtrees'], this.state['_excludeSubtrees'])) {
+                cmd = [...cmd, "--exclude-subtree"];
+                if (excludeSubtrees.length === 0) {
+                    // Remove all values
+                    cmd = [...cmd, "delete"];
+                } else {
+                    for (const value of excludeSubtrees) {
+                        cmd = [...cmd, value];
+                    }
+                }
+            }
+            if (this.state['topEntryOc'] !== this.state['_topEntryOc']) {
+                if (topEntryOc.length !== 0) {
+                    cmd = [...cmd, "--top-entry-oc", topEntryOc];
+                } else {
+                    cmd = [...cmd, "--top-entry-oc", "delete"];
+                }
+            }
+            if (this.state['subtreeEnriesOc'] !== this.state['_subtreeEnriesOc']) {
+                if (subtreeEnriesOc.length !== 0) {
+                    cmd = [...cmd, "--subtree-entries-oc", subtreeEnriesOc];
+                } else {
+                    cmd = [...cmd, "--subtree-entries-oc", "delete"];
+                }
+            }
         }
 
         log_cmd(
@@ -491,14 +564,15 @@ class AttributeUniqueness extends React.Component {
         );
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
                     console.info("attrUniqOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        cockpit.format(_("The $0 operation was successfully done on \"$1\" entry"), action, configName)
+                        cockpit.format("The $0 operation was successfully done on \"$1\" entry, please restart the instance for these changes to take effect.",
+                                       action, configName)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -507,10 +581,10 @@ class AttributeUniqueness extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -556,7 +630,7 @@ class AttributeUniqueness extends React.Component {
         log_cmd("deleteConfig", "Delete the Attribute Uniqueness Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
-                    superuser: true,
+                    superuser: "require",
                     err: "message"
                 })
                 .done(content => {
@@ -570,10 +644,10 @@ class AttributeUniqueness extends React.Component {
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg)
                     );
                     this.loadConfigs();
                     this.closeConfirmDelete();
@@ -595,6 +669,7 @@ class AttributeUniqueness extends React.Component {
             configName,
             attrNames,
             subtrees,
+            excludeSubtrees,
             acrossAllSubtrees,
             configEnabled,
             topEntryOc,
@@ -667,26 +742,19 @@ class AttributeUniqueness extends React.Component {
                                 {_("Attribute Names")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an attribute"
-                                    onToggle={(event, isOpen) => this.handleAttributeNameToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={attrNames}
                                     onSelect={this.handleAttributeNameSelect}
                                     onClear={this.handleAttributeNameClear}
-                                    selections={attrNames}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isAttributeNameOpen}
-                                    aria-labelledby="typeAhead-attr-name"
-                                    placeholderText={_("Type an attribute name...")}
-                                    noResultsFoundText={_("There are no matching attributes")}
+                                    onToggle={this.handleAttributeNameToggle}
+                                    placeholder={_("Type an attribute name...")}
+                                    noResultsText={_("There are no matching attributes")}
+                                    ariaLabel="Type an attribute"
                                     validated={this.state.error.attrNames ? "error" : "default"}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    isMulti={true}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets the DN under which the plug-in checks for uniqueness of the attributes value. This attribute is multi-valued (uniqueness-subtrees)")}>
@@ -694,28 +762,52 @@ class AttributeUniqueness extends React.Component {
                                 {_("Subtrees")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleSubtreesToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={subtrees}
                                     onSelect={this.handleSubtreesSelect}
                                     onClear={this.handleSubtreesClear}
-                                    selections={subtrees}
+                                    options={[""]}
                                     isOpen={this.state.isSubtreesOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
-                                    onCreateOption={this.handleSubtreesCreateOption}
+                                    onToggle={this.handleSubtreesToggle}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a subtree DN"
                                     validated={this.state.error.subtrees ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleSubtreesCreateOption}
+                                />
+                                {this.state.error.subtrees &&
+                                    <FormHelperText >
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                You must specify at least one Subtree, or a Subtree Entry Objectclass
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText >
+                                }
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Sets subtrees that should be excluded from attribute uniqueness. This attribute is multi-valued (uniqueness-exclude-subtrees">
+                            <GridItem span={3} className="ds-label">
+                                Excluded Subtrees
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TypeaheadSelect
+                                    selected={excludeSubtrees}
+                                    onSelect={this.handleExcludeSubtreesSelect}
+                                    onClear={this.handleExcludeSubtreesClear}
+                                    options={[""]}
+                                    isOpen={this.state.isExcludeSubtreesOpen}
+                                    onToggle={this.handleExcludeSubtreesToggle}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an exclude subtree DN"
+                                    validated={this.state.error.excludeSubtrees ? "error" : "default"}
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleExcludeSubtreesCreateOption}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Verifies that the value of the attribute set in uniqueness-attribute-name is unique in this subtree (uniqueness-top-entry-oc)")}>
@@ -766,6 +858,15 @@ class AttributeUniqueness extends React.Component {
                                         <FormSelectOption key={index} value={attr} label={attr} />
                                     ))}
                                 </FormSelect>
+                                {this.state.error.subtreeEnriesOc &&
+                                    <FormHelperText >
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                You must specify at least one Subtree, or a Subtree Entry Objectclass
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText >
+                                }
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-bottom" title={_("Identifies whether or not the config is enabled.")}>
@@ -800,16 +901,26 @@ class AttributeUniqueness extends React.Component {
                 >
                     <Grid>
                         <GridItem span={12}>
-                            <AttrUniqConfigTable
-                                key={this.state.tableKey}
-                                rows={this.state.configRows}
-                                editConfig={this.showEditConfigModal}
-                                deleteConfig={this.showConfirmDelete}
-                            />
+                            {this.state.loading
+                                ?
+                                    <Bullseye>
+                                        <Spinner />
+                                    </Bullseye>
+                                :
+                                    <AttrUniqConfigTable
+                                        key={this.state.tableKey}
+                                        rows={this.state.configRows}
+                                        editConfig={this.showEditConfigModal}
+                                        deleteConfig={this.showConfirmDelete}
+                                    />
+                            }
+                        </GridItem>
+                        <GridItem>
                             <Button
                                 key="add-config"
                                 variant="primary"
                                 onClick={this.handleShowAddConfigModal}
+                                className="ds-margin-top"
                             >
                                 {_("Add Config")}
                             </Button>

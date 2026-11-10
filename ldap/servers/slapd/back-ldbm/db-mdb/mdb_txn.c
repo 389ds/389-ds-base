@@ -47,7 +47,9 @@ cleanup_mdbtxn_stack(void *arg)
     slapi_ch_free((void**)&anchor);
     while (txn) {
         txn2 = txn->parent;
-        TXN_ABORT(TXN(txn));
+        if (dbmdb_is_env_open()) {
+            TXN_ABORT(TXN(txn));
+        }
         slapi_ch_free((void**)&txn);
         txn = txn2;
     }

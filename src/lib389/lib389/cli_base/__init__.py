@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -14,10 +14,10 @@ import sys
 import json
 import ldap
 from ldap.dn import is_dn
-
 from getpass import getpass
 from lib389 import DirSrv
-from lib389.utils import assert_c, get_ldapurl_from_serverid
+from lib389.utils import assert_c
+from lib389.dseutils import get_ldapurl_from_serverid
 from lib389.properties import SER_ROOT_PW, SER_ROOT_DN
 
 
@@ -34,7 +34,7 @@ def _get_arg(args, msg=None, hidden=False, confirm=False):
                     x = getpass("%s : " % msg)
                     y = getpass("CONFIRM - %s : " % msg)
                     if x != y:
-                        log.info("Passwords do not match, try again.")
+                        print("Passwords do not match, try again.")
                     else:
                         return y
             else:
@@ -89,7 +89,7 @@ def _warn(data, msg=None):
     if msg is not None:
         print("%s :" % msg)
     if 'Yes I am sure' != input("Type 'Yes I am sure' to continue: "):
-        raise Exception("Not sure if want")
+        raise Exception("Not sure I want")
     return data
 
 
@@ -181,12 +181,23 @@ def _format_status(log, mtype, json=False):
                 log.info('{}: {}'.format(k, vi))
 
 
+def _format_status_with_option(log, mtype, json=False, option=False):
+    if json:
+        print(mtype.get_status_json(option))
+    else:
+        status_dict = mtype.get_status(option)
+        log.info('dn: ' + mtype._dn)
+        for k, v in list(status_dict.items()):
+            # For each value in the multivalue attr
+            for vi in v:
+                log.info('{}: {}'.format(k, vi))
+
 def _generic_list(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
     ol = mc.list()
     if len(ol) == 0:
         if args and args.json:
-            print(json.dumps({"type": "list", "items": []}, indent=4))
+            log.info(json.dumps({"type": "list", "items": []}, indent=4))
         else:
             log.info("No objects to display")
     elif len(ol) > 0:
@@ -198,9 +209,9 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
             if args and args.json:
                 json_result['items'].append(o_str)
             else:
-                print(o_str)
+                log.info(o_str)
         if args and args.json:
-            print(json.dumps(json_result, indent=4))
+            log.info(json.dumps(json_result, indent=4))
 
 
 # Display these entries better!
@@ -208,19 +219,19 @@ def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
         o = mc.get(selector, json=True)
-        print(o)
+        log.info(o)
     else:
         o = mc.get(selector)
         o_str = o.display()
-        print(o_str)
+        log.info(o_str)
 
 
 def _generic_get_entry(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
-        print(mc.get_all_attrs_json())
+        log.info(mc.get_all_attrs_json())
     else:
-        print(mc.display())
+        log.info(mc.display())
 
 
 def _generic_get_attr(inst, basedn, log, manager_class, args=None):
@@ -230,30 +241,33 @@ def _generic_get_attr(inst, basedn, log, manager_class, args=None):
         if args and args.json:
             vals[attr] = mc.get_attr_vals_utf8(attr)
         else:
-            print(mc.display_attr(attr).rstrip())
+            log.info(mc.display_attr(attr).rstrip())
     if args.json:
-        print(json.dumps({"type": "entry", "dn": mc._dn, "attrs": vals}, indent=4))
+        log.info(json.dumps({"type": "entry", "dn": mc._dn, "attrs": vals}, indent=4))
 
 
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     mc = manager_class(inst, basedn)
-    o = mc.get(dn=dn)
-    o_str = o.display()
-    print(o_str)
+    if args is not None and args.json:
+        o = mc.get(dn=dn, json=True)
+        log.info(o)
+    else:
+        o = mc.get(dn=dn)
+        log.info(o.display())
 
 
 def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     mc = manager_class(inst, basedn)
     o = mc.create(properties=kwargs)
     o_str = o.__unicode__()
-    print('Successfully created %s' % o_str)
+    log.info('Successfully created %s' % o_str)
 
 
 def _generic_delete(inst, basedn, log, object_class, dn, args=None):
     # Load the oc direct
     o = object_class(inst, dn)
     o.delete()
-    print('Successfully deleted %s' % dn)
+    log.info('Successfully deleted %s' % dn)
 
 
 # Attr functions expect attribute values to be "attr=value"
@@ -265,7 +279,7 @@ def _generic_replace_attr(inst, basedn, log, manager_class, args=None):
             if "=" in myattr:
                 [attr, val] = myattr.split("=", 1)
                 mc.replace(attr, val)
-                print("Successfully replaced \"{}\"".format(attr))
+                log.info("Successfully replaced \"{}\"".format(attr))
             else:
                 raise ValueError("You must specify a value to replace the attribute ({})".format(myattr))
     else:
@@ -280,7 +294,7 @@ def _generic_add_attr(inst, basedn, log, manager_class, args=None):
             if "=" in myattr:
                 [attr, val] = myattr.split("=", 1)
                 mc.add(attr, val)
-                print("Successfully added \"{}\"".format(attr))
+                log.info("Successfully added \"{}\"".format(attr))
             else:
                 raise ValueError("You must specify a value to add for the attribute ({})".format(myattr))
     else:
@@ -300,7 +314,7 @@ def _generic_del_attr(inst, basedn, log, manager_class, args=None):
                 # remove all
                 mc.remove_all(myattr)
                 attr = myattr  # for logging
-            print("Successfully removed \"{}\"".format(attr))
+            log.info("Successfully removed \"{}\"".format(attr))
     else:
         # Missing value
         raise ValueError("Missing attribute to delete")
@@ -385,13 +399,35 @@ class CustomHelpFormatter(argparse.HelpFormatter):
     description to the full help output
     """
     def add_arguments(self, actions):
-        if len(actions) > 0 and actions[0].option_strings:
-            actions = parent_arguments + actions
+        if len(actions) > 0:
+            # Check if this is the main options section by looking for the help action
+            is_main_section = any(
+                isinstance(action, argparse._HelpAction)
+                for action in actions
+            )
+
+            # Only add parent arguments to the main options section
+            if is_main_section:
+                actions = parent_arguments + actions
+
         super(CustomHelpFormatter, self).add_arguments(actions)
 
     def _format_usage(self, usage, actions, groups, prefix):
         usage = super(CustomHelpFormatter, self)._format_usage(usage, actions, groups, prefix)
-        formatted_options = self._format_actions_usage(parent_arguments, [])
+
+        if sys.version_info < (3, 13):
+            # Use _format_actions_usage() for Python 3.12 and earlier
+            formatted_options = self._format_actions_usage(parent_arguments, [])
+        else:
+            # Use _get_actions_usage_parts() for Python 3.13 and later
+            action_parts = self._get_actions_usage_parts(parent_arguments, [])
+            if isinstance(action_parts, tuple):
+                # Python 3.14.3+ and 3.15+ return a tuple (list of actions, count of actions)
+                formatted_options = ' '.join(action_parts[0])
+            else:
+                # Earlier versions return a list of actions
+                formatted_options = ' '.join(action_parts)
+
         # If formatted_options already in usage - remove them
         if formatted_options in usage:
             usage = usage.replace(f' {formatted_options}', '')
@@ -414,12 +450,14 @@ class LogCapture(logging.Handler):
         """
         super(LogCapture, self).__init__()
         self.outputs = []
+        self.raw_outputs = []
         self.log = logging.getLogger("LogCapture")
         self.log.addHandler(self)
         self.log.setLevel(logging.INFO)
 
     def emit(self, record):
         self.outputs.append(record)
+        self.raw_outputs.append(str(record.msg))
 
     def contains(self, query):
         """
@@ -435,8 +473,12 @@ class LogCapture(logging.Handler):
         for rec in self.outputs:
             print(str(rec))
 
+    def get_raw_outputs(self):
+        return self.raw_outputs
+
     def flush(self):
         self.outputs = []
+        self.raw_outputs = []
 
 
 class FakeArgs(object):

@@ -423,6 +423,9 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             }
             f = slapi_str2filter(tstr);
             slapi_ch_free_string(&tstr);
+            if (rv > 0) {
+                slapi_ch_free_string(&tmpstr);
+            }
         } else if (strncmp(str, aci_targetdn, targetdnlen) == 0) {
             char *tstr = NULL;
             size_t LDAP_URL_prefix_len = 0;
@@ -706,6 +709,7 @@ __aclp__sanity_check_acltxt(aci_t *aci_item, char *str)
     /* check for acl syntax error */
     if ((handle = (ACLListHandle_t *)ACL_ParseString(&errp, newstr)) == NULL) {
         acl_print_acllib_err(&errp, str);
+        nserrDispose(&errp);
         slapi_ch_free_string(&newstr);
         return ACL_SYNTAX_ERR;
     } else {
@@ -844,13 +848,15 @@ __aclp__normalize_acltxt(aci_t *aci_item, char *str)
     s = aclstr;
     while (s && ldap_utf8isspace(s))
         LDAP_UTF8INC(s);
-    assert(s);
+    if (s == NULL || *s == '\0' || *(s + 1) == '\0' || *(s + 2) == '\0') {
+        goto error;
+    }
     *(s + 2) = 'l';
 
     aclName = s + 3;
 
     s = strchr(aclstr, ';');
-    if (NULL == s) {
+    if (NULL == s || aclName >= s) {
         goto error;
     }
 
@@ -1147,13 +1153,16 @@ normalize_nextACERule:
             if (nextACE && *nextACE != '\0')
                 aclutil_str_append(&ret_str, nextACE);
             slapi_ch_free_string(&s_aclstr);
+            slapi_ch_free_string(&s_acestr);
             return (ret_str);
         }
         acestr = nextACE;
+        slapi_ch_free_string(&s_acestr);
         goto normalize_nextACERule;
     }
 
     slapi_ch_free_string(&s_aclstr);
+    slapi_ch_free_string(&s_acestr);
     return (ret_str);
 
 error:

@@ -78,6 +78,7 @@ set_database_dataversion(const char *dn, const char *dataversion)
     if (NULL != pb) {
         Slapi_Entry *e;
         slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
+        slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, NULL);
         slapi_entry_free(e);
     }
     slapi_pblock_destroy(pb);

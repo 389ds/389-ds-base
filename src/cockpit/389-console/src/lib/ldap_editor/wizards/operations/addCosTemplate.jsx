@@ -177,7 +177,9 @@ class AddCosTemplate extends React.Component {
                                 (result) => {
                                     const myDn = this.state.ldifArray[0].substring(4);
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? _("Successfully added entry!") : _("Failed to add entry, error: ") + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ?
+                                            _("Successfully added entry!") :
+                                            _("Failed to add entry, error: ") + result.output,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                         createdTemplate: myDn,
@@ -987,16 +989,16 @@ class AddCosTemplate extends React.Component {
                         position="left"
                         onSelect={this.handleOCDropDownSelect}
                         toggle={
-                            <BadgeToggle 
-                                id="toggle-oc-select" 
+                            <BadgeToggle
+                                id="toggle-oc-select"
                                 badgeProps={{
                                     className: selectedObjectClasses.length > 0 ? "ds-badge-bgcolor" : undefined,
                                     isRead: selectedObjectClasses.length === 0
                                 }}
                                 onToggle={(_event, isOpen) => this.handleOCDropDownToggle(isOpen)}
                             >
-                                {selectedObjectClasses.length > 0 ? 
-                                    `${selectedObjectClasses.length} ${_("selected")}` : 
+                                {selectedObjectClasses.length > 0 ?
+                                    `${selectedObjectClasses.length} ${_("selected")}` :
                                     `0 ${_("selected")}`}
                             </BadgeToggle>
                         }
@@ -1060,7 +1062,7 @@ class AddCosTemplate extends React.Component {
                                             }}
                                         />
                                         {row.cells.map((cell, cellIndex) => (
-                                            <Td 
+                                            <Td
                                                 key={`${rowIndex}_${cellIndex}`}
                                                 dataLabel={columnsOc[cellIndex]?.title || columnsOc[cellIndex]}
                                             >
@@ -1089,16 +1091,16 @@ class AddCosTemplate extends React.Component {
                         position="left"
                         onSelect={this.handleAttrDropDownSelect}
                         toggle={
-                            <BadgeToggle 
-                                id="toggle-attr-select" 
+                            <BadgeToggle
+                                id="toggle-attr-select"
                                 badgeProps={{
                                     className: selectedAttributes.length > 0 ? "ds-badge-bgcolor" : undefined,
                                     isRead: selectedAttributes.length === 0
                                 }}
                                 onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}
                             >
-                                {selectedAttributes.length > 0 ? 
-                                    `${selectedAttributes.length} ${_("selected")}` : 
+                                {selectedAttributes.length > 0 ?
+                                    `${selectedAttributes.length} ${_("selected")}` :
                                     `0 ${_("selected")}`}
                             </BadgeToggle>
                         }
@@ -1153,7 +1155,7 @@ class AddCosTemplate extends React.Component {
                                     }}
                                 />
                                 {row.cells.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={`${rowIndex}_${cellIndex}`}
                                         dataLabel={columnsAttr[cellIndex]?.title || columnsAttr[cellIndex]}
                                     >
@@ -1201,7 +1203,7 @@ class AddCosTemplate extends React.Component {
         );
 
         const ldifListItems = cleanLdifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -1352,7 +1354,7 @@ class AddCosTemplate extends React.Component {
                 component: entryReviewStep,
                 nextButtonText: finishButtonName,
                 canJumpTo: stepIdReached >= 7 && stepIdReached < 8,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding,
             },
             ...((this.props.definitionWizardEntryDn !== '') || (this.props.cosDefCreateMoreTemplate)
@@ -1363,7 +1365,7 @@ class AddCosTemplate extends React.Component {
                         component: entryReviewStep,
                         nextButtonText: _("Finish"),
                         canJumpTo: stepIdReached >= 7 && stepIdReached < 8,
-                        hideBackButton: true,
+                        hideBackButton: this.state.resultVariant === "success" ? true : false,
                     },
                 ]
                 : []),

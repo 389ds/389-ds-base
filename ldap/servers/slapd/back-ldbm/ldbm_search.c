@@ -28,6 +28,13 @@
  */
 #define LDBM_SRCH_DEFAULT_RESULT (-1)
 
+/* Helper struct to handle srinking/triming spaces */
+struct shrink_blanks_ctx {
+    size_t first_non_space;        /* Position of first char that is not a space */
+    size_t first_trailing_space;   /* Position of first trailing space */
+    size_t len;                    /* Position of \0 (aka strlen(val)) */
+};
+
 /* prototypes */
 static int build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const char *base, int scope, int *lookup_returned_allidsp, IDList **candidates);
 static IDList *base_candidates(Slapi_PBlock *pb, struct backentry *e);
@@ -35,7 +42,10 @@ static IDList *onelevel_candidates(Slapi_PBlock *pb, backend *be, const char *ba
 static back_search_result_set *new_search_result_set(IDList *idl, int vlv, int lookthroughlimit);
 static void delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr);
 static int can_skip_filter_test(Slapi_PBlock *pb, struct slapi_filter *f, int scope, IDList *idl);
-static void stat_add_srch_lookup(Op_stat *op_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt);
+static void stat_add_srch_lookup(Op_stat *op_stat,  struct component_keys_lookup *key_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt);
+static bool dynamic_lists_filter_matches(Slapi_Filter *filter, struct ldbminfo *li);
+static void dynamic_candidates(Slapi_PBlock *pb, struct ldbminfo *li, const char *base, IDList **candidates, int *err);
+static void dynamic_lists_buildup_entry(Slapi_PBlock *pb, struct backentry *entry, struct ldbminfo *li);
 
 /* This is for performance testing, allows us to disable ACL checking altogether */
 #if defined(DISABLE_ACL_CHECK)
@@ -45,6 +55,145 @@ static void stat_add_srch_lookup(Op_stat *op_stat, char * attribute_type, const 
 #endif
 
 #define ISLEGACY(be) (be ? (be->be_instance_info ? (((ldbm_instance *)be->be_instance_info)->inst_li ? (((ldbm_instance *)be->be_instance_info)->inst_li->li_legacy_errcode) : 0) : 0) : 0)
+
+/* Recursively walk the filter to see if it contains our dynamic attribute */
+static bool
+dynamic_lists_filter_matches(Slapi_Filter *filter, struct ldbminfo *li)
+{
+    switch (filter->f_choice) {
+    case LDAP_FILTER_EQUALITY:
+        if (strcasecmp(filter->f_avtype, li->li_dynamic_lists_attr) == 0) {
+            return true;
+        }
+        break;
+    case LDAP_FILTER_AND:
+    case LDAP_FILTER_OR:
+    case LDAP_FILTER_NOT:
+        for (Slapi_Filter *sub_filter = filter->f_list;
+             sub_filter;
+             sub_filter = sub_filter->f_next)
+        {
+            if (dynamic_lists_filter_matches(sub_filter, li)) {
+                return true;
+            }
+        }
+        break;
+    }
+    return false;
+}
+
+static void
+dynamic_lists_buildup_entry(Slapi_PBlock *pb, struct backentry *entry, struct ldbminfo *li)
+{
+    const Slapi_Value **urls = NULL;
+
+    if (slapi_entry_attr_hasvalue(entry->ep_entry, "objectclass",
+                                  li->li_dynamic_lists_oc) == 0)
+    {
+         /* Entry does not have the groupOfUrls objectclass */
+         return;
+    }
+
+    /* The entry could have multiple urls, so we need to loop here */
+    urls = slapi_entry_attr_get_valuearray(entry->ep_entry,
+                                           li->li_dynamic_lists_url_attr);
+    for (size_t i = 0; urls && urls[i]; i++) {
+        Slapi_PBlock *search_pb = NULL;
+        Slapi_ValueSet *list_set = NULL;
+        LDAPURLDesc *ludp = NULL;
+        const char *url = NULL;
+        char *list_attr = NULL;
+        int secure = 0;
+        int rc = 0;
+
+        url = slapi_value_get_string(urls[i]);
+        /*
+        * Parse the LDAP URL and validate it
+        */
+        if ((rc = slapi_ldap_url_parse(url, &ludp, 0, &secure)) != 0) {
+            /* Failed to parse the memberUrl attribute */
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - failed to parse the LDAP url: %s\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url);
+            goto cont;
+        }
+
+        if (ludp->lud_filter == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - Missing filter in LDAP URL %s\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url);
+            goto cont;
+        }
+
+        if (ludp->lud_dn == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - Missing base dn in LDAP URL %s\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url);
+            goto cont;
+        }
+
+        if (ludp->lud_attrs != NULL && ludp->lud_attrs[0] != NULL) {
+            /* If an attribute is specified use it */
+            list_attr = ludp->lud_attrs[0];
+        }
+
+        slapi_log_err(SLAPI_LOG_BACKLDBM, "dynamic_lists_buildup_entry",
+                      "%s (url: %s) - Performing internal search\n",
+                      slapi_entry_get_dn_const(entry->ep_entry), url);
+
+        /*
+        * Get our DN's groupOfUrls attribute
+        */
+        search_pb = slapi_pblock_new();
+        slapi_search_internal_set_pb(search_pb, ludp->lud_dn, ludp->lud_scope, ludp->lud_filter,
+                                     NULL, 0, NULL, NULL, li->li_identity, 0);
+        slapi_search_internal_pb(search_pb);
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (LDAP_SUCCESS != rc) {
+            /* log an error and use the plugin entry for the config */
+            slapi_log_err(SLAPI_LOG_ERR, "dynamic_lists_buildup_entry",
+                          "%s - Internal search based on LDAP url (%s) failed: err=%d\n",
+                          slapi_entry_get_dn_const(entry->ep_entry), url, rc);
+            goto cont;
+        } else {
+            Slapi_Entry **entries = NULL;
+
+            list_set = slapi_valueset_new();
+            slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+            for (size_t i = 0; entries && entries[i]; i++) {
+                if (list_attr == NULL) {
+                    /* No list attribute, so use the DN of the entry */
+                    const char *dn = slapi_entry_get_dn_const(entries[i]);
+                    slapi_valueset_add_value_ext(list_set, slapi_value_new_string(dn),
+                                                 SLAPI_VALUE_FLAG_PASSIN);
+                } else {
+                    /* Use an attribute/value from within the entry */
+                    const char *entry_list_attr = slapi_entry_attr_get_ref(entries[i],
+                                                                           list_attr);
+                    if (entry_list_attr) {
+                        slapi_valueset_add_value_ext(list_set,
+                                                     slapi_value_new_string(entry_list_attr),
+                                                     SLAPI_VALUE_FLAG_PASSIN);
+                    }
+                }
+            }
+        }
+        if (slapi_valueset_isempty(list_set) == 0) {
+            slapi_entry_add_valueset(entry->ep_entry,
+                                     list_attr ? list_attr : li->li_dynamic_lists_attr,
+                                     list_set);
+            entry->ep_is_dynamic = true;
+        }
+
+    cont:
+        slapi_valueset_free(list_set);
+        slapi_free_search_results_internal(search_pb);
+        slapi_pblock_destroy(search_pb);
+        if (ludp != NULL) {
+            ldap_free_urldesc(ludp);
+        }
+    } /* end of URL loop */
+}
 
 int
 compute_lookthrough_limit(Slapi_PBlock *pb, struct ldbminfo *li)
@@ -173,6 +322,10 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
          * Target entry is released later on
          * (in cache_return_target_entry called by op_shared_search).
          */
+        if (e && e->ep_is_dynamic) {
+            /* We always remove dynamic entries from the cache */
+            CACHE_REMOVE(&inst->inst_cache, e);
+        }
         CACHE_RETURN(&inst->inst_cache, &e); /* NULL e is handled correctly */
     }
     if (inst->inst_ref_count) {
@@ -208,6 +361,99 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     }
     return function_result;
 }
+
+
+/*
+ * Handle appropiatly values having either some leading or trailing spaces
+ * Returns a newly allocated string if the value was modified, NULL if unchanged.
+ */
+static char *
+ldbm_search_substring_shrink_blanks_int(const char *val, int trim_spaces, struct shrink_blanks_ctx *ctx)
+{
+    char *ret = slapi_ch_strdup(val);
+    char *pt = ret;
+
+    /* Caller check that val is not "only spaces" so the following is true: */
+    PR_ASSERT(ctx->first_non_space < ctx->first_trailing_space);
+
+    if (ctx->first_non_space > 0 ) {
+        /* There are some leading spaces to shrink/trim */
+        if (trim_spaces & SHRINK_LEADING_BLANK) {
+            *pt++ = ' ';   /* Append a single leading space */
+        }
+        /* Remove leading spaces */
+        memmove(pt, ret+ctx->first_non_space, ctx->first_trailing_space - ctx->first_non_space);
+    }
+    pt += ctx->first_trailing_space - ctx->first_non_space;
+    if ((trim_spaces & SHRINK_TRAILING_BLANK) && ctx->first_trailing_space < ctx->len) {
+        *pt++ = ' ';   /* Append a single trailing space */
+    }
+    *pt = 0;
+    if (strcmp(ret, val) != 0) {
+        return ret;
+    } else {
+        slapi_ch_free_string(&ret);
+        return NULL;
+    }
+}
+
+
+/*
+ * RFC 4518 2.6.1 insignificant space handling for substring assertion values.
+ * Returns a newly allocated string if the value was modified, NULL if unchanged.
+ */
+static char *
+ldbm_search_substring_shrink_blanks(const char *val, int trim_spaces)
+{
+    struct shrink_blanks_ctx ctx = {0};
+    char *head = (char*)val;
+    bool leading = true;
+
+    if (val == NULL || *val == 0) {
+        return NULL;
+    }
+
+    /* Set the context and determine if there are leading/trailing spaces */
+    ctx.first_non_space = 0;
+    while (*head != '\0') {
+        bool is_space = ldap_utf8isspace(head);
+        if (!is_space && leading) {
+            ctx.first_non_space = head - (char*)val;
+            leading = false;
+        }
+        LDAP_UTF8INC(head);
+        if (!is_space) {
+            ctx.first_trailing_space = head - (char*)val;
+        }
+    }
+    ctx.len = head - (char*)val;
+
+    if (ctx.first_trailing_space == 0) {
+        /* Only spaces value => return exactly 1 space */
+        if (strcmp(val, " ") == 0) {
+            return NULL;
+        }
+        return slapi_ch_strdup(" ");
+    }
+
+    if ((trim_spaces & (SHRINK_LEADING_BLANK | TRIM_LEADING_BLANK)) == 0) {
+        /* Do not trim leading spaces */
+        ctx.first_non_space = 0;
+    }
+
+    if ((trim_spaces & (SHRINK_TRAILING_BLANK | TRIM_TRAILING_BLANK)) == 0) {
+        /* Do not trim trailing spaces */
+        ctx.first_trailing_space = ctx.len;
+    }
+
+    if (ctx.first_non_space > 0 || ctx.first_trailing_space < ctx.len) {
+        /* Some leading or trailing spaces ==> shrinking is needed. */
+        return ldbm_search_substring_shrink_blanks_int(val, trim_spaces, &ctx);
+    }
+    /* Nothing to shrink */
+    return NULL;
+}
+
 
 static int
 ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
@@ -249,20 +495,92 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
             p = bigpat;
         }
         if (f->f_sub_initial != NULL) {
+            char *alt;
+            /*
+             * rfc4518 2.6.1 Insignificant Space Handling
+             * For input strings that are substring assertion values:
+             *
+             * If the input string is an initial substring, it is modified to
+             * start with exactly one SPACE character;
+             *
+             * If the input string is an initial or an any substring that ends in
+             * one or more space characters, it is modified to end with exactly
+             * one SPACE character;
+             *
+             * Note that the code use ^ instead of a SPACE leading character
+             *  So for initial substring we should:
+             *   - add ^
+             *   - trim leading spaces
+             *   - shrink trailing spaces
+             */
             *p++ = '^';
-            p = filter_strcpy_special_ext(p, f->f_sub_initial, FILTER_STRCPY_ESCAPE_RECHARS);
+            alt = ldbm_search_substring_shrink_blanks(f->f_sub_initial,
+                                                      TRIM_LEADING_BLANK | SHRINK_TRAILING_BLANK);
+            if (alt) {
+                p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
+                slapi_ch_free_string(&alt);
+            } else {
+                p = filter_strcpy_special_ext(p, f->f_sub_initial, FILTER_STRCPY_ESCAPE_RECHARS);
+            }
+
         }
         for (i = 0; f->f_sub_any && f->f_sub_any[i]; i++) {
+            char *alt;
             /* ".*" + value */
             *p++ = '.';
             *p++ = '*';
-            p = filter_strcpy_special_ext(p, f->f_sub_any[i], FILTER_STRCPY_ESCAPE_RECHARS);
+            /*
+             * rfc4518 2.6.1 Insignificant Space Handling
+             * For input strings that are substring assertion values:
+             *
+             * If the input string is an initial or an any substring that ends in
+             * one or more space characters, it is modified to end with exactly
+             * one SPACE character;
+             *
+             * If the input string is an any or a final substring that starts in
+             * one or more space characters, it is modified to start with exactly
+             * one SPACE character;
+             */
+            alt = ldbm_search_substring_shrink_blanks(f->f_sub_any[i],
+                                                      SHRINK_LEADING_BLANK | SHRINK_TRAILING_BLANK);
+            if (alt) {
+                p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
+                slapi_ch_free_string(&alt);
+            } else {
+                p = filter_strcpy_special_ext(p, f->f_sub_any[i], FILTER_STRCPY_ESCAPE_RECHARS);
+            }
         }
         if (f->f_sub_final != NULL) {
+            char *alt;
             /* ".*" + value */
             *p++ = '.';
             *p++ = '*';
-            p = filter_strcpy_special_ext(p, f->f_sub_final, FILTER_STRCPY_ESCAPE_RECHARS);
+            /*
+             * rfc4518 2.6.1 Insignificant Space Handling
+             * For input strings that are substring assertion values:
+             *
+             * If the input string is an any or a final substring that starts in
+             * one or more space characters, it is modified to start with exactly
+             * one SPACE character;
+             *
+             * If the input string is a final substring, it is modified to end
+             * with exactly one SPACE character.
+             *
+             * Note that the code use $ instead of a trailing space
+             *
+             * so for final substring we should:
+             * - shrink leading spaces
+             * - trim trailing spaces
+             * - add $
+             */
+            alt = ldbm_search_substring_shrink_blanks(f->f_sub_final,
+                                                      SHRINK_LEADING_BLANK | TRIM_TRAILING_BLANK);
+            if (alt) {
+                p = filter_strcpy_special_ext(p, alt, FILTER_STRCPY_ESCAPE_RECHARS);
+                slapi_ch_free_string(&alt);
+            } else {
+                p = filter_strcpy_special_ext(p, f->f_sub_final, FILTER_STRCPY_ESCAPE_RECHARS);
+            }
             strcat(p, "$");
         }
 
@@ -1054,6 +1372,7 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     int r = 0;
     char logbuf[1024] = {0};
     Slapi_Operation *operation;
+    int32_t internal_op = 0;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
     if (NULL == filter) {
@@ -1063,6 +1382,9 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     }
 
     slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+
+    internal_op = operation && operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
     switch (scope) {
     case LDAP_SCOPE_BASE:
@@ -1074,6 +1396,8 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
         slapi_filter_optimise(filter);
         /* modify the filter to be: (&(|(originalfilter)(objectclass=referral))(parentid=idofbase)) */
         filter_exec = create_onelevel_filter(filter, e, managedsait);
+        slapi_filter_normalize(filter, PR_TRUE /* normalize values too */);
+        slapi_filter_normalize(filter_exec, PR_TRUE /* normalize values too */);
 
         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Optimised ONE filter to - %s\n",
              slapi_filter_to_string(filter_exec, logbuf, sizeof(logbuf)));
@@ -1088,8 +1412,7 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     case LDAP_SCOPE_SUBTREE:
         /* Now optimise the filter for use */
         slapi_filter_optimise(filter);
-
-        slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+        slapi_filter_normalize(filter, PR_TRUE /* normalize values too */);
         if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL) || (operation && operation_is_flag_set(operation, OP_FLAG_INTERNAL))) {
             /* For performance reason, skip adding (objectclass=referral) in case
              *  - there is no referral on the server
@@ -1099,6 +1422,7 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
         } else {
             /* make (|(originalfilter)(objectclass=referral)) */
             filter_exec = create_subtree_filter(filter, managedsait);
+            slapi_filter_normalize(filter_exec, PR_TRUE /* normalize values too */);
         }
 
         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Optimised SUB filter to - %s\n",
@@ -1141,10 +1465,52 @@ bail:
         }
     }
 
+    if (!internal_op && li->li_dynamic_lists_enabled &&
+        dynamic_lists_filter_matches(filter, li))
+    {
+        /* Filter includes the dynamic attribute, so we need to build up the
+         * candidates list */
+        dynamic_candidates(pb, li, base, candidates, &err);
+    }
+
     slapi_log_err(SLAPI_LOG_TRACE, "build_candidate_list", "Candidate list has %lu ids\n",
                   *candidates ? (*candidates)->b_nids : 0L);
 
     return r;
+}
+
+/*
+ * Build a candidate list for dynamic entries
+ */
+static void
+dynamic_candidates(
+    Slapi_PBlock *pb,
+    struct ldbminfo *li,
+    const char *base,
+    IDList **candidates,
+    int *err)
+{
+    int rc = 0;
+    Slapi_Entry **entries = NULL;
+    char *dynamic_filter = slapi_ch_smprintf("(&(objectclass=%s)(%s=*))",
+                                             li->li_dynamic_lists_oc,
+                                             li->li_dynamic_lists_url_attr);
+    Slapi_PBlock *search_pb = slapi_pblock_new();
+
+    slapi_search_internal_set_pb(search_pb, base, LDAP_SCOPE_SUBTREE, dynamic_filter,
+                                 NULL, 0, NULL, NULL, li->li_identity, 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc == LDAP_SUCCESS) {
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        for (size_t i = 0; entries && entries[i]; i++) {
+            ID id = slapi_entry_attr_get_int(entries[i], "entryid");
+            idl_insert(candidates, id);
+        }
+    }
+    slapi_free_search_results_internal(search_pb);
+    slapi_pblock_destroy(search_pb);
+    slapi_ch_free_string(&dynamic_filter);
 }
 
 /*
@@ -1249,16 +1615,11 @@ create_subtree_filter(Slapi_Filter *filter, int managedsait)
 }
 
 static void
-stat_add_srch_lookup(Op_stat *op_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt)
+stat_add_srch_lookup(Op_stat *op_stat, struct component_keys_lookup *key_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt)
 {
-    struct component_keys_lookup *key_stat;
-
-    if ((op_stat == NULL) || (op_stat->search_stat == NULL)) {
+    if ((op_stat == NULL) || (op_stat->search_stat == NULL) || (key_stat == NULL)) {
         return;
     }
-
-    /* gather the index lookup statistics */
-    key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
 
     /* indextype is "eq" */
     if (index_type) {
@@ -1321,7 +1682,7 @@ subtree_candidates(
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
     /* Check if it is for bulk import. */
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    if (op && entryrdn_get_switch() && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+    if (op && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
         operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
         is_bulk_import = PR_TRUE;
     }
@@ -1348,30 +1709,28 @@ subtree_candidates(
         }
 
         slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
-        if (entryrdn_get_noancestorid()) {
-            /* subtree-rename: on && no ancestorid */
-            *err = entryrdn_get_subordinates(be,
-                                             slapi_entry_get_sdn_const(e->ep_entry),
-                                             e->ep_id, &descendants, &txn, 0);
+
+        if (!has_tombstone_filter && !is_bulk_import) {
+            struct component_keys_lookup *key_stat;
+
             if (op_stat) {
-                /* record entryrdn lookups */
-                stat_add_srch_lookup(op_stat, LDBM_ENTRYRDN_STR, indextype_EQUALITY, key_value, descendants ? descendants->b_nids : 0);
+                /* gather the index lookup statistics */
+                key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
+                clock_gettime(CLOCK_MONOTONIC, &key_stat->key_lookup_start);
             }
-            idl_insert(&descendants, e->ep_id);
-            candidates = idl_intersection(be, candidates, descendants);
-            idl_free(&tmp);
-            idl_free(&descendants);
-        } else if (!has_tombstone_filter && !is_bulk_import) {
             *err = ldbm_ancestorid_read_ext(be, &txn, e->ep_id, &descendants, allidslimit);
             if (op_stat) {
+                clock_gettime(CLOCK_MONOTONIC, &key_stat->key_lookup_end);
                 /* records ancestorid lookups */
-                stat_add_srch_lookup(op_stat, LDBM_ANCESTORID_STR, indextype_EQUALITY, key_value, descendants ? descendants->b_nids : 0);
+                stat_add_srch_lookup(op_stat, key_stat, LDBM_ANCESTORID_STR, indextype_EQUALITY, key_value, descendants ? descendants->b_nids : 0);
             }
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(&tmp);
             idl_free(&descendants);
-        } /* else == has_tombstone_filter OR is_bulk_import: do nothing */
+        }
+    } else if (candidates != NULL) {
+        *err = LDAP_SUCCESS;
     }
 
     return (candidates);
@@ -1513,6 +1872,10 @@ static void
 non_target_cache_return(Slapi_Operation *op, struct cache *cache, struct backentry **e)
 {
     if (e && (*e != operation_get_target_entry(op))) {
+        if ((*e)->ep_is_dynamic) {
+            /* We always remove dynamic entries from the cache */
+            CACHE_REMOVE(cache, *e);
+        }
         CACHE_RETURN(cache, e);
     }
 }
@@ -1554,6 +1917,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     Slapi_Connection *conn;
     Slapi_Operation *op;
     int reverse_list = 0;
+    int32_t internal_op = 0;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &basesdn);
     if (NULL == basesdn) {
@@ -1581,6 +1945,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 
+    internal_op = op && operation_is_flag_set(op, OP_FLAG_INTERNAL);
 
     if ((reverse_list = operation_is_flag_set(op, OP_FLAG_REVERSE_CANDIDATE_ORDER))) {
         /*
@@ -1778,6 +2143,12 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
             }
             continue;
         }
+
+        if (li->li_dynamic_lists_enabled && !internal_op) {
+            /* Need to build up any dynamic content for the entry */
+            dynamic_lists_buildup_entry(pb, e, li);
+        }
+
         e->ep_vlventry = NULL;
         sr->sr_entry = e;
 
@@ -2010,6 +2381,10 @@ ldbm_back_prev_search_results(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_BACKLDBM,
                           "ldbm_back_prev_search_results", "returning: %s\n",
                           slapi_entry_get_dn_const(sr->sr_entry->ep_entry));
+            if (sr->sr_entry->ep_is_dynamic) {
+                /* We always remove dynamic entries from the cache */
+                CACHE_REMOVE(&inst->inst_cache, sr->sr_entry);
+            }
             CACHE_RETURN(&inst->inst_cache, &(sr->sr_entry));
             sr->sr_entry = NULL;
         }
@@ -2103,6 +2478,11 @@ ldbm_back_entry_release(Slapi_PBlock *pb, void *backend_info_ptr)
         ((struct backentry *)backend_info_ptr)->ep_vlventry = NULL;
     }
 
+    if (((struct backentry *)backend_info_ptr)->ep_is_dynamic) {
+        /* Always remove the dynamic entry from the cache because it needs to
+         * be rebuilt every time it's looked at */
+        CACHE_REMOVE(&inst->inst_cache, (struct backentry *)backend_info_ptr);
+    }
     CACHE_RETURN(&inst->inst_cache, (struct backentry **)&backend_info_ptr);
 
     return 0;

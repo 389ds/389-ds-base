@@ -39,11 +39,9 @@ import {
 	ValidatedOptions
 } from '@patternfly/react-core';
 import {
-	Select,
-	SelectOption,
-	SelectVariant,
 	Wizard
 } from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../../../dsBasicComponents.jsx";
 import {
     Table,
     Thead,
@@ -594,7 +592,9 @@ class AddNewAci extends React.Component {
             modifyLdapEntry(params, ldifArray, (result) => {
                 this.props.refreshAciTable();
                 this.setState({
-                    commandOutput: result.errorCode === 0 ? _("Successfully added ACI!") : _("Failed to add ACI, error: ") + result.errorCode,
+                    commandOutput: result.errorCode === 0 ?
+                        _("Successfully added ACI!") :
+                        _("Failed to add ACI: ") + result.output,
                     resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                     adding: false
                 }, () => { this.props.onReload() }); // refreshes tableView
@@ -844,6 +844,7 @@ class AddNewAci extends React.Component {
                             skipLeafEntries
                             handleNodeOnClick={this.onBaseDnSelection}
                             showTreeLoadingState={this.showTreeLoadingState}
+                            addNotification={this.props.addNotification}
                         />
                     </CardBody>
                 </Card>
@@ -955,19 +956,16 @@ class AddNewAci extends React.Component {
                         </Tooltip>
                     </Text>
                 </TextContent>
-                <Select
-                    variant={SelectVariant.single}
+                <TypeaheadSelect
                     className="ds-margin-top-lg"
-                    aria-label="Select rights"
+                    ariaLabel="Select rights"
                     onToggle={(event, isOpen) => this.handleToggleRights(event, isOpen)}
                     onSelect={this.handleSelectRights}
-                    selections={this.state.rightType}
+                    selected={this.state.rightType}
                     isOpen={this.state.isOpenRights}
-                >
-                    <SelectOption key="allow" value="allow" />
-                    <SelectOption key="deny" value="deny" />
-                </Select>
-                <Table 
+                    options={["allow", "deny"]}
+                />
+                <Table
                     aria-label="Selectable Table User Rights"
                     variant="compact"
                     borders={false}
@@ -989,8 +987,8 @@ class AddNewAci extends React.Component {
                                         isChecked={row.selected}
                                         onChange={(checked) => this.handleRightsOnSelect(null, checked, rowIndex)}
                                         aria-label={`Select ${row.cells[0]}`}
+                                        label={row.cells[0]}
                                     />
-                                    {row.cells[0]}
                                 </Td>
                                 <Td>{row.cells[1]}</Td>
                             </Tr>
@@ -1024,17 +1022,14 @@ class AddNewAci extends React.Component {
                         <b>{_("Comparison Operator")}</b>
                     </div>
                     <div className="ds-inline ds-left-margin ds-raise-field-md">
-                        <Select
-                            variant={SelectVariant.single}
-                            aria-label="Select auth compare operator"
+                        <TypeaheadSelect
+                            ariaLabel="Select auth compare operator"
                             onToggle={(event, isOpen) => this.handleToggleTargetAttrOp(event, isOpen)}
                             onSelect={this.handleSelectTargetAttrOp}
-                            selections={this.state.targetAttrCompOp}
+                            selected={this.state.targetAttrCompOp}
                             isOpen={this.state.isOpenTargetAttrOperator}
-                        >
-                            <SelectOption key="targetattrequals" value="=" />
-                            <SelectOption key="targetattrequals" value="!=" />
-                        </Select>
+                            options={["=", "!="]}
+                        />
                     </div>
                 </div>
                 <GenericPagination
@@ -1262,7 +1257,7 @@ class AddNewAci extends React.Component {
                             className="ds-left-margin"
                             time={this.state.timeOfDayStart}
                             is24Hour
-                            onChange={(val) => this.handleTimeChange(val, "timeOfDayStart")}
+                            onChange={(_event, time, hour, min, seconds, isValid) => this.handleTimeChange(time, "timeOfDayStart")}
                         />
                     </GridItem>
                 </Grid>
@@ -1290,7 +1285,7 @@ class AddNewAci extends React.Component {
                             className="ds-left-margin"
                             time={this.state.timeOfDayEnd}
                             is24Hour
-                            onChange={(val) => this.handleTimeChange(val, "timeOfDayEnd")}
+                            onChange={(_event, time, hour, min, seconds, isValid) => this.handleTimeChange(time, "timeOfDayEnd")}
                         />
                     </GridItem>
                 </Grid>
@@ -1432,7 +1427,7 @@ class AddNewAci extends React.Component {
                 component: resultComponent,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReachedVisual >= 9,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding,
             }];
 

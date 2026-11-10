@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -708,23 +708,78 @@ isFatalSearchError(int search_result)
     return 1;
 }
 
+/*
+ * Check whether mods[i] and mods[i+1] form a consecutive DEL+ADD pair
+ * on the same attribute.  Such pairs must be submitted as a single
+ * atomic modify so that schema_check sees the final state (value
+ * replaced) rather than the intermediate state (required attribute
+ * removed).  This avoids OBJECT_CLASS_VIOLATION on MUST / SINGLE-VALUE
+ * attributes during MODRDN.
+ */
+static int
+_is_del_add_pair(LDAPMod **mods, size_t i)
+{
+    if (mods == NULL || mods[i] == NULL || mods[i + 1] == NULL) {
+        return 0;
+    }
+    return ((mods[i]->mod_op & LDAP_MOD_OP) == LDAP_MOD_DELETE &&
+            (mods[i + 1]->mod_op & LDAP_MOD_OP) == LDAP_MOD_ADD &&
+            strcasecmp(mods[i]->mod_type, mods[i + 1]->mod_type) == 0);
+}
+
 static int
 _do_modify(Slapi_PBlock *mod_pb, Slapi_DN *entrySDN, LDAPMod **mods)
 {
     int rc = 0;
+    int op_flags = allow_repl ? OP_FLAG_REPLICATED : 0;
 
-    slapi_pblock_init(mod_pb);
+    for (size_t i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
+        /*
+         * Standalone mods go through slapi_single_modify_internal_override
+         * which tolerates TYPE_OR_VALUE_EXISTS and NO_SUCH_ATTRIBUTE,
+         * preserving the idempotency behaviour for replicated operations.
+         */
+        if (_is_del_add_pair(mods, i)) {
+            LDAPMod *pair[3];
 
-    if (allow_repl) {
-        /* Must set as a replicated operation */
-        slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
-                                         referint_plugin_identity, OP_FLAG_REPLICATED);
-    } else {
-        slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
-                                         referint_plugin_identity, 0);
+            pair[0] = mods[i];
+            pair[1] = mods[i + 1];
+            pair[2] = NULL;
+
+            slapi_pblock_init(mod_pb);
+            slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, pair,
+                                             NULL, NULL,
+                                             referint_plugin_identity,
+                                             op_flags);
+            slapi_modify_internal_pb(mod_pb);
+            slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+            if (rc == LDAP_TYPE_OR_VALUE_EXISTS || rc == LDAP_NO_SUCH_ATTRIBUTE) {
+                rc = LDAP_SUCCESS;
+            }
+
+            i++; /* skip the ADD, handled atomically */
+        } else {
+            LDAPMod *single[2];
+
+            single[0] = mods[i];
+            single[1] = NULL;
+
+            slapi_pblock_init(mod_pb);
+            rc = slapi_single_modify_internal_override(mod_pb, entrySDN,
+                                                        single,
+                                                        referint_plugin_identity,
+                                                        op_flags);
+        }
+
+        if (rc != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                          "_do_modify - Failed to modify attr \"%s\" on \"%s\" "
+                          "(%d)\n",
+                          mods[i]->mod_type, slapi_sdn_get_dn(entrySDN), rc);
+            return rc;
+        }
     }
-    slapi_modify_internal_pb(mod_pb);
-    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
     return rc;
 }
@@ -1031,7 +1086,6 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
                 /* (case 1) */
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
                 slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newDN);
-
             } else if (p) {
                 /* (case 2) */
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
@@ -1362,7 +1416,7 @@ int
 referint_postop_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     /* signal the batch thread to exit */
-    if (referint_get_delay() > 0) {
+    if (keeprunning) {
         pthread_mutex_lock(&keeprunning_mutex);
         keeprunning = 0;
         pthread_cond_signal(&keeprunning_cv);
@@ -1395,6 +1449,7 @@ referint_postop_close(Slapi_PBlock *pb __attribute__((unused)))
 void
 referint_thread_func(void *arg __attribute__((unused)))
 {
+    slapi_set_thread_name("referint");
     PRFileDesc *prfd = NULL;
     char *logfilename = NULL;
     char thisline[MAX_LINE];
@@ -1491,6 +1546,8 @@ referint_thread_func(void *arg __attribute__((unused)))
                 slapi_sdn_free(&sdn);
                 continue;
             }
+
+            slapi_sdn_free(&tmpsuperior);
             if (!strcasecmp(ptoken, "NULL")) {
                 tmpsuperior = NULL;
             } else {

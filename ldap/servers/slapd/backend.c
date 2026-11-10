@@ -502,6 +502,7 @@ slapi_be_getentrypoint(Slapi_Backend *be, int entrypoint, void **ret_fnptr, Slap
     return 0;
 }
 
+
 int
 slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi_PBlock *pb)
 {
@@ -517,61 +518,61 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
 
     switch (entrypoint) {
     case SLAPI_PLUGIN_DB_BIND_FN:
-        be->be_bind = (IFP)ret_fnptr;
+        be->be_bind = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_UNBIND_FN:
-        be->be_unbind = (IFP)ret_fnptr;
+        be->be_unbind = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_SEARCH_FN:
-        be->be_search = (IFP)ret_fnptr;
+        be->be_search = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_COMPARE_FN:
-        be->be_compare = (IFP)ret_fnptr;
+        be->be_compare = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_MODIFY_FN:
-        be->be_modify = (IFP)ret_fnptr;
+        be->be_modify = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_MODRDN_FN:
-        be->be_modrdn = (IFP)ret_fnptr;
+        be->be_modrdn = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_ADD_FN:
-        be->be_add = (IFP)ret_fnptr;
+        be->be_add = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_DELETE_FN:
-        be->be_delete = (IFP)ret_fnptr;
+        be->be_delete = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_ABANDON_FN:
-        be->be_abandon = (IFP)ret_fnptr;
+        be->be_abandon = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_CONFIG_FN:
-        be->be_config = (IFP)ret_fnptr;
+        be->be_config = ret_fnptr;
         break;
     case SLAPI_PLUGIN_CLOSE_FN:
-        be->be_close = (IFP)ret_fnptr;
+        be->be_close = ret_fnptr;
         break;
     case SLAPI_PLUGIN_START_FN:
-        be->be_start = (IFP)ret_fnptr;
+        be->be_start = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_RESULT_FN:
-        be->be_result = (IFP)ret_fnptr;
+        be->be_result = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_LDIF2DB_FN:
-        be->be_ldif2db = (IFP)ret_fnptr;
+        be->be_ldif2db = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_DB2LDIF_FN:
-        be->be_db2ldif = (IFP)ret_fnptr;
+        be->be_db2ldif = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_ARCHIVE2DB_FN:
-        be->be_archive2db = (IFP)ret_fnptr;
+        be->be_archive2db = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_DB2ARCHIVE_FN:
-        be->be_db2archive = (IFP)ret_fnptr;
+        be->be_db2archive = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN:
-        be->be_next_search_entry = (IFP)ret_fnptr;
+        be->be_next_search_entry = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN:
-        be->be_next_search_entry_ext = (IFP)ret_fnptr;
+        be->be_next_search_entry_ext = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN:
         be->be_search_results_release = (VFPP)ret_fnptr;
@@ -580,19 +581,19 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
         be->be_prev_search_results = (VFP)ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_TEST_FN:
-        be->be_dbtest = (IFP)ret_fnptr;
+        be->be_dbtest = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_RMDB_FN:
-        be->be_rmdb = (IFP)ret_fnptr;
+        be->be_rmdb = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_SEQ_FN:
-        be->be_seq = (IFP)ret_fnptr;
+        be->be_seq = ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_DB2INDEX_FN:
-        be->be_db2index = (IFP)ret_fnptr;
+        be->be_db2index = ret_fnptr;
         break;
     case SLAPI_PLUGIN_CLEANUP_FN:
-        be->be_cleanup = (IFP)ret_fnptr;
+        be->be_cleanup = ret_fnptr;
         break;
     default:
         slapi_log_err(SLAPI_LOG_ERR, "slapi_be_setentrypoint",
@@ -682,7 +683,7 @@ slapi_back_ctrl_info(Slapi_Backend *be, int cmd, void *info)
 int
 slapi_back_transaction_begin(Slapi_PBlock *pb)
 {
-    IFP txn_begin;
+    int32_t (*txn_begin)(Slapi_PBlock *);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DB_BEGIN_FN, (void *)&txn_begin) ||
         !txn_begin) {
         return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;
@@ -695,7 +696,7 @@ slapi_back_transaction_begin(Slapi_PBlock *pb)
 int
 slapi_back_transaction_commit(Slapi_PBlock *pb)
 {
-    IFP txn_commit;
+    int32_t (*txn_commit)(Slapi_PBlock *);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DB_COMMIT_FN, (void *)&txn_commit) ||
         !txn_commit) {
         return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;
@@ -708,7 +709,7 @@ slapi_back_transaction_commit(Slapi_PBlock *pb)
 int
 slapi_back_transaction_abort(Slapi_PBlock *pb)
 {
-    IFP txn_abort;
+    int32_t (*txn_abort)(Slapi_PBlock *);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DB_ABORT_FN, (void *)&txn_abort) ||
         !txn_abort) {
         return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;

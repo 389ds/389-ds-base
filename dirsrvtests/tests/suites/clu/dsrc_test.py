@@ -13,7 +13,7 @@ from os.path import expanduser
 from lib389.cli_base import FakeArgs
 from lib389.cli_ctl.dsrc import create_dsrc, modify_dsrc, delete_dsrc, display_dsrc, replmon_dsrc
 from lib389._constants import DEFAULT_SUFFIX, DN_DM
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ import { Server } from "./server.jsx";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { ManageBackupsModal, SchemaReloadModal, CreateInstanceModal } from "./dsModals.jsx";
 import { LDAPEditor } from "./LDAPEditor.jsx";
-import { log_cmd } from "./lib/tools.jsx";
+import { getApiErrorMessage, log_cmd } from "./lib/tools.jsx";
 import {
 	Alert,
 	AlertGroup,
@@ -220,7 +220,7 @@ export class DSInstance extends React.Component {
         const cmd = ["dsctl", "-j", serverId, "status"];
         log_cmd("setServerId", "Test if instance is running ", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(status_data => {
                     const status_json = JSON.parse(status_data);
                     if (status_json.running) {
@@ -232,7 +232,7 @@ export class DSInstance extends React.Component {
                         ];
                         log_cmd("setServerId", "Load server configuration", cfg_cmd);
                         cockpit
-                                .spawn(cfg_cmd, { superuser: true, err: "message" })
+                                .spawn(cfg_cmd, { superuser: "require", err: "message" })
                                 .done(content => {
                                     const config = JSON.parse(content);
                                     const attrs = config.attrs;
@@ -261,7 +261,7 @@ export class DSInstance extends React.Component {
                                     ];
                                     log_cmd("setServerId", "Test if instance is alive ", cmd);
                                     cockpit
-                                            .spawn(cmd, { superuser: true, err: "message" })
+                                            .spawn(cmd, { superuser: "require", err: "message" })
                                             .done(() => {
                                                 this.updateProgress(25);
                                                 this.setState(
@@ -270,7 +270,7 @@ export class DSInstance extends React.Component {
                                                         wasActiveList: [this.state.activeTabKey]
                                                     },
                                                     () => {
-                                                        this.loadBackups();
+                                                        this.loadBackups(true);
                                                     }
                                                 );
                                                 if (action === "restart") {
@@ -289,8 +289,8 @@ export class DSInstance extends React.Component {
                                                 }
                                             })
                                             .fail(err => {
-                                                const errMsg = JSON.parse(err);
-                                                console.log("setServerId failed: ", errMsg.desc);
+                                                const errMsg = getApiErrorMessage(err);
+                                                console.log("setServerId failed: ", errMsg);
                                                 this.setState(
                                                     {
                                                         pageLoadingState: {
@@ -305,7 +305,7 @@ export class DSInstance extends React.Component {
                                                                 wasActiveList: []
                                                             },
                                                             () => {
-                                                                this.loadBackups();
+                                                                this.loadBackups(true);
                                                             }
                                                         );
                                                     }
@@ -313,8 +313,8 @@ export class DSInstance extends React.Component {
                                             });
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
-                                    console.log("setServerId failed: ", errMsg.desc);
+                                    const errMsg = getApiErrorMessage(err);
+                                    console.log("setServerId failed: ", errMsg);
                                     this.setState(
                                         {
                                             pageLoadingState: {
@@ -329,7 +329,7 @@ export class DSInstance extends React.Component {
                                                     wasActiveList: []
                                                 },
                                                 () => {
-                                                    this.loadBackups();
+                                                    this.loadBackups(true);
                                                 }
                                             );
                                         }
@@ -355,8 +355,8 @@ export class DSInstance extends React.Component {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    console.log("setServerId failed: ", errMsg.desc);
+                    const errMsg = getApiErrorMessage(err);
+                    console.log("setServerId failed: ", errMsg);
                     this.setState(
                         {
                             pageLoadingState: {
@@ -371,7 +371,7 @@ export class DSInstance extends React.Component {
                                     wasActiveList: []
                                 },
                                 () => {
-                                    this.loadBackups();
+                                    this.loadBackups(true);
                                 }
                             );
                         }
@@ -400,7 +400,7 @@ export class DSInstance extends React.Component {
                     cmd
                 );
                 cockpit
-                        .spawn(cmd, { superuser: true })
+                        .spawn(cmd, { superuser: "require" })
                         .done(data => {
                             this.updateProgress(25);
                             const myObject = JSON.parse(data);
@@ -448,10 +448,10 @@ export class DSInstance extends React.Component {
         );
     }
 
-    loadBackups() {
+    loadBackups(initializing) {
         let cmd = ["dsctl", "-j", this.state.serverId, "backups"];
         log_cmd("loadBackups", "Load Backups", cmd);
-        cockpit.spawn(cmd, { superuser: true, err: "message" })
+        cockpit.spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.updateProgress(25);
                     const config = JSON.parse(content);
@@ -463,7 +463,7 @@ export class DSInstance extends React.Component {
                     cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.state.serverId + ".socket", "monitor", "server"];
                     log_cmd("loadBackups", "Get the server version", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" }).done(content => {
+                            .spawn(cmd, { superuser: "require", err: "message" }).done(content => {
                                 const monitor = JSON.parse(content);
                                 this.setState({
                                     backupRows: rows,
@@ -478,11 +478,14 @@ export class DSInstance extends React.Component {
                 })
                 .fail(err => {
                     this.updateProgress(25);
-                    const errMsg = JSON.parse(err);
-                    this.addNotification(
-                        "error",
-                        cockpit.format(_("Load Backups operation failed - $0"), errMsg.desc)
-                    );
+                    const errMsg = getApiErrorMessage(err);
+                    if (!initializing) {
+                        // Don't log an error when first initializing the UI
+                        this.addNotification(
+                            "error",
+                            cockpit.format(_("Load Backups operation failed - $0"), errMsg)
+                        );
+                    }
                     this.setState({
                         backupRows: [],
                     });
@@ -519,17 +522,17 @@ export class DSInstance extends React.Component {
         const cmd = ["dsctl", "-j", this.state.serverId, "remove", "--do-it"];
         log_cmd("removeInstance", `Remove the instance`, cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(() => {
                     this.loadInstanceList();
                     this.addNotification("success", _("Instance was successfully removed"));
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.loadInstanceList();
                     this.addNotification(
                         "error",
-                        cockpit.format(_("Error during instance remove operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during instance remove operation - $0"), errMsg)
                     );
                 });
         this.closeDeleteConfirm();
@@ -543,7 +546,7 @@ export class DSInstance extends React.Component {
         const cmdStatus = ["dsctl", "-j", this.state.serverId, "status"];
         log_cmd("operateInstance", `Check instance status`, cmdStatus);
         cockpit
-                .spawn(cmdStatus, { superuser: true, err: "message" })
+                .spawn(cmdStatus, { superuser: "require", err: "message" })
                 .done(status_data => {
                     const status_json = JSON.parse(status_data);
                     if (status_json.running && action === "start") {
@@ -564,29 +567,29 @@ export class DSInstance extends React.Component {
                         const cmd = ["dsctl", "-j", this.state.serverId, action];
                         log_cmd("operateInstance", `Do ${action} the instance`, cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { superuser: "require", err: "message" })
                                 .done(() => {
                                     this.loadInstanceList(this.state.serverId, action);
                                     if (action === "stop") {
                                         action = "stopp"; // Fixes typo in notification
                                     }
-                                    this.addNotification("success", cockpit.format(_("Instance was successfully $0"), action));
+                                    this.addNotification("success", cockpit.format(_("Instance was successfully $0"), action + "ed"));
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.addNotification(
                                         "error",
-                                        cockpit.format(_("Error during instance $0 operation - $1"), action, errMsg.desc)
+                                        cockpit.format(_("Error during instance $0 operation - $1"), action, errMsg)
                                     );
                                     this.loadInstanceList(this.state.serverId, action);
                                 });
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.addNotification(
                         "error",
-                        cockpit.format(_("Error during instance check status operation - $0"), errMsg.desc)
+                        cockpit.format(_("Error during instance check status operation - $0"), errMsg)
                     );
                     this.loadInstanceList(this.state.serverId, action);
                 });
@@ -697,9 +700,9 @@ export class DSInstance extends React.Component {
                             <span className="spinner spinner-lg spinner-inline" />
                         </p>
                         <div className="ds-margin-top-lg">
-                            <Progress 
-                                value={progressValue} 
-                                label={`${progressValue}%`} 
+                            <Progress
+                                value={progressValue}
+                                label={`${progressValue}%`}
                                 measureLocation={ProgressMeasureLocation.inside}
                                 aria-label="Directory Server Configuration loading progress"
                             />
@@ -775,8 +778,8 @@ export class DSInstance extends React.Component {
                             position={DropdownPosition.right}
                             onSelect={this.handleDropdown}
                             toggle={
-                                <DropdownToggle 
-                                    onToggle={(event, isOpen) => this.handleToggle(event, isOpen)} 
+                                <DropdownToggle
+                                    onToggle={(event, isOpen) => this.handleToggle(event, isOpen)}
                                     toggleIndicator={CaretDownIcon}
                                     variant="primary"
                                     id="ds-dropdown"

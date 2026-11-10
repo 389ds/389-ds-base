@@ -1,0 +1,10 @@
+name: 389 Directory Server CodeQL config
+
+# Keep CodeQL focused on product code.  The pytest suites and vendored
+# dependency trees produce a large amount of low-value Python/static lint noise
+# and are not shipped as part of the server or lib389 runtime.
+paths-ignore:
+  - 'dirsrvtests/**'
+  - 'src/lib389/lib389/tests/**'
+  - 'src/cockpit/389-console/node_modules/**'
+  - 'vendor/**'

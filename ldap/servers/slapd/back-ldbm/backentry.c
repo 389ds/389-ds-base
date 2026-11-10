@@ -25,12 +25,14 @@ backentry_free(struct backentry **bep)
     ep = *bep;
 
     PR_ASSERT(ep->ep_state & (ENTRY_STATE_DELETED | ENTRY_STATE_NOTINCACHE | ENTRY_STATE_INVALID));
+    PR_ASSERT((ep->ep_state & (ENTRY_STATE_LRU | ENTRY_STATE_PINNED)) == 0);
     if (ep->ep_entry != NULL) {
         slapi_entry_free(ep->ep_entry);
     }
     if (ep->ep_mutexp != NULL) {
         PR_DestroyMonitor(ep->ep_mutexp);
     }
+    slapi_ch_free_string(&ep->ep_dn_hash_ndn);
     slapi_ch_free((void **)&ep);
     *bep = NULL;
 }
@@ -41,7 +43,7 @@ backentry_alloc()
     struct backentry *ec;
     ec = (struct backentry *)slapi_ch_calloc(1, sizeof(struct backentry));
     ec->ep_state = ENTRY_STATE_NOTINCACHE;
-    ec->ep_type = CACHE_TYPE_ENTRY;
+    ec->ep_type = CACHE_TYPE_UNKNOWN;
 #ifdef LDAP_CACHE_DEBUG
     ec->debug_sig = 0x45454545;
 #endif
@@ -131,4 +133,48 @@ backdn_init(Slapi_DN *sdn, ID id, int to_remove_from_hash)
     }
 
     return (bdn);
+}
+
+void
+backentry_init_weight(BackEntryWeightData *starttime)
+{
+    clock_gettime(CLOCK_MONOTONIC, starttime);
+}
+
+void
+backentry_compute_weight(struct backentry *e, const BackEntryWeightData *starttime)
+{
+    struct timespec now = {0};
+    struct timespec delta = {0};
+    unsigned int nbmembers = 0;
+    int n = 0;
+    Slapi_Attr *a = NULL;
+
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    slapi_timespec_diff(&now, (BackEntryWeightData*)starttime, &delta);
+    e->ep_weight = delta.tv_sec * 1000000UL + delta.tv_nsec / 1000UL;
+    if (e->ep_weight == 0) {
+        /* Ensure that entries with very small weight can be distinguished
+         * from those without any weight.
+         */
+        e->ep_weight = 1L;
+    }
+    /* Let count the number of members */
+    if (e->ep_entry) {
+        slapi_entry_attr_find(e->ep_entry, "uniquemember", &a);
+        slapi_attr_get_numvalues(a, &n);
+        nbmembers += (unsigned int)n;
+        slapi_entry_attr_find(e->ep_entry, "member", &a);
+        slapi_attr_get_numvalues(a, &n);
+        nbmembers += (unsigned int)n;
+    }
+    /* Compute log²(nbmembers) */
+    for (n=0; nbmembers>0; nbmembers>>=1) n++;
+    /* And increase significantly the loading time for large groups
+     * so that large groups weight get higer than standard entries one
+     * (even if they got a CPU context switch while being loaded)
+     */
+    if ( n > 8 ) {
+        e->ep_weight *= n;
+    }
 }

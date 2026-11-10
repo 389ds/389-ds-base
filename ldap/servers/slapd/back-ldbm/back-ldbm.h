@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -104,6 +104,8 @@ typedef unsigned short u_int16_t;
  */
 #define BE_CHANGELOG_FILE     "replication_changelog"
 
+#define INDEX_KEY_LENGTH(lenval,lenprefix)  (lenval+lenprefix+2)
+
 #define BDB_IMPL              "bdb"
 #define BDB_BACKEND           "libback-ldbm" /* This backend plugin */
 #define BDB_NEWIDL            "newidl"       /* new idl format */
@@ -145,6 +147,7 @@ typedef unsigned short u_int16_t;
 #define DEFAULT_CACHE_SIZE       (uint64_t)0
 #define DEFAULT_CACHE_SIZE_STR   "0"
 #define DEFAULT_CACHE_ENTRIES    -1 /* no limit */
+#define DEFAULT_CACHE_PINNED_ENTRIES_STR "0"
 #define DEFAULT_DNCACHE_SIZE     (uint64_t)16777216
 #define DEFAULT_DNCACHE_SIZE_STR "16777216"
 #define DEFAULT_DNCACHE_MAXCOUNT -1 /* no limit */
@@ -160,7 +163,7 @@ typedef unsigned short u_int16_t;
 #define SUBLEN 3
 #define LDBM_CACHE_RETRY_COUNT 1000        /* Number of times we re-try a cache operation */
 #define RETRY_CACHE_LOCK       2           /* error code to signal a retry of the cache lock */
-#define IDL_FETCH_RETRY_COUNT  5           /* Number of times we re-try idl_fetch if it returns deadlock */
+#define IDL_FETCH_RETRY_COUNT  10          /* Number of times we re-try idl_fetch if it returns deadlock */
 #define IMPORT_SUBCOUNT_HASHTABLE_SIZE 500 /* Number of buckets in hash used to accumulate subcount for broody parents */
 
 /* minimum max ids that a single index entry can map to in ldbm */
@@ -281,6 +284,18 @@ typedef struct _idlist_set
 #define INDIRECT_BLOCK(idl) ((idl)->b_nids == INDBLOCK)
 #define IDL_NIDS(idl)       (idl ? (idl)->b_nids : (NIDS)0)
 
+/*
+ * used by the supplier during online total init
+ * it stores the ranges of ID that are already present
+ * in the candidate list ('parentid>=1')
+ */
+typedef struct IdRange {
+    ID first;
+    ID last;
+    struct IdRange *next;
+} IdRange_t;
+
+
 typedef size_t idl_iterator;
 
 /* small hashtable implementation used in the entry cache -- the table
@@ -305,8 +320,9 @@ typedef struct
 #define HASHLOC(mem, node) (u_long) & (((mem *)0L)->node)
 
 /* type to set ep_type */
-#define CACHE_TYPE_ENTRY 0
-#define CACHE_TYPE_DN    1
+#define CACHE_TYPE_ENTRY     0
+#define CACHE_TYPE_DN        1
+#define CACHE_TYPE_UNKNOWN   2
 
 struct backcommon
 {
@@ -319,6 +335,9 @@ struct backcommon
 #define ENTRY_STATE_CREATING   0x2  /* entry is being created; don't touch it */
 #define ENTRY_STATE_NOTINCACHE 0x4  /* cache_add failed; not in the cache */
 #define ENTRY_STATE_INVALID    0x8  /* cache entry is invalid and needs to be removed */
+#define ENTRY_STATE_UNAVAILABLE 0xf /* entry is not fully created or is deleted */
+#define ENTRY_STATE_PINNED     0x10 /* cache entry is pinned (never removed by the lru) */
+#define ENTRY_STATE_LRU        0x20 /* cache entry is queued in the lru */
     int32_t ep_refcnt;              /* entry reference cnt */
     size_t ep_size;                 /* for cache tracking */
     struct timespec ep_create_time; /* the time the entry was added to the cache */
@@ -341,6 +360,12 @@ struct backentry
     void *ep_id_link;               /*     tables used for */
     void *ep_uuid_link;             /*     looking up entries */
     PRMonitor *ep_mutexp;           /* protection for mods; make it reentrant */
+    uint64_t ep_weight;             /* for cache eviction */
+    bool ep_is_dynamic;             /* is the entry a dynamic entry and must be
+                                     * removed from cache asap */
+    char *ep_dn_hash_ndn;           /* saved NDN from tentative add, used to
+                                     * remove stale hash entry if the DN was
+                                     * changed in-place */
 };
 
 /* From ep_type through ep_create_time MUST be identical to backcommon */
@@ -358,24 +383,40 @@ struct backdn
     void *dn_id_link;               /* for hash table */
 };
 
+/* Entry Cache statistics */
+struct cache_stats
+{
+    uint64_t hits;            /* for analysis of hits/misses */
+    uint64_t tries;
+    uint64_t nentries;        /* current # entries in cache */
+    int64_t  maxentries;      /* max entries allowed (-1: no limit) */
+    uint64_t size;            /* current size in bytes */
+    uint64_t maxsize;         /* max size in bytes */
+    uint64_t weight;          /* total weight of all entries */
+    uint64_t nehw;            /* current # entries having weight in cache */
+                              /* weight/nehw is the average time in
+                               * microseconds needed to load an entry
+                               * in the cache
+                               */
+};
+
 /* for the in-core cache of entries */
 struct cache
 {
-    uint64_t c_maxsize;       /* max size in bytes */
-    Slapi_Counter *c_cursize; /* size in bytes */
-    int64_t c_maxentries;     /* max entries allowed (-1: no limit) */
-    uint64_t c_curentries;    /* current # entries in cache */
     Hashtable *c_dntable;
     Hashtable *c_idtable;
 #ifdef UUIDCACHE_ON
     Hashtable *c_uuidtable;
 #endif
-    Slapi_Counter *c_hits; /* for analysis of hits/misses */
-    Slapi_Counter *c_tries;
     struct backcommon *c_lruhead; /* add entries here */
     struct backcommon *c_lrutail; /* remove entries here */
     PRMonitor *c_mutex;           /* lock for cache operations */
+    uint64_t c_config_maxsize;    /* manually configured value */
+    int64_t c_config_maxentries;  /* manually configured value */
     PRLock *c_emutexalloc_mutex;
+    struct cache_stats c_stats;
+    struct ldbm_instance *c_inst;
+    struct pinned_ctx  *c_pinned_ctx; /* Pinned entries handler context */
 };
 
 #define CACHE_ADD(cache, p, a) cache_add((cache), (void *)(p), (void **)(a))
@@ -383,6 +424,9 @@ struct cache
 #define CACHE_REMOVE(cache, p) cache_remove((cache), (void *)(p))
 #define CACHE_LOCK(cache)      cache_lock((cache))
 #define CACHE_UNLOCK(cache)    cache_unlock((cache))
+
+/* For backentry_compute_weight implementation */
+typedef struct timespec BackEntryWeightData;
 
 /* various modules keep private data inside the attrinfo structure */
 typedef struct dblayer_private     dblayer_private;
@@ -536,7 +580,6 @@ typedef struct _db_upgrade_info db_upgrade_info;
                                              */
 #define DBVERSION_UPGRADE_4_5       0x4000  /* bdb 4.X -> 5.X */
 #define DBVERSION_NEED_DN2RDN       0x1000  /* DN to RDN (subtree-rename) format */
-#define DBVERSION_NEED_RDN2DN       0x2000  /* RDN to DN (original) format */
 #define DBVERSION_NOT_SUPPORTED 0x10000000
 
 #define DBVERSION_TYPE   0x1
@@ -636,6 +679,12 @@ struct ldbminfo
 #define BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK 0x04
     int li_backend_opt_level;
     size_t li_max_key_len;
+
+    /* dynamic lists */
+    bool li_dynamic_lists_enabled;
+    char *li_dynamic_lists_attr;
+    char *li_dynamic_lists_oc;
+    char *li_dynamic_lists_url_attr;
 };
 
 
@@ -774,6 +823,7 @@ typedef struct ldbm_instance
 
     PRLock *inst_nextid_mutex;
     ID inst_nextid;
+    bool inst_ruv_inserted_first;
 
     PRCondVar *inst_indexer_cv; /* indexer thread cond var */
     PRThread *inst_indexer_tid; /* for the indexer thread */
@@ -786,6 +836,12 @@ typedef struct ldbm_instance
     int require_index;               /* set to 1 to require an index be used in search */
     int require_internalop_index;    /* set to 1 to require an index be used in an internal search */
     struct cache inst_dncache;       /* The dn cache for this instance. */
+    uint32_t inst_page_count;        /* page count used for cache autotuning */
+    int cache_pinned_entries;        /* Number of entries to preserve during cache eviction */
+    char *cache_debug_pattern;       /* Entries whose dn matche this pattern are logged as INFO
+                                      * when they get added/removed from entry cache
+                                      */
+    Slapi_Regex *cache_debug_re;     /* Compiled version of cache_debug_pattern */
 } ldbm_instance;
 
 /*

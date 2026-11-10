@@ -428,6 +428,16 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
     return ret;
 }
 
+/* Free acs */
+static void
+acs_free(attrcrypt_cipher_state **acs)
+{
+    if (*acs) {
+        PR_DestroyLock((*acs)->cipher_lock);
+        slapi_ch_free((void**)acs);
+    }
+}
+
 /*
  CKM_AES_CBC_PAD
  CKM_DES3_CBC_PAD
@@ -458,7 +468,7 @@ attrcrypt_cipher_init(ldbm_instance *li, attrcrypt_cipher_entry *ace, SECKEYPriv
     /* Try to get the symmetric key for this cipher */
     ret = attrcrypt_keymgmt_get_key(li, acs, private_key, &symmetric_key);
     if (KEYMGMT_ERR_NO_ENTRY == ret) {
-        slapi_log_err(SLAPI_LOG_ERR, "attrcrypt_cipher_init",
+        slapi_log_err(SLAPI_LOG_NOTICE, "attrcrypt_cipher_init",
                       "No symmetric key found for cipher %s in backend %s, "
                       "attempting to create one...\n",
                       acs->cipher_display_name, li->inst_name);
@@ -538,7 +548,7 @@ attrcrypt_init(ldbm_instance *li)
                     attrcrypt_cipher_state *acs = (attrcrypt_cipher_state *)slapi_ch_calloc(sizeof(attrcrypt_cipher_state), 1);
                     ret = attrcrypt_cipher_init(li, ace, private_key, public_key, acs);
                     if (ret) {
-                        slapi_ch_free((void **)&acs);
+                        acs_free(&acs);
                         if (li->attrcrypt_configured) {
                             if ((ace + 1)->cipher_number) {
                                 /* this is not the last cipher */
@@ -1069,15 +1079,15 @@ attrcrypt_decrypt_index_key(backend *be,
  *                  :     NULL - no hash or failure
  */
 int
-attrcrypt_hash_large_index_key(backend *be, char **prefix, struct attrinfo *ai, const struct berval *in, struct berval **out)
+attrcrypt_hash_large_index_key(backend *be, const char *prefix, struct attrinfo *ai, const struct berval *in, struct berval **out)
 {
     int ret = 0;
     struct berval *out_berval = NULL;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    char *new_prefix;
+    size_t final_key_len = INDEX_KEY_LENGTH(in->bv_len, strlen(prefix));
 
     /* If the index key is too long (i.e mdb case) we must hash it */
-    if (in->bv_len >=  li->li_max_key_len) {
+    if (final_key_len >=  li->li_max_key_len) {
         PK11Context *c = PK11_CreateDigestContext(SEC_OID_MD5);
         if (c != NULL) {
             unsigned char hash[32];
@@ -1091,16 +1101,13 @@ attrcrypt_hash_large_index_key(backend *be, char **prefix, struct attrinfo *ai, 
                 return ENOMEM;
             }
             slapi_log_err(SLAPI_LOG_TRACE, "attrcrypt_hash_large_index_key",
-                          "Key lenght (%lu) >= max key lenght (%lu) so key must be hashed\n", in->bv_len, li->li_max_key_len);
+                          "Key lenght (%lu) >= max key lenght (%lu) so key must be hashed\n", final_key_len, li->li_max_key_len);
             slapi_be_set_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
             PK11_DigestBegin(c);
             /* Compute hash for the key without the prefix */
             PK11_DigestOp(c, (unsigned char *)in->bv_val, in->bv_len);
             PK11_DigestFinal(c, hash, &hashLen, sizeof hash);
-            /* Add HASH_PREFIX before the prefix */
-            new_prefix = slapi_ch_smprintf("%c%s", HASH_PREFIX, *prefix);
-            index_free_prefix(*prefix);
-            *prefix = new_prefix;
+
             /* Build the key: hash value in hexa */
             hkey = slapi_ch_malloc(1+2*sizeof hash);
             out_berval->bv_val = hkey;
@@ -1171,7 +1178,7 @@ back_crypt_init(Slapi_Backend *be, const char *dn, const char *encAlgorithm, voi
                           "Please choose other cipher or disable changelog "
                           "encryption.\n",
                           ace->cipher_display_name);
-            slapi_ch_free((void **)&acs);
+            acs_free(&acs);
         } else {
             /* Since we succeeded, set acs to state_priv */
             _back_crypt_acs_list_add(state_priv, acs);

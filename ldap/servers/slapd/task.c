@@ -719,6 +719,27 @@ destroy_task(time_t when, void *arg)
     slapi_ch_free((void **)&task);
 }
 
+/* Wait until the internal task entry get created */
+void
+slapi_task_wait(Slapi_Task *task)
+{
+    int ret = LDAP_NO_SUCH_OBJECT;
+    if (task && task->task_dn) {
+        while (ret == LDAP_NO_SUCH_OBJECT) {
+            Slapi_PBlock *pb = slapi_pblock_new();
+            slapi_search_internal_set_pb(pb, task->task_dn, LDAP_SCOPE_BASE, "(objectclass=*)",
+                                         NULL, 0, NULL, NULL, (void *)plugin_get_default_component_id(), 0);
+            slapi_search_internal_pb(pb);
+            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+            slapi_free_search_results_internal(pb);
+            slapi_pblock_destroy(pb);
+            if (ret == LDAP_NO_SUCH_OBJECT) {
+                DS_Sleep(PR_MillisecondsToInterval(20));
+            }
+        }
+    }
+}
+
 /* supply the pblock, destroy it when you're done */
 static Slapi_Entry *
 get_internal_entry(Slapi_PBlock *pb, char *dn)
@@ -1103,6 +1124,7 @@ out:
 static void
 task_export_thread(void *arg)
 {
+    slapi_set_thread_name("export");
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
     // I think someone is mis-using this point to store multiple names ...
     char **instance_names = NULL;
@@ -1482,6 +1504,7 @@ out:
 static void
 task_backup_thread(void *arg)
 {
+    slapi_set_thread_name("backup");
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
     Slapi_Task *task = NULL;
     struct slapdplugin *pb_plugin;
@@ -1633,6 +1656,7 @@ out:
 static void
 task_restore_thread(void *arg)
 {
+    slapi_set_thread_name("restore");
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
     Slapi_Task *task = NULL;
     struct slapdplugin *pb_plugin;
@@ -1787,6 +1811,7 @@ out:
 static void
 task_index_thread(void *arg)
 {
+    slapi_set_thread_name("index");
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
     char *instance_name = NULL;
     char **db2index_attrs = NULL;
@@ -2036,7 +2061,7 @@ task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
     int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
     slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
 
-    rv = (be->be_database->plg_upgradedb)(&mypb);
+    rv = (be->be_database->plg_upgradedb)(mypb);
     if (rv == 0) {
         slapi_entry_attr_set_charptr(e, TASK_LOG_NAME, "");
         slapi_entry_attr_set_charptr(e, TASK_STATUS_NAME, "");
@@ -2345,6 +2370,7 @@ struct task_tombstone_data
 static void
 task_fixup_tombstone_thread(void *arg)
 {
+    slapi_set_thread_name("tombfix");
     struct task_tombstone_data *task_data = arg;
     Slapi_Entry **entries = NULL;
     Slapi_Task *task = task_data->task;
@@ -2627,6 +2653,7 @@ compact_db_task_destructor(Slapi_Task *task)
 static void
 task_compact_thread(void *arg)
 {
+    slapi_set_thread_name("compact");
     struct task_compact_data *task_data = arg;
     Slapi_Task *task = task_data->task;
     Slapi_Backend *be = NULL;
@@ -2712,6 +2739,7 @@ task_compact_db_add(Slapi_PBlock *pb,
 static void
 task_ldapi_reload_thread(void *arg)
 {
+	slapi_set_thread_name("ldapi-reload");
 	Slapi_Task *task = (Slapi_Task *)arg;
 
 	initialize_ldapi_auth_dn_mappings(LDAPI_RELOAD);

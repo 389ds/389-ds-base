@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -13,7 +13,7 @@ import re
 import os
 from lib389.utils import *
 from lib389.cli_base import FakeArgs
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.cli_ctl.health import health_check_run
 from lib389.paths import Paths
 
@@ -27,22 +27,23 @@ p = Paths()
 
 def run_healthcheck_and_flush_log(topology, instance, searched_code=None, json=False, searched_code2=None,
                                   list_checks=False, list_errors=False, check=None, searched_list=None):
+    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
+    if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
+       (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT):
+        searched_code = 'DSBLE0006'
+
     args = FakeArgs()
     args.instance = instance.serverid
     args.verbose = instance.verbose
     args.list_errors = list_errors
     args.list_checks = list_checks
+    args.exclude_check = []
     args.check = check
     args.dry_run = False
     args.json = json
 
     log.info('Use healthcheck with --json == {} option'.format(json))
     health_check_run(instance, topology.logcap.log, args)
-
-    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
-    if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
-       (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT):
-        searched_code = 'DSBLE0006'
 
     if searched_list is not None:
         for item in searched_list:
@@ -132,7 +133,7 @@ def test_healthcheck_transparent_huge_pages(topology_st, system_thp_mode, instan
         12. Use HealthCheck with --json option
     :expectedresults:
         1. Success
-        2. HealthCheck should return code DSHTPLE0001
+        2. HealthCheck should return code DSTHPLE0001
         3. HealthCheck should return code DSTHPLE0001
         4. Success
         5. HealthCheck reports no issue found
@@ -149,5 +150,16 @@ def test_healthcheck_transparent_huge_pages(topology_st, system_thp_mode, instan
 
     _set_thp_system_mode(system_thp_mode)
     _set_thp_instance_mode(standalone, instance_thp_mode)
+
     run_healthcheck_and_flush_log(topology_st, standalone, expected_output[0], json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, expected_output[1], json=True)
+
+    standalone.stop()
+
+    try:
+        run_healthcheck_and_flush_log(topology_st, standalone, expected_output[0], json=False)
+        run_healthcheck_and_flush_log(topology_st, standalone, expected_output[1], json=True)
+    finally:
+        if not standalone.status():
+            standalone.start()
+

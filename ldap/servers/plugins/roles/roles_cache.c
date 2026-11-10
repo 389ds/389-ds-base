@@ -156,8 +156,8 @@ static int roles_is_inscope(Slapi_Entry *entry_to_check, role_object *this_role)
 static void berval_set_string(struct berval *bv, const char *string);
 static void roles_cache_role_def_delete(roles_cache_def *role_def);
 static void roles_cache_role_def_free(roles_cache_def *role_def);
-static void roles_cache_role_object_free(role_object *this_role);
-static int roles_cache_role_object_nested_free(role_object_nested *this_role);
+static int roles_cache_role_object_free(caddr_t this_role);
+static int roles_cache_role_object_nested_free(caddr_t this_role);
 static int roles_cache_dump(caddr_t data, caddr_t arg);
 static int roles_cache_add_entry_cb(Slapi_Entry *e, void *callback_data);
 static void roles_cache_result_cb(int rc, void *callback_data);
@@ -359,6 +359,7 @@ roles_cache_create_suffix(Slapi_DN *sdn)
 static void
 roles_cache_wait_on_change(void *arg)
 {
+    slapi_set_thread_name("roles-cache");
     roles_cache_def *roles_def = (roles_cache_def *)arg;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_wait_on_change\n");
@@ -578,11 +579,11 @@ roles_cache_update(roles_cache_def *suffix_to_update)
         if ((operation == SLAPI_OPERATION_MODIFY) ||
             (operation == SLAPI_OPERATION_DELETE)) {
 
-            to_delete = (role_object *)avl_delete(&(suffix_to_update->avl_tree), dn, roles_cache_find_node);
-            roles_cache_role_object_free(to_delete);
+            to_delete = (role_object *)avl_delete(&(suffix_to_update->avl_tree), (caddr_t)dn, roles_cache_find_node);
+            roles_cache_role_object_free((caddr_t)to_delete);
             to_delete = NULL;
             if (slapi_is_loglevel_set(SLAPI_LOG_PLUGIN)) {
-                avl_apply(suffix_to_update->avl_tree, (IFP)roles_cache_dump, &rc, -1, AVL_INORDER);
+                avl_apply(suffix_to_update->avl_tree, roles_cache_dump, &rc, -1, AVL_INORDER);
             }
         }
         if ((operation == SLAPI_OPERATION_MODIFY) ||
@@ -1098,7 +1099,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
     /* We determine the role type by reading the objectclass */
     if (roles_cache_is_role_entry(role_entry) == 0) {
         /* Bad type */
-        slapi_ch_free((void **)&this_role);
+        roles_cache_role_object_free((caddr_t)this_role);
         return SLAPI_ROLE_DEFINITION_ERROR;
     }
 
@@ -1108,7 +1109,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         this_role->type = type;
     } else {
         /* Bad type */
-        slapi_ch_free((void **)&this_role);
+        roles_cache_role_object_free((caddr_t)this_role);
         return SLAPI_ROLE_DEFINITION_ERROR;
     }
 
@@ -1117,16 +1118,17 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
 
     rolescopeDN = slapi_entry_attr_get_charptr(role_entry, ROLE_SCOPE_DN);
     if (rolescopeDN) {
-        Slapi_DN *rolescopeSDN;
-        Slapi_DN *top_rolescopeSDN, *top_this_roleSDN;
+        Slapi_DN *rolescopeSDN = NULL;
+        Slapi_DN *top_rolescopeSDN = NULL;
+        Slapi_DN *top_this_roleSDN = NULL;
 
         /* Before accepting to use this scope, first check if it belongs to the same suffix */
         rolescopeSDN = slapi_sdn_new_dn_byref(rolescopeDN);
-        if ((strlen((char *)slapi_sdn_get_ndn(rolescopeSDN)) > 0) &&
+        if (rolescopeSDN && (strlen((char *)slapi_sdn_get_ndn(rolescopeSDN)) > 0) &&
             (slapi_dn_syntax_check(NULL, (char *)slapi_sdn_get_ndn(rolescopeSDN), 1) == 0)) {
             top_rolescopeSDN = roles_cache_get_top_suffix(rolescopeSDN);
             top_this_roleSDN = roles_cache_get_top_suffix(this_role->dn);
-            if (slapi_sdn_compare(top_rolescopeSDN, top_this_roleSDN) == 0) {
+            if (top_rolescopeSDN && top_this_roleSDN && slapi_sdn_compare(top_rolescopeSDN, top_this_roleSDN) == 0) {
                 /* rolescopeDN belongs to the same suffix as the role, we can use this scope */
                 this_role->rolescopedn = rolescopeSDN;
             } else {
@@ -1148,6 +1150,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                           rolescopeDN);
             slapi_sdn_free(&rolescopeSDN);
         }
+        slapi_ch_free_string(&rolescopeDN);
     }
 
     /* Depending upon role type, pull out the remaining information we need */
@@ -1166,7 +1169,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         filter_attr_value = (char *)slapi_entry_attr_get_charptr(role_entry, ROLE_FILTER_ATTR_NAME);
         if (filter_attr_value == NULL) {
             /* Means probably no attribute or no value there */
-            slapi_ch_free((void **)&this_role);
+            roles_cache_role_object_free((caddr_t)this_role);
             return SLAPI_ROLE_ERROR_NO_FILTER_SPECIFIED;
         }
 
@@ -1205,7 +1208,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                               (char *)slapi_sdn_get_ndn(this_role->dn),
                               ROLE_FILTER_ATTR_NAME, filter_attr_value,
                               ROLE_FILTER_ATTR_NAME);
-                slapi_ch_free((void **)&this_role);
+                roles_cache_role_object_free((caddr_t)this_role);
                 slapi_ch_free_string(&filter_attr_value);
                 return SLAPI_ROLE_ERROR_FILTER_BAD;
             }
@@ -1217,7 +1220,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         filter = slapi_str2filter(filter_attr_value);
         if (filter == NULL) {
             /* An error has occured */
-            slapi_ch_free((void **)&this_role);
+            roles_cache_role_object_free((caddr_t)this_role);
             slapi_ch_free_string(&filter_attr_value);
             return SLAPI_ROLE_ERROR_FILTER_BAD;
         }
@@ -1228,7 +1231,8 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                           (char *)slapi_sdn_get_ndn(this_role->dn),
                           filter_attr_value,
                           ROLE_FILTER_ATTR_NAME);
-            slapi_ch_free((void **)&this_role);
+            roles_cache_role_object_free((caddr_t)this_role);
+            slapi_filter_free(filter, 1);
             slapi_ch_free_string(&filter_attr_value);
             return SLAPI_ROLE_ERROR_FILTER_BAD;
         }
@@ -1285,7 +1289,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
     if (rc == 0) {
         *result = this_role;
     } else {
-        slapi_ch_free((void **)&this_role);
+        roles_cache_role_object_free((caddr_t)this_role);
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
@@ -1510,7 +1514,7 @@ roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_value
             /* XXX really need a mutex for this read operation ? */
             slapi_rwlock_rdlock(roles_cache->cache_lock);
 
-            avl_apply(roles_cache->avl_tree, (IFP)roles_cache_build_nsrole, &arg, -1, AVL_INORDER);
+            avl_apply(roles_cache->avl_tree, roles_cache_build_nsrole, &arg, -1, AVL_INORDER);
 
             slapi_rwlock_unlock(roles_cache->cache_lock);
 
@@ -1627,7 +1631,7 @@ roles_check(Slapi_Entry *entry_to_check, Slapi_DN *role_dn, int *present)
     }
     slapi_rwlock_unlock(global_lock);
 
-    this_role = (role_object *)avl_find(roles_cache->avl_tree, role_dn, (IFP)roles_cache_find_node);
+    this_role = (role_object *)avl_find(roles_cache->avl_tree, (caddr_t)role_dn, roles_cache_find_node);
 
     /* MAB: For some reason the assumption made by this function (the role exists and is in scope)
      * does not seem to be true... this_role might be NULL after the avl_find call (is the avl_tree
@@ -1765,7 +1769,7 @@ roles_is_entry_member_of_object_ext(vattr_context *c, caddr_t data, caddr_t argu
         case ROLE_TYPE_NESTED: {
             /* Go through the tree of the nested DNs */
             get_nsrole->hint++;
-            avl_apply(this_role->avl_tree, (IFP)roles_check_nested, get_nsrole, 0, AVL_INORDER);
+            avl_apply(this_role->avl_tree, roles_check_nested, get_nsrole, 0, AVL_INORDER);
             get_nsrole->hint--;
 
             /* kexcoff?? */
@@ -1901,12 +1905,12 @@ roles_check_nested(caddr_t data, caddr_t arg)
         }
 
         if (slapi_is_loglevel_set(SLAPI_LOG_PLUGIN)) {
-            avl_apply(roles_cache->avl_tree, (IFP)roles_cache_dump, &rc, -1, AVL_INORDER);
+            avl_apply(roles_cache->avl_tree, roles_cache_dump, &rc, -1, AVL_INORDER);
         }
 
         this_role = (role_object *)avl_find(roles_cache->avl_tree,
-                                            current_nested_role->dn,
-                                            (IFP)roles_cache_find_node);
+                                            (caddr_t)current_nested_role->dn,
+                                            roles_cache_find_node);
 
         if (this_role == NULL) {
             /* the nested role doesn't exist */
@@ -2026,7 +2030,7 @@ roles_cache_role_def_free(roles_cache_def *role_def)
 
     slapi_lock_mutex(role_def->stop_lock);
 
-    avl_free(role_def->avl_tree, (IFP)roles_cache_role_object_free);
+    avl_free(role_def->avl_tree, roles_cache_role_object_free);
     slapi_sdn_free(&(role_def->suffix_dn));
     slapi_destroy_rwlock(role_def->cache_lock);
     role_def->cache_lock = NULL;
@@ -2057,14 +2061,16 @@ roles_cache_role_def_free(roles_cache_def *role_def)
 /* roles_cache_role_object_free
    ----------------------------
 */
-static void
-roles_cache_role_object_free(role_object *this_role)
+static int
+roles_cache_role_object_free(caddr_t tr)
 {
+    role_object *this_role = (role_object *)tr;
+
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_role_object_free\n");
 
     if (this_role == NULL) {
-        return;
+        return 0;
     }
 
     switch (this_role->type) {
@@ -2094,14 +2100,17 @@ roles_cache_role_object_free(role_object *this_role)
 
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_role_object_free\n");
+    return 0;
 }
 
 /* roles_cache_role_object_nested_free
    ------------------------------------
 */
 static int
-roles_cache_role_object_nested_free(role_object_nested *this_role)
+roles_cache_role_object_nested_free(caddr_t tr)
 {
+    role_object_nested *this_role = (role_object_nested *)tr;
+
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_role_object_nested_free\n");
 

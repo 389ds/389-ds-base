@@ -13,10 +13,11 @@ from lib389 import Entry
 from ldap import SCOPE_SUBTREE, ALREADY_EXISTS
 from ldap.controls import SimplePagedResultsControl
 from ldap.controls.sessiontrack import SessionTrackingControl, SESSION_TRACKING_CONTROL_OID
+from test389.topologies import topology_m2 as topo_m2
 from  ldap.extop import ExtendedRequest
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM, PLUGIN_MEMBER_OF
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.plugins import MemberOfPlugin
 
 from lib389.schema import Schema
@@ -29,6 +30,86 @@ SESSION_SOURCE_NAME = 'host.example.com'
 SESSION_TRACKING_FORMAT_OID = SESSION_TRACKING_CONTROL_OID + ".1234"
 
 pytestmark = pytest.mark.tier0
+
+from ldap.controls import RequestControl
+from pyasn1.type import namedtype,univ
+from pyasn1.codec.ber import encoder
+from pyasn1_modules.rfc2251 import LDAPString,LDAPOID
+
+
+# OID constants
+SESSION_TRACKING_CONTROL_OID = "1.3.6.1.4.1.21008.108.63.1"
+
+
+class SessionTrackingControlCritical(RequestControl):
+  """
+  Class for Session Tracking Control
+  With a criticality set to TRUE
+  """
+
+  class SessionIdentifierControlValue(univ.Sequence):
+    componentType = namedtype.NamedTypes(
+      namedtype.NamedType('sessionSourceIp',LDAPString()),
+      namedtype.NamedType('sessionSourceName',LDAPString()),
+      namedtype.NamedType('formatOID',LDAPOID()),
+      namedtype.NamedType('sessionTrackingIdentifier',LDAPString()),
+    )
+
+  controlType = SESSION_TRACKING_CONTROL_OID
+
+  def __init__(self,sessionSourceIp,sessionSourceName,formatOID,sessionTrackingIdentifier):
+    # criticality set to TRUE for test robustness
+    self.criticality = True
+    self.sessionSourceIp,self.sessionSourceName,self.formatOID,self.sessionTrackingIdentifier = \
+      sessionSourceIp,sessionSourceName,formatOID,sessionTrackingIdentifier
+
+  def encodeControlValue(self):
+    s = self.SessionIdentifierControlValue()
+    s.setComponentByName('sessionSourceIp',LDAPString(self.sessionSourceIp))
+    s.setComponentByName('sessionSourceName',LDAPString(self.sessionSourceName))
+    s.setComponentByName('formatOID',LDAPOID(self.formatOID))
+    s.setComponentByName('sessionTrackingIdentifier',LDAPString(self.sessionTrackingIdentifier))
+    return encoder.encode(s)
+
+def test_critical_session_tracking_srch(topology_st, request):
+    """Verify that a critical session tracking control
+    does not trigger double free
+
+    :id: 9b46d5e5-82ac-4a2b-90b6-0978802fc063
+    :customerscenario: False
+    :setup: Standalone instance, default backend.
+    :steps:
+        1. Loop with searches with one containing a critical control
+    :expectedresults:
+        1. The SRCH with critical control fails the other one succeeds
+    """
+
+
+    SESSION_TRACKING_IDENTIFIER = "SRCH criticality TRUE"
+    st_ctrl = SessionTrackingControlCritical(
+      SESSION_SOURCE_IP,
+      SESSION_SOURCE_NAME,
+      SESSION_TRACKING_FORMAT_OID,
+      SESSION_TRACKING_IDENTIFIER
+    )
+
+    # 1000 attempts is enough to trigger SIGSEV
+    for i in range(0, 1000):
+        try:
+            topology_st.standalone.search_ext_s(DEFAULT_SUFFIX,
+                                                ldap.SCOPE_SUBTREE,
+                                                '(uid=*)',
+                                                serverctrls=[st_ctrl])
+        except:
+            pass
+        topology_st.standalone.search_ext_s(DEFAULT_SUFFIX,
+                                            ldap.SCOPE_SUBTREE,
+                                            '(uid=*)')
+
+    def fin():
+        pass
+
+    request.addfinalizer(fin)
 
 def test_short_session_tracking_srch(topology_st, request):
     """Verify that a short session_tracking string
@@ -1568,6 +1649,66 @@ def test_escaped_session_tracking_extop(topology_st, request):
 
     def fin():
         pass
+
+    request.addfinalizer(fin)
+
+def test_sid_replication(topo_m2, request):
+    """Check that session ID are logged on
+       supplier side (errorLog) and consumer side (accessLog)
+
+    :id: e716b04c-152b-4964-ae7a-b18fb4655cb9
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Initialize replication
+        2. Enable replication debug logging
+        3. Create and update a test user
+        4. Stop instances
+        5. Check that 'sid=' exist both on supplier/consumer sides
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
+
+    m1.config.loglevel((ErrorLog.REPLICA,))
+    m2.config.loglevel((ErrorLog.REPLICA,))
+
+    TEST_ENTRY_NAME = 'sid_test'
+    TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
+    test_user = UserAccount(m1, TEST_ENTRY_DN)
+    test_user.create(properties={
+        'uid': TEST_ENTRY_NAME,
+        'cn': TEST_ENTRY_NAME,
+        'sn': TEST_ENTRY_NAME,
+        'userPassword': TEST_ENTRY_NAME,
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/sid_test',
+    })
+
+    # create a large value set so that it is sorted
+    for i in range(1,20):
+        test_user.add('description', 'value {}'.format(str(i)))
+
+    time.sleep(2)
+    m1.stop()
+    m2.stop()
+    log_lines = m1.ds_access_log.match('.* sid=".*')
+    assert len(log_lines) > 0
+    log_lines = m2.ds_error_log.match('.* - sid=".*')
+    assert len(log_lines) > 0
+    m1.start()
+    m2.start()
+
+    def fin():
+        log.info('Deleting entry {}'.format(TEST_ENTRY_DN))
+        test_user.delete()
+        m1.config.loglevel((ErrorLog.DEFAULT,), service='error')
+        m2.config.loglevel((ErrorLog.DEFAULT,), service='error')
 
     request.addfinalizer(fin)
 

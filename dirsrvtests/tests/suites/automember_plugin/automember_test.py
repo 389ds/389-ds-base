@@ -18,7 +18,7 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389 import agreement
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups, Group
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX
 
 

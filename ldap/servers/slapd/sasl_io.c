@@ -16,6 +16,7 @@
 #include "fe.h"
 #include <sasl/sasl.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 /*
  * I/O Shim Layer for SASL Encryption
@@ -25,6 +26,7 @@
 #define SASL_IO_BUFFER_SIZE 1024
 #define SASL_IO_BUFFER_NOT_ENCRYPTED -99
 #define SASL_IO_BUFFER_START_SIZE 7
+/* Hard limit for SASL packet length -- see SLAPD_MAX_SASLIO_SIZE in slap.h. */
 
     /*
  * SASL sends its encrypted PDU's with an embedded 4-byte length
@@ -47,12 +49,14 @@
     uint32_t encrypted_buffer_count;
     uint32_t encrypted_buffer_offset;
     Connection *conn;         /* needed for connid and sasl_conn context */
+    uint32_t effective_saslio_limit; /* snapshotted per packet from config */
     PRBool send_encrypted;    /* can only send encrypted data after the first read -
                               that is, we cannot send back an encrypted response
                               to the bind request that established the sasl io */
     const char *send_buffer;  /* encrypted buffer to send to client */
     unsigned int send_size;   /* size of the encrypted buffer */
     unsigned int send_offset; /* number of bytes sent so far */
+    bool unencrypted_buffer_ready;
 };
 
 typedef PRFilePrivate sasl_io_private;
@@ -122,6 +126,16 @@ sasl_io_init_buffers(sasl_io_private *sp)
 }
 
 
+/*
+ * Map the raw config value (-1 = unlimited, positive = explicit limit)
+ * to the effective uint32_t limit used for packet validation.
+ */
+static inline uint32_t
+sasl_io_effective_limit(int32_t raw_limit)
+{
+    return (raw_limit < 0) ? SLAPD_MAX_SASLIO_SIZE : (uint32_t)raw_limit;
+}
+
 static void
 sasl_io_resize_encrypted_buffer(sasl_io_private *sp, uint32_t requested_size)
 {
@@ -131,13 +145,24 @@ sasl_io_resize_encrypted_buffer(sasl_io_private *sp, uint32_t requested_size)
     }
 }
 
-static void
+static int
 sasl_io_resize_decrypted_buffer(sasl_io_private *sp, uint32_t requested_size)
 {
+    /* Cap the decoded buffer at the same limit used for incoming packets
+     * to prevent unbounded allocation from a misbehaving SASL layer.
+     * Uses the limit snapshotted in sasl_io_start_packet so both the
+     * wire-side and decode-side checks use the same config value. */
+    if (requested_size > sp->effective_saslio_limit) {
+        slapi_log_err(SLAPI_LOG_ERR, "sasl_io_resize_decrypted_buffer",
+                      "Decoded output size %" PRIu32 " exceeds limit %" PRIu32 "\n",
+                      requested_size, sp->effective_saslio_limit);
+        return -1;
+    }
     if (requested_size > sp->decrypted_buffer_size) {
         sp->decrypted_buffer = slapi_ch_realloc(sp->decrypted_buffer, requested_size);
         sp->decrypted_buffer_size = requested_size;
     }
+    return 0;
 }
 
 static int
@@ -150,6 +175,34 @@ static int
 sasl_io_finished_packet(sasl_io_private *sp)
 {
     return (sp->encrypted_buffer_count && (sp->encrypted_buffer_offset == sp->encrypted_buffer_count));
+}
+
+static PRInt32
+sasl_io_drain_unencrypted_buffer(sasl_io_private *sp, void *buf, PRInt32 len)
+{
+    uint32_t bytes_to_copy;
+
+    if (len <= 0) {
+        return 0;
+    }
+
+    PR_ASSERT(sp->unencrypted_buffer_ready);
+    PR_ASSERT(sp->encrypted_buffer_offset <= sp->encrypted_buffer_count);
+
+    bytes_to_copy = sp->encrypted_buffer_count - sp->encrypted_buffer_offset;
+    if (bytes_to_copy > (uint32_t)len) {
+        bytes_to_copy = (uint32_t)len;
+    }
+    memcpy(buf, sp->encrypted_buffer + sp->encrypted_buffer_offset, bytes_to_copy);
+    sp->encrypted_buffer_offset += bytes_to_copy;
+
+    if (sp->encrypted_buffer_offset == sp->encrypted_buffer_count) {
+        sp->encrypted_buffer_offset = 0;
+        sp->encrypted_buffer_count = 0;
+        sp->unencrypted_buffer_ready = false;
+    }
+
+    return (PRInt32)bytes_to_copy;
 }
 
 static const char *const sasl_LayerName = "SASL";
@@ -189,34 +242,33 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
 
     *err = 0;
     debug_print_layers(fd);
-    /* first we need the length bytes */
-    ret = PR_Recv(fd->lower, buffer, amount, flags, timeout);
-    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
-                  "Read sasl packet length returned %d on connection %" PRIu64 "\n",
-                  ret, c->c_connid);
-    if (ret <= 0) {
-        *err = PR_GetError();
-        if (ret == 0) {
+    /* First read enough bytes to distinguish an LDAP message from a SASL packet. */
+    if (sp->encrypted_buffer_offset < sizeof(buffer)) {
+            amount = sizeof(buffer) - sp->encrypted_buffer_offset;
+            ret = PR_Recv(fd->lower, buffer, amount, flags, timeout);
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
-                          "Connection closed while reading sasl packet length on connection %" PRIu64 "\n",
-                          c->c_connid);
-        } else {
-            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
-                          "Error reading sasl packet length on connection %" PRIu64 " %d:%s\n",
-                          c->c_connid, *err, slapd_pr_strerror(*err));
+                          "Read sasl packet length returned %d on connection %" PRIu64 "\n",
+                          ret, c->c_connid);
+            if (ret <= 0) {
+                *err = PR_GetError();
+                if (ret == 0) {
+                    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
+                                  "Connection closed while reading sasl packet length on connection %" PRIu64 "\n",
+                                  c->c_connid);
+                } else {
+                    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
+                                  "Error reading sasl packet length on connection %" PRIu64 " %d:%s\n",
+                                  c->c_connid, *err, slapd_pr_strerror(*err));
+                }
+                return ret;
         }
-        return ret;
+        if ((ret + sp->encrypted_buffer_offset) > sp->encrypted_buffer_size) {
+            sasl_io_resize_encrypted_buffer(sp, ret + sp->encrypted_buffer_offset);
+        }
+        memcpy(sp->encrypted_buffer + sp->encrypted_buffer_offset, buffer, ret);
+        sp->encrypted_buffer_offset += ret;
     }
-    /*
-     * Read the bytes and add them to sp->encrypted_buffer
-     * - if offset < 7, tell caller we didn't read enough bytes yet
-     * - if offset >= 7, decode the length and proceed.
-     */
-    if ((ret + sp->encrypted_buffer_offset) > sp->encrypted_buffer_size) {
-        sasl_io_resize_encrypted_buffer(sp, ret + sp->encrypted_buffer_offset);
-    }
-    memcpy(sp->encrypted_buffer + sp->encrypted_buffer_offset, buffer, ret);
-    sp->encrypted_buffer_offset += ret;
+
     if (sp->encrypted_buffer_offset < sizeof(buffer)) {
         slapi_log_err(SLAPI_LOG_CONNS,
                       "sasl_io_start_packet", "Read only %d bytes of sasl packet "
@@ -241,9 +293,11 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
         ber_len_t maxbersize = config_get_maxbersize();
         ber_len_t ber_len = 0;
         ber_tag_t tag = 0;
+        uint32_t ber_header_len = 2;
+        uint32_t ber_packet_len;
 
-        slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" PRIu64 " fd=%d "
-                                                               "Sent an LDAP message that was not encrypted.\n",
+        slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
+                      "conn=%" PRIu64 " fd=%d Sent an LDAP message that was not encrypted.\n",
                       c->c_connid,
                       c->c_sd);
 
@@ -264,11 +318,22 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
             PR_SetError(PR_IO_ERROR, 0);
             return PR_FAILURE;
         }
-        /*
-         * Bump the ber length by 2 for the tag/length we skipped over when calculating the berval length.
-         * We now have the total "packet" size, so we know exactly what is left to read in.
-         */
-        ber_len += 2;
+        /* Include the tag and the complete short- or long-form BER length. */
+        if (((unsigned char *)sp->encrypted_buffer)[1] & 0x80U) {
+            ber_header_len += ((unsigned char *)sp->encrypted_buffer)[1] & 0x7fU;
+        }
+        if (ber_len > (ber_len_t)(UINT32_MAX - ber_header_len)) {
+            slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
+                          "conn=%" PRIu64 " fd=%d Incoming BER Element length cannot be represented.\n",
+                          c->c_connid, c->c_sd);
+            PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
+            return PR_FAILURE;
+        }
+        ber_packet_len = (uint32_t)ber_len + ber_header_len;
+        if (ber_packet_len < sp->encrypted_buffer_offset) {
+            goto done;
+        }
+        sasl_io_resize_encrypted_buffer(sp, ber_packet_len);
 
         /*
          * Read in the rest of the packet.
@@ -277,39 +342,35 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
          * to the buffer.  Once we have the complete LDAP packet we'll set it back to zero,
          * and adjust the sp->encrypted_buffer_count.
          */
-        while (sp->encrypted_buffer_offset < ber_len) {
+        while (sp->encrypted_buffer_offset < ber_packet_len) {
+            uint32_t bytes_to_read = ber_packet_len - sp->encrypted_buffer_offset;
             unsigned char mybuf[SASL_IO_BUFFER_SIZE];
 
-            ret = PR_Recv(fd->lower, mybuf, SASL_IO_BUFFER_SIZE, flags, timeout);
-            if (ret == PR_WOULD_BLOCK_ERROR || (ret == 0 && sp->encrypted_buffer_offset < ber_len)) {
-/*
-                 * Need more data, go back and try to get more data from connection_read_operation()
-                 * We can return and continue to update sp->encrypted_buffer because we have
-                 * maintained the current size in encrypted_buffer_offset.
-                 */
-#if defined(EWOULDBLOCK)
-                errno = EWOULDBLOCK;
-#elif defined(EAGAIN)
-                errno = EAGAIN;
-#endif
-                PR_SetError(PR_WOULD_BLOCK_ERROR, errno);
-                return PR_FAILURE;
-            } else if (ret > 0) {
+            if (bytes_to_read > sizeof(mybuf)) {
+                bytes_to_read = sizeof(mybuf);
+            }
+
+            ret = PR_Recv(fd->lower, mybuf, (PRInt32)bytes_to_read, flags, timeout);
+            if (ret > 0) {
                 slapi_log_err(SLAPI_LOG_CONNS,
                               "sasl_io_start_packet",
                               "Continued: read sasl packet length returned %d on connection %" PRIu64 "\n",
                               ret, c->c_connid);
-                if ((ret + sp->encrypted_buffer_offset) > sp->encrypted_buffer_size) {
-                    sasl_io_resize_encrypted_buffer(sp, ret + sp->encrypted_buffer_offset);
-                }
                 memcpy(sp->encrypted_buffer + sp->encrypted_buffer_offset, mybuf, ret);
                 sp->encrypted_buffer_offset += ret;
-            } else if (ret < 0) {
+            } else if (ret == 0) {
                 *err = PR_GetError();
                 slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
-                              "Error reading sasl packet length on connection "
-                              "%" PRIu64 " %d:%s\n",
-                              c->c_connid, *err, slapd_pr_strerror(*err));
+                              "Connection closed while reading an LDAP packet on connection %" PRIu64 "\n",
+                              c->c_connid);
+                return ret;
+            } else {
+                *err = PR_GetError();
+                if (*err != PR_WOULD_BLOCK_ERROR) {
+                    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
+                                  "Error reading LDAP packet on connection %" PRIu64 " %d:%s\n",
+                                  c->c_connid, *err, slapd_pr_strerror(*err));
+                }
                 return ret;
             }
         }
@@ -344,6 +405,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                                   c->c_sd);
                     sp->encrypted_buffer_count = sp->encrypted_buffer_offset;
                     sp->encrypted_buffer_offset = 0;
+                    sp->unencrypted_buffer_ready = true;
                     ber_free(ber, 1);
                     return SASL_IO_BUFFER_NOT_ENCRYPTED;
                 }
@@ -368,27 +430,58 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     }
 
     /* At this point, sp->encrypted_buffer_offset == sizeof(buffer) */
-    /* Decode the length */
-    packet_length = ntohl(*(uint32_t *)sp->encrypted_buffer);
+    /* Decode the length (use memcpy to avoid strict-aliasing UB) */
+    {
+        uint32_t raw_len;
+        memcpy(&raw_len, sp->encrypted_buffer, sizeof(raw_len));
+        packet_length = ntohl(raw_len);
+    }
+    /* Check the token length (before adding the 4-byte prefix) against
+     * our maximum. A setting of -1 means "unlimited", but we still
+     * enforce the hard limit (SLAPD_MAX_SASLIO_SIZE = 0xFFFFFF) to
+     * prevent unbounded allocation that would crash via exit(1) on OOM.
+     * Snapshot the effective limit for sasl_io_resize_decrypted_buffer
+     * later, so both checks use the same config value. */
+    saslio_limit = config_get_maxsasliosize();
+    sp->effective_saslio_limit = sasl_io_effective_limit(saslio_limit);
+    if (packet_length > sp->effective_saslio_limit) {
+        slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
+                      "SASL encrypted packet length exceeds maximum allowed limit "
+                      "(length=%" PRIu32 ", limit=%" PRIu32 ") on connection %" PRIu64 "."
+                      "  Change the nsslapd-maxsasliosize attribute in cn=config to increase limit.\n",
+                      packet_length, sp->effective_saslio_limit, c->c_connid);
+        PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
+        *err = PR_BUFFER_OVERFLOW_ERROR;
+        return PR_FAILURE;
+    }
+
     /* add length itself (for Cyrus SASL library) */
+    /* Defence-in-depth: unreachable after effective_limit check above
+     * (max effective_limit is 0xFFFFFF, well below 0xFFFFFFFB), but
+     * retained in case SLAPD_MAX_SASLIO_SIZE is ever raised. */
+    if (packet_length > (UINT32_MAX - sizeof(uint32_t))) {
+        slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
+                      "SASL packet length would overflow (%" PRIu32 ")\n",
+                      packet_length);
+        PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
+        *err = PR_BUFFER_OVERFLOW_ERROR;
+        return PR_FAILURE;
+    }
     packet_length += sizeof(uint32_t);
+
+    if (packet_length < sp->encrypted_buffer_offset) {
+        slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
+                      "SASL packet length is too small (%" PRIu32 " < %" PRIu32
+                      ") on connection %" PRIu64 "\n",
+                      packet_length, sp->encrypted_buffer_offset, c->c_connid);
+        PR_SetError(PR_IO_ERROR, 0);
+        *err = PR_IO_ERROR;
+        return PR_FAILURE;
+    }
 
     slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
                   "read sasl packet length %" PRIu32 " on connection %" PRIu64 "\n",
                   packet_length, c->c_connid);
-
-    /* Check if the packet length is larger than our max allowed.  A
-     * setting of -1 means that we allow any size SASL IO packet. */
-    saslio_limit = config_get_maxsasliosize();
-    if ((saslio_limit != -1) && (packet_length > saslio_limit)) {
-        slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
-                      "SASL encrypted packet length exceeds maximum allowed limit (length=%" PRIu32 ", limit=%" PRIu32")."
-                      "  Change the nsslapd-maxsasliosize attribute in cn=config to increase limit.\n",
-                      packet_length, config_get_maxsasliosize());
-        PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
-        *err = PR_BUFFER_OVERFLOW_ERROR;
-        return -1;
-    }
 
     sasl_io_resize_encrypted_buffer(sp, packet_length);
     /* Cyrus SASL implementation expects to have the length at the first
@@ -404,7 +497,19 @@ sasl_io_read_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt3
     PRInt32 ret = 0;
     sasl_io_private *sp = sasl_get_io_private(fd);
     Connection *c = sp->conn;
-    uint32_t bytes_remaining_to_read = sp->encrypted_buffer_count - sp->encrypted_buffer_offset;
+    uint32_t bytes_remaining_to_read;
+
+    if (sp->encrypted_buffer_count < sp->encrypted_buffer_offset) {
+        slapi_log_err(SLAPI_LOG_ERR, "sasl_io_read_packet",
+                      "Internal buffer state error: count=%" PRIu32 " < offset=%" PRIu32
+                      " on connection %" PRIu64 "\n",
+                      sp->encrypted_buffer_count, sp->encrypted_buffer_offset,
+                      c->c_connid);
+        PR_SetError(PR_IO_ERROR, 0);
+        *err = PR_IO_ERROR;
+        return -1;
+    }
+    bytes_remaining_to_read = sp->encrypted_buffer_count - sp->encrypted_buffer_offset;
 
     slapi_log_err(SLAPI_LOG_CONNS,
                   "sasl_io_read_packet", "Reading %" PRIu32" bytes for connection %" PRIu64 "\n",
@@ -435,6 +540,10 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags, PRIntervalTim
     uint32_t bytes_in_buffer = 0;
     int32_t err = 0;
 
+    if (sp->unencrypted_buffer_ready) {
+        return sasl_io_drain_unencrypted_buffer(sp, buf, len);
+    }
+
     /* Do we have decrypted data buffered from 'before' ? */
     bytes_in_buffer = sp->decrypted_buffer_count - sp->decrypted_buffer_offset;
     slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
@@ -450,11 +559,10 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags, PRIntervalTim
             ret = sasl_io_start_packet(fd, flags, timeout, &err);
             if (SASL_IO_BUFFER_NOT_ENCRYPTED == ret) {
                 /*
-                 * Special case: we received unencrypted data that was actually
-                 * an unbind.  Copy it to the buffer and return its length.
+                 * Special case: return the validated unencrypted UNBIND over as
+                 * many calls as the caller's buffer requires.
                  */
-                memcpy(buf, sp->encrypted_buffer, sp->encrypted_buffer_count);
-                return sp->encrypted_buffer_count;
+                return sasl_io_drain_unencrypted_buffer(sp, buf, len);
             }
             if (0 >= ret) {
                 /* timeout, connection closed, or error */
@@ -500,7 +608,13 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags, PRIntervalTim
                 slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
                               "Decoded packet length %u for connection %" PRIu64 "\n", output_length, c->c_connid);
                 if (output_length) {
-                    sasl_io_resize_decrypted_buffer(sp, output_length);
+                    if (sasl_io_resize_decrypted_buffer(sp, output_length) != 0) {
+                        slapi_log_err(SLAPI_LOG_ERR, "sasl_io_recv",
+                                      "Decoded packet too large (%u) for connection %" PRIu64 "\n",
+                                      output_length, c->c_connid);
+                        PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
+                        return PR_FAILURE;
+                    }
                     memcpy(sp->decrypted_buffer, output_buffer, output_length);
                     sp->decrypted_buffer_count = output_length;
                     sp->decrypted_buffer_offset = 0;
@@ -556,6 +670,7 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount, PRIntn flags, PRIn
     PRInt32 ret = 0;
     sasl_io_private *sp = sasl_get_io_private(fd);
     Connection *c = sp->conn;
+    Operation *op = c->c_ops; /* In theory during bind there is only a single active operation */
 
     slapi_log_err(SLAPI_LOG_CONNS,
                   "sasl_io_send", "Writing %d bytes\n", amount);
@@ -585,8 +700,10 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount, PRIntn flags, PRIn
             PR_SetError(PR_BUFFER_OVERFLOW_ERROR, EMSGSIZE);
             return PR_FAILURE;
         }
+        fgot_start(op, FGOT_WRITE);
         ret = PR_Send(fd->lower, sp->send_buffer + sp->send_offset,
                       sp->send_size - sp->send_offset, flags, timeout);
+        fgot_end(op, FGOT_WRITE);
         /* we need to return the amount of cleartext sent */
         if (ret == (sp->send_size - sp->send_offset)) {
             ret = amount;        /* sent amount of data requested by caller */
@@ -606,7 +723,9 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount, PRIntn flags, PRIn
         }
         /* else - ret is error - caller will handle */
     } else {
+        fgot_start(op, FGOT_WRITE);
         ret = PR_Send(fd->lower, buf, amount, flags, timeout);
+        fgot_end(op, FGOT_WRITE);
     }
 
     return ret;

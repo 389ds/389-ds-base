@@ -1,9 +1,13 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, getApiErrorMessage } from "./lib/tools.jsx";
 import { ReplSuffix } from "./lib/replication/replSuffix.jsx";
 import PropTypes from "prop-types";
 import {
+    Button,
+    Card,
+    ProgressStepper,
+    ProgressStep,
     Spinner,
     TreeView,
     Text,
@@ -14,6 +18,9 @@ import { TreeIcon, LeafIcon, CloneIcon } from '@patternfly/react-icons';
 import {
     TopologyIcon
 } from '@patternfly/react-icons';
+import InProgressIcon from '@patternfly/react-icons/dist/esm/icons/in-progress-icon';
+import PendingIcon from '@patternfly/react-icons/dist/esm/icons/pending-icon';
+import CheckCircleIcon from '@patternfly/react-icons/dist/esm/icons/check-circle-icon';
 
 const _ = cockpit.gettext;
 
@@ -52,6 +59,20 @@ export class Replication extends React.Component {
 
             showDisableConfirm: false,
             loaded: false,
+            suffixTreeLoaded: false,
+            suffixTreeLoading: false,
+            attrsLoaded: false,
+            attrsLoading: false,
+            replConfigLoaded: false,
+            replConfigLoading: false,
+            changelogLoaded: false,
+            changelogLoading: false,
+            agmtsLoaded: false,
+            agmtsLoading: false,
+            winsyncLoaded: false,
+            winsyncLoading: false,
+            ruvLoaded: false,
+            ruvLoading: false,
         };
 
         // General
@@ -70,18 +91,38 @@ export class Replication extends React.Component {
         this.reloadChangelog = this.reloadChangelog.bind(this);
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
         this.loadLDIFs = this.loadLDIFs.bind(this);
+        this.resetLoadProgress = this.resetLoadProgress.bind(this);
+    }
+
+    resetLoadProgress() {
+        this.setState({
+            loaded: false,
+            suffixTreeLoaded: false,
+            suffixTreeLoading: false,
+            attrsLoaded: false,
+            attrsLoading: false,
+            replConfigLoaded: false,
+            replConfigLoading: false,
+            changelogLoaded: false,
+            changelogLoading: false,
+            agmtsLoaded: false,
+            agmtsLoading: false,
+            winsyncLoaded: false,
+            winsyncLoading: false,
+            ruvLoaded: false,
+            ruvLoading: false,
+        }, () => {
+            this.loadSuffixTree(true);
+        });
     }
 
     componentDidUpdate(prevProps) {
         if (this.props.wasActiveList.includes(3)) {
             if (this.state.firstLoad) {
-                this.loadSuffixTree(true);
-                if (!this.state.loaded) {
-                    this.loadAttrs();
-                }
+                this.resetLoadProgress();
             } else {
                 if (this.props.serverId !== prevProps.serverId) {
-                    this.loadSuffixTree(true);
+                    this.resetLoadProgress();
                 }
             }
         }
@@ -95,7 +136,7 @@ export class Replication extends React.Component {
         const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'get-changelog'];
         log_cmd("reloadChangelog", "Reload the changelog", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let clDir = "";
@@ -173,8 +214,19 @@ export class Replication extends React.Component {
         }
 
         this.setState({
-            loaded: false
+            loaded: false,
+            suffixTreeLoading: true,
         });
+
+        const basicData = [
+            {
+                name: _("Suffixes"),
+                icon: <TopologyIcon />,
+                id: "repl-suffixes",
+                children: [],
+                defaultExpanded: true
+            }
+        ];
 
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -182,7 +234,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("loadSuffixTree", "Start building the suffix tree", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     let treeData = [];
                     if (content !== "") {
@@ -198,15 +250,7 @@ export class Replication extends React.Component {
                             }
                         }
                     }
-                    const basicData = [
-                        {
-                            name: _("Suffixes"),
-                            icon: <TopologyIcon />,
-                            id: "repl-suffixes",
-                            children: [],
-                            defaultExpanded: true
-                        }
-                    ];
+
                     let current_node = this.state.node_name;
                     let current_type = this.state.node_type;
                     let replicated = this.state.node_replicated;
@@ -254,7 +298,11 @@ export class Replication extends React.Component {
                             }
                         }
                         this.loadReplSuffix(current_node);
+                    } else {
+                        // There are no suffixes defined
+                        this.loadReplSuffix("");
                     }
+
 
                     basicData[0].children = treeData;
                     this.setState({
@@ -262,6 +310,24 @@ export class Replication extends React.Component {
                         node_name: current_node,
                         node_type: current_type,
                         node_replicated: replicated,
+                        suffixTreeLoaded: true,
+                        suffixTreeLoading: false,
+                    }, () => { this.update_tree_nodes() });
+                    this.loadAttrs();
+                })
+                .fail(err => {
+                    // Handle backend get-tree failure gracefully
+                    let current_node = this.state.node_name;
+                    let current_type = this.state.node_type;
+                    let replicated = this.state.node_replicated;
+
+                    this.setState({
+                        nodes: basicData,
+                        node_name: current_node,
+                        node_type: current_type,
+                        node_replicated: replicated,
+                        suffixTreeLoading: false,
+                        suffixTreeLoaded: true,
                     }, () => { this.update_tree_nodes() });
                 });
     }
@@ -299,7 +365,6 @@ export class Replication extends React.Component {
     update_tree_nodes() {
         // Enable the tree, and update the titles
         this.setState({
-            loaded: true,
             disableTree: false,
         }, () => {
             const className = 'pf-c-tree-view__list-item';
@@ -347,7 +412,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("reloadAgmts", "get repl agreements", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const obj = JSON.parse(content);
                     const rows = [];
@@ -423,7 +488,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("reloadWinsyncAgmts", "Get Winsync Agreements", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const obj = JSON.parse(content);
                     const ws_rows = [];
@@ -499,7 +564,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("reloadConfig", "Reload suffix repl config", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let current_role = "";
@@ -561,7 +626,7 @@ export class Replication extends React.Component {
             'replication', 'get-ruv', '--suffix=' + suffix];
         log_cmd('reloadRUV', 'Get the suffix RUV', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const ruvs = JSON.parse(content);
                     const ruv_rows = [];
@@ -587,11 +652,11 @@ export class Replication extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    if (errMsg.desc !== "No such object") {
+                    const errMsg = getApiErrorMessage(err);
+                    if (errMsg !== "No such object") {
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg.desc)
+                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg)
                         );
                     }
                     this.setState({
@@ -607,7 +672,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("loadLDIFs", "Load replication LDIF Files", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const rows = [];
@@ -618,6 +683,7 @@ export class Replication extends React.Component {
                     }
                     this.setState({
                         ldifRows: rows,
+                        loaded: true,
                     }, () => { this.update_tree_nodes() });
                 });
     }
@@ -634,6 +700,16 @@ export class Replication extends React.Component {
             activeKey: 1,
             suffixLoading: true,
             [suffix]: {},
+            replConfigLoading: true,
+            replConfigLoaded: false,
+            changelogLoaded: false,
+            changelogLoading: false,
+            agmtsLoaded: false,
+            agmtsLoading: false,
+            winsyncLoaded: false,
+            winsyncLoading: false,
+            ruvLoaded: false,
+            ruvLoading: false,
         });
 
         let cmd = [
@@ -642,7 +718,7 @@ export class Replication extends React.Component {
         ];
         log_cmd("loadReplSuffix", "Load suffix repl config", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     let current_role = "";
@@ -685,13 +761,19 @@ export class Replication extends React.Component {
                             clTrimInt: "",
                             clEncrypt: false,
                         }
-                    }, this.loadLDIFs);
+                    }, () => {
+                        this.setState({
+                            replConfigLoaded: true,
+                            replConfigLoading: false,
+                            changelogLoading: true,
+                        });
+                    });
 
                     cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
                         'replication', 'get-changelog', '--suffix', suffix];
                     log_cmd("loadReplSuffix", "Load the replication info", cmd);
                     cockpit
-                            .spawn(cmd, { superuser: true, err: "message" })
+                            .spawn(cmd, { superuser: "require", err: "message" })
                             .done(content => {
                                 const config = JSON.parse(content);
                                 let clMaxEntries = "";
@@ -704,7 +786,18 @@ export class Replication extends React.Component {
                                         clMaxEntries = val;
                                     }
                                     if (attr === "nsslapd-changelogmaxage") {
-                                        clMaxAge = val;
+                                        // Add duration value if missing
+                                        if (val !== "-1") {
+                                            const unit = val[val.length - 1];
+                                            if (unit >= '0' && unit <= '9') {
+                                                // Missing duration unit, assume seconds
+                                                clMaxAge = val + "s";
+                                            } else {
+                                                clMaxAge = val;
+                                            }
+                                        } else {
+                                            clMaxAge = val;
+                                        }
                                     }
                                     if (attr === "nsslapd-changelogtrim-interval") {
                                         clTrimInt = val;
@@ -721,6 +814,12 @@ export class Replication extends React.Component {
                                         clTrimInt,
                                         clEncrypt,
                                     }
+                                }, () => {
+                                    this.setState({
+                                        changelogLoaded: true,
+                                        changelogLoading: false,
+                                        agmtsLoading: true,
+                                    });
                                 });
 
                                 // Now load agmts, then the winsync agreement, and finally the RUV
@@ -730,7 +829,7 @@ export class Replication extends React.Component {
                                 ];
                                 log_cmd("loadReplSuffix", "get repl agreements", cmd);
                                 cockpit
-                                        .spawn(cmd, { superuser: true, err: "message" })
+                                        .spawn(cmd, { superuser: "require", err: "message" })
                                         .done(content => {
                                             const obj = JSON.parse(content);
                                             const rows = [];
@@ -783,6 +882,12 @@ export class Replication extends React.Component {
                                                     ...this.state[suffix],
                                                     agmtRows: rows,
                                                 }
+                                            }, () => {
+                                                this.setState({
+                                                    agmtsLoaded: true,
+                                                    agmtsLoading: false,
+                                                    winsyncLoading: true,
+                                                });
                                             });
 
                                             // Load winsync agreements
@@ -792,7 +897,7 @@ export class Replication extends React.Component {
                                             ];
                                             log_cmd("loadReplSuffix", "Get Winsync Agreements", cmd);
                                             cockpit
-                                                    .spawn(cmd, { superuser: true, err: "message" })
+                                                    .spawn(cmd, { superuser: "require", err: "message" })
                                                     .done(content => {
                                                         const obj = JSON.parse(content);
                                                         const ws_rows = [];
@@ -845,6 +950,12 @@ export class Replication extends React.Component {
                                                                 ...this.state[suffix],
                                                                 winsyncRows: ws_rows,
                                                             }
+                                                        }, () => {
+                                                            this.setState({
+                                                                winsyncLoaded: true,
+                                                                winsyncLoading: false,
+                                                                ruvLoading: true,
+                                                            });
                                                         });
 
                                                         // Load suffix RUV
@@ -852,7 +963,7 @@ export class Replication extends React.Component {
                                                             'replication', 'get-ruv', '--suffix=' + suffix];
                                                         log_cmd('loadReplSuffix', 'Get the suffix RUV', cmd);
                                                         cockpit
-                                                                .spawn(cmd, { superuser: true, err: "message" })
+                                                                .spawn(cmd, { superuser: "require", err: "message" })
                                                                 .done(content => {
                                                                     const ruvs = JSON.parse(content);
                                                                     const ruv_rows = [];
@@ -874,80 +985,102 @@ export class Replication extends React.Component {
                                                                             ...this.state[suffix],
                                                                             ruvRows: ruv_rows,
                                                                         },
+                                                                        ruvLoaded: true,
+                                                                        ruvLoading: false,
                                                                         suffixLoading: false,
-                                                                        disableTree: false
+                                                                        disableTree: false,
+                                                                    }, () => {
+                                                                        this.loadLDIFs();
                                                                     });
                                                                 })
                                                                 .fail(err => {
-                                                                    const errMsg = JSON.parse(err);
-                                                                    if (errMsg.desc !== "No such object" &&
-                                                                        !errMsg.desc.includes('There is no RUV for suffix')) {
+                                                                    const errMsg = getApiErrorMessage(err);
+                                                                    if (errMsg !== "No such object" &&
+                                                                        !errMsg.includes('There is no RUV for suffix')) {
                                                                         this.props.addNotification(
                                                                             "error",
-                                                                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg.desc)
+                                                                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg)
                                                                         );
                                                                     }
                                                                     this.setState({
+                                                                        ruvLoading: false,
                                                                         suffixLoading: false,
                                                                         disableTree: false
+                                                                    }, () => {
+                                                                        this.loadLDIFs();
                                                                     });
                                                                 });
                                                     })
                                                     .fail(err => {
-                                                        const errMsg = JSON.parse(err);
+                                                        const errMsg = getApiErrorMessage(err);
                                                         this.props.addNotification(
                                                             "error",
-                                                            cockpit.format(_("Error loading winsync agreements - $0"), errMsg.desc)
+                                                            cockpit.format(_("Error loading winsync agreements - $0"), errMsg)
                                                         );
                                                         this.setState({
+                                                            winsyncLoading: false,
                                                             suffixLoading: false,
                                                             disableTree: false
+                                                        }, () => {
+                                                            this.loadLDIFs();
                                                         });
                                                     });
-                                        })
-                                        .fail(err => {
-                                            const errMsg = JSON.parse(err);
-                                            this.props.addNotification(
-                                                "error",
-                                                cockpit.format(_("Error loading replication agreements configuration - $0"), errMsg.desc)
-                                            );
-                                            this.setState({
-                                                suffixLoading: false,
-                                                disableTree: false
+                                            })
+                                            .fail(err => {
+                                                const errMsg = getApiErrorMessage(err);
+                                                this.props.addNotification(
+                                                    "error",
+                                                    cockpit.format(_("Error loading replication agreements configuration - $0"), errMsg)
+                                                );
+                                                this.setState({
+                                                    agmtsLoading: false,
+                                                    suffixLoading: false,
+                                                    disableTree: false
+                                                }, () => {
+                                                    this.loadLDIFs();
+                                                });
                                             });
-                                        });
                             })
                             .fail(err => {
                                 // changelog failure
-                                const errMsg = JSON.parse(err);
+                                const errMsg = getApiErrorMessage(err);
                                 this.props.addNotification(
                                     "error",
-                                    cockpit.format(_("Error loading replication changelog configuration - $0"), errMsg.desc)
+                                    cockpit.format(_("Error loading replication changelog configuration - $0"), errMsg)
                                 );
                                 this.setState({
+                                    changelogLoading: false,
                                     suffixLoading: false,
                                     disableTree: false
+                                }, () => {
+                                    this.loadLDIFs();
                                 });
                             });
                 })
                 .fail(() => {
                     this.setState({
+                        replConfigLoading: false,
                         suffixLoading: false,
                         disableTree: false,
                         node_replicated: false
+                    }, () => {
+                        this.loadLDIFs();
                     });
                 });
     }
 
     loadAttrs() {
         // Now get the schema that various tabs use
+        this.setState({
+            attrsLoading: true,
+        });
         const attr_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "schema", "attributetypes", "list"
         ];
         log_cmd("Suffixes", "Get attrs", attr_cmd);
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(attr_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
                     const attrs = [];
@@ -956,6 +1089,19 @@ export class Replication extends React.Component {
                     }
                     this.setState({
                         attributes: attrs,
+                        attrsLoaded: true,
+                        attrsLoading: false,
+                    });
+                }).fail(err => {
+                    const errMsg = getApiErrorMessage(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Error loading attributes - $0"), errMsg)
+                    );
+                    this.setState({
+                        attributes: [],
+                        attrsLoaded: true,
+                        attrsLoading: false,
                     });
                 });
     }
@@ -984,9 +1130,87 @@ export class Replication extends React.Component {
             repl_page = (
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
-                        <Text component={TextVariants.h3}>{_("Loading Replication Information ...")}</Text>
+                        <Text component={TextVariants.h3}>
+                            {_("Loading Replication Information ...")}
+                            <Spinner isInline className="ds-left-margin" size="lg" />
+                        </Text>
                     </TextContent>
-                    <Spinner className="ds-margin-top-lg" size="xl" />
+                    <ProgressStepper
+                        className="ds-margin-top-xlg"
+                        aria-label="Progress stepper for replication loading"
+                        isCenterAligned
+                    >
+                        <ProgressStep
+                            isCurrent={this.state.suffixTreeLoading}
+                            variant={this.state.suffixTreeLoaded ? "success" : "pending"}
+                            icon={!this.state.suffixTreeLoaded ? this.state.suffixTreeLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="suffixTreeLoading"
+                            titleId="load suffix tree"
+                            aria-label="Loading suffix tree step"
+                        >
+                            {!this.state.suffixTreeLoaded ? _("Loading Suffix Tree") : _("Suffix Tree Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.attrsLoading}
+                            variant={this.state.attrsLoaded ? "success" : "pending"}
+                            icon={!this.state.attrsLoaded ? this.state.attrsLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="attrsLoading"
+                            titleId="load replication attributes"
+                            aria-label="Loading replication attributes step"
+                        >
+                            {!this.state.attrsLoaded ? _("Loading Schema") : _("Schema Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.replConfigLoading}
+                            variant={this.state.replConfigLoaded ? "success" : "pending"}
+                            icon={!this.state.replConfigLoaded ? this.state.replConfigLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="replConfigLoading"
+                            titleId="load replication suffix configuration"
+                            aria-label="Loading replication configuration step"
+                        >
+                            {!this.state.replConfigLoaded ? _("Loading Replication Config") : _("Replication Config Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.changelogLoading}
+                            variant={this.state.changelogLoaded ? "success" : "pending"}
+                            icon={!this.state.changelogLoaded ? this.state.changelogLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="changelogLoading"
+                            titleId="load replication changelog settings"
+                            aria-label="Loading replication changelog step"
+                        >
+                            {!this.state.changelogLoaded ? _("Loading Changelog") : _("Changelog Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.agmtsLoading}
+                            variant={this.state.agmtsLoaded ? "success" : "pending"}
+                            icon={!this.state.agmtsLoaded ? this.state.agmtsLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="agmtsLoading"
+                            titleId="load replication agreements"
+                            aria-label="Loading replication agreements step"
+                        >
+                            {!this.state.agmtsLoaded ? _("Loading Agreements") : _("Agreements Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.winsyncLoading}
+                            variant={this.state.winsyncLoaded ? "success" : "pending"}
+                            icon={!this.state.winsyncLoaded ? this.state.winsyncLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="winsyncLoading"
+                            titleId="load winsync agreements"
+                            aria-label="Loading winsync agreements step"
+                        >
+                            {!this.state.winsyncLoaded ? _("Loading Winsync Agreements") : _("Winsync Agreements Loaded")}
+                        </ProgressStep>
+                        <ProgressStep
+                            isCurrent={this.state.ruvLoading}
+                            variant={this.state.ruvLoaded ? "success" : "pending"}
+                            icon={!this.state.ruvLoaded ? this.state.ruvLoading ? <InProgressIcon /> : <PendingIcon /> : <CheckCircleIcon />}
+                            id="ruvLoading"
+                            titleId="load suffix ruv"
+                            aria-label="Loading suffix ruv step"
+                        >
+                            {!this.state.ruvLoaded ? _("Loading RUV") : _("RUV Loaded")}
+                        </ProgressStep>
+                    </ProgressStepper>
                 </div>
             );
         } else {
@@ -1000,7 +1224,23 @@ export class Replication extends React.Component {
                     </div>
                 );
             } else {
-                if (this.state.node_name in this.state) {
+                if (this.state.node_name === "") {
+                    repl_element = (
+                        <div className="ds-margin-top-xlg ds-center">
+                            <TextContent>
+                                <Text component={TextVariants.h3}>{_("There are no suffixes in the database")}</Text>
+                                <Button
+                                    variant="primary"
+                                    onClick={() => {
+                                        this.loadSuffixTree(true);
+                                    }}
+                                >
+                                    {_("Refresh")}
+                                </Button>
+                            </TextContent>
+                        </div>
+                    );
+                } else if (this.state.node_name in this.state) {
                     repl_element = (
                         <div>
                             <ReplSuffix
@@ -1018,7 +1258,7 @@ export class Replication extends React.Component {
                                 reloadRUV={this.reloadRUV}
                                 reloadConfig={this.reloadConfig}
                                 reloadLDIF={this.loadLDIFs}
-                                reload={this.loadSuffixTree}
+                                reload={this.resetLoadProgress}
                                 attrs={this.state.attributes}
                                 replicated={this.state.node_replicated}
                                 enableTree={this.enableTree}
@@ -1045,7 +1285,7 @@ export class Replication extends React.Component {
                             reloadRUV={this.reloadRUV}
                             reloadLDIF={this.loadLDIFs}
                             reloadConfig={this.reloadConfig}
-                            reload={this.loadSuffixTree}
+                            reload={this.resetLoadProgress}
                             attrs={this.state.attributes}
                             replicated={this.state.node_replicated}
                             enableTree={this.enableTree}
@@ -1061,17 +1301,15 @@ export class Replication extends React.Component {
             repl_page = (
                 <div className="container-fluid">
                     <div className="ds-container">
-                        <div>
-                            <div className="ds-tree">
-                                <div className={disabled} id="repl-tree">
-                                    <TreeView
-                                        data={nodes}
-                                        activeItems={this.state.activeItems}
-                                        onSelect={this.handleTreeClick}
-                                    />
-                                </div>
+                        <Card className="ds-tree">
+                            <div className={disabled} id="repl-tree">
+                                <TreeView
+                                    data={nodes}
+                                    activeItems={this.state.activeItems}
+                                    onSelect={this.handleTreeClick}
+                                />
                             </div>
-                        </div>
+                        </Card>
                         <div className="ds-tree-content">
                             {repl_element}
                         </div>

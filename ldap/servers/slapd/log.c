@@ -1,7 +1,7 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005-2024 Red Hat, Inc.
  * Copyright (C) 2010 Hewlett-Packard Development Company, L.P.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -35,7 +35,7 @@
 #include <assert.h>
 #include <execinfo.h>
 
-#ifdef SYSTEMTAP
+#ifdef USDT
 #include <sys/sdt.h>
 #endif
 
@@ -85,7 +85,6 @@ static int slapi_log_map[] = {
     LDAP_DEBUG_NOTICE,     /* SLAPI_LOG_NOTICE */
     LDAP_DEBUG_INFO,       /* SLAPI_LOG_INFO */
     LDAP_DEBUG_DEBUG       /* SLAPI_LOG_DEBUG */
-
 };
 
 #define SLAPI_LOG_MIN SLAPI_LOG_FATAL /* from slapi-plugin.h */
@@ -93,6 +92,10 @@ static int slapi_log_map[] = {
 #define LOG_CHUNK 16384 /* zlib compression */
 #define FLUSH PR_TRUE
 #define NO_FLUSH PR_FALSE
+
+#define  HEXADUMP_TAB 4
+/* 4 characters per bytes:  2 hexa digits, 1 space and the ascii  */
+#define  HEXADUMP_BUF_SIZE (4*16+HEXADUMP_TAB)
 
 /**************************************************************************
  * PROTOTYPES
@@ -103,17 +106,24 @@ static int log__open_errorlogfile(int logfile_type, int locked);
 static int log__open_auditlogfile(int logfile_type, int locked);
 static int log__open_auditfaillogfile(int logfile_type, int locked);
 static int log__needrotation(LOGFD fp, int logtype);
-static int log__delete_access_logfile(void);
-static int log__delete_security_logfile(void);
-static int log__delete_error_logfile(int locked);
-static int log__delete_audit_logfile(void);
-static int log__delete_auditfail_logfile(void);
+static int log__delete_access_logfile(bool at_rotation);
+static int log__delete_security_logfile(bool at_rotation);
+static int log__delete_error_logfile(int locked, bool at_rotation);
+static int log__delete_audit_logfile(bool at_rotation);
+static int log__delete_auditfail_logfile(bool at_rotation);
+static int log__write_rotationinfo(int logtype);
+static void log__update_logentry_compressed_size(const char *log_file, PRInt64 maxlogsize,
+                                                 LogFileInfo *logp);
+static LogFileInfo *log__find_chain_entry(LogFileInfo *chain, time_t ctime);
+static void log__purge_rotated_logchain(LogFileInfo **logchain, unsigned int *numof_logs,
+                                        const char *log_file, int logtype);
+static void log_maint_after_compress(int stream_idx, time_t log_ctime);
 static int log__access_rotationinfof(char *pathname);
 static int log__security_rotationinfof(char *pathname);
 static int log__error_rotationinfof(char *pathname);
 static int log__audit_rotationinfof(char *pathname);
 static int log__auditfail_rotationinfof(char *pathname);
-static int log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size, PRBool *compressed);
+static int log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size, bool *compressed);
 static int log__check_prevlogs(FILE *fp, char *filename);
 static PRInt64 log__getfilesize(LOGFD fp);
 static PRInt64 log__getfilesize_with_filename(char *filename);
@@ -126,17 +136,21 @@ static void log_convert_time(time_t ctime, char *tbuf, int type);
 static time_t log_reverse_convert_time(char *tbuf);
 static LogBufferInfo *log_create_buffer(size_t sz);
 static void log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
-static void log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
+static void log_access_writer_init(void);
+static void log_access_flush(int sync_now);
+static void log_append_access_buffer(time_t tnl, char *msg1, size_t size1, char *msg2, size_t size2);
+static void log_append_access_json_buffer(time_t tnl, char *msg, size_t size);
 static void log_append_audit_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_auditfail_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_error_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size, int locked);
 static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now, int locked);
 static void log_write_title(LOGFD fp);
-static void log__error_emergency(const char *errstr, int reopen, int locked);
+static void log_write_json_title(LOGFD fp, int32_t log_format);
 static void vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked);
 static int get_syslog_loglevel(int loglevel);
 static void log_external_libs_debug_openldap_print(char *buffer);
 static int log__fix_rotationinfof(char *pathname);
+static int log__validate_rotated_logname(const char *timestamp_str, bool *is_compressed);
 
 static int
 get_syslog_loglevel(int loglevel)
@@ -174,25 +188,54 @@ get_syslog_loglevel(int loglevel)
 }
 
 static int
-compress_log_file(char *log_name)
+compress_log_file(char *log_name, int32_t mode)
 {
     char gzip_log[BUFSIZ] = {0};
     char buf[LOG_CHUNK] = {0};
     size_t bytes_read = 0;
     gzFile outfile = NULL;
     FILE *source = NULL;
+    int fd = 0;
+    PRFileInfo64 info;
 
     PR_snprintf(gzip_log, sizeof(gzip_log), "%s.gz", log_name);
-    if ((outfile = gzopen(gzip_log,"wb")) == NULL) {
-        /* Failed to open new gzip file */
+
+    /*
+     * Idempotent: a prior job may have already compressed this archive
+     * (duplicate queue entries or same-second rotation names).
+     */
+    if (PR_GetFileInfo64(gzip_log, &info) == PR_SUCCESS && info.size > 0) {
+        PR_Delete(log_name);
+        return 0;
+    }
+
+    /*
+     * Try to open the file as we may have an incorrect path. We also need to
+     * set the permissions using open() as gzopen() creates the file with
+     * 644 permissions (world readable - bad). So we create an empty file with
+     * the correct permissions, then we pass the FD to gzdopen() to write the
+     * compressed content.
+     */
+    if ((fd = open(gzip_log, O_WRONLY|O_CREAT|O_TRUNC, mode)) >= 0) {
+        /* File successfully created, now pass the FD to gzdopen() */
+        outfile = gzdopen(fd, "ab");
+        if (outfile == NULL) {
+            close(fd);
+            PR_Delete(gzip_log);
+            return -1;
+        }
+    } else {
         return -1;
     }
 
     if ((source = fopen(log_name, "r")) == NULL) {
         /* Failed to open log file */
         gzclose(outfile);
+        PR_Delete(gzip_log);
+        /* coverity[leaked_handle] gzclose does close FD */
         return -1;
     }
+
     bytes_read = fread(buf, 1, LOG_CHUNK, source);
     while (bytes_read > 0) {
         int bytes_written = gzwrite(outfile, buf, bytes_read);
@@ -200,6 +243,7 @@ compress_log_file(char *log_name)
         {
             fclose(source);
             gzclose(outfile);
+            /* coverity[leaked_handle] gzclose does close FD */
             return -1;
         }
         bytes_read = fread(buf, 1, LOG_CHUNK, source);
@@ -208,7 +252,600 @@ compress_log_file(char *log_name)
     fclose(source);
     PR_Delete(log_name); /* remove the old uncompressed log */
 
+    /* coverity[leaked_handle] gzclose does close FD */
     return 0;
+}
+
+#define LOG_MAINT_NUM_STREAMS 5
+
+/*
+ * Async log maintenance: background gzip and retention for all log streams.
+ * A single worker thread (log_maint) drains one global FIFO queue. During
+ * rotation, jobs are staged on a per-stream pending list under the write lock
+ * and handed to the worker when LOG_*_UNLOCK_WRITE() runs.
+ */
+
+/* Job ready for or being processed by the maintenance worker */
+typedef struct log_maintenance_job {
+    struct log_maintenance_job *next;
+    int logtype;              /* SLAPD_*_LOG stream identifier */
+    char *path;               /* archived file path (compress jobs) */
+    int32_t mode;             /* file mode for created .gz */
+    time_t log_ctime;         /* chain node key to update after compress */
+} LogMaintenanceJob;
+
+static void log_maint_free_job(LogMaintenanceJob *job);
+
+/* Job staged on a stream pending list during rotation (before write unlock) */
+typedef struct log_maint_pending_job {
+    struct log_maint_pending_job *next;
+    char *path;
+    int32_t mode;
+    time_t log_ctime;
+} LogMaintPendingJob;
+
+/* Per-stream state: pending list only (queue and worker are global) */
+typedef struct {
+    int logtype;
+    const char *stream_name;
+    PRLock *pending_lock;
+    LogMaintPendingJob *pending_head;
+    LogMaintPendingJob *pending_tail;
+} LogMaintenanceStream;
+
+/* Global maintenance worker, queue, and shutdown coordination */
+typedef struct {
+    PRLock *lock;
+    PRCondVar *cvar;
+    LogMaintenanceJob *queue_head;
+    LogMaintenanceJob *queue_tail;
+    PRThread *worker;
+    bool shutdown;
+    char *active_compress_path;   /* path being compressed by worker */
+    int active_compress_logtype;    /* SLAPD_*_LOG for active_compress_path */
+} LogMaintenanceGlobal;
+
+static LogMaintenanceStream log_maint_streams[LOG_MAINT_NUM_STREAMS];
+static LogMaintenanceGlobal log_maint_global;
+static bool log_maint_initialized = false;
+
+/*
+ * Map SLAPD_*_LOG constant to log_maint_streams[] index, or -1 if unknown.
+ */
+static int
+log_maint_stream_index(int logtype)
+{
+    switch (logtype) {
+    case SLAPD_ACCESS_LOG:
+        return 0;
+    case SLAPD_SECURITY_LOG:
+        return 1;
+    case SLAPD_ERROR_LOG:
+        return 2;
+    case SLAPD_AUDIT_LOG:
+        return 3;
+    case SLAPD_AUDITFAIL_LOG:
+        return 4;
+    default:
+        return -1;
+    }
+}
+
+/*
+ * Return true if path is on this stream's pending compress list.
+ * Caller must hold stream->pending_lock.
+ */
+static bool
+log_maint_path_pending_locked(LogMaintenanceStream *stream, const char *path)
+{
+    LogMaintPendingJob *pending = NULL;
+
+    for (pending = stream->pending_head; pending; pending = pending->next) {
+        if (pending->path && path && strcmp(pending->path, path) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/*
+ * Return true if a compress job for path is already pending, queued, or
+ * being processed for this stream.
+ */
+static bool
+log_maint_compress_path_scheduled(int logtype, const char *path)
+{
+    int idx = log_maint_stream_index(logtype);
+    LogMaintenanceStream *stream = NULL;
+    LogMaintenanceJob *job = NULL;
+
+    if (idx < 0 || path == NULL) {
+        return false;
+    }
+
+    stream = &log_maint_streams[idx];
+    PR_Lock(stream->pending_lock);
+    if (log_maint_path_pending_locked(stream, path)) {
+        PR_Unlock(stream->pending_lock);
+        return true;
+    }
+    PR_Unlock(stream->pending_lock);
+
+    PR_Lock(log_maint_global.lock);
+    if (log_maint_global.active_compress_path != NULL &&
+        log_maint_global.active_compress_logtype == logtype &&
+        strcmp(log_maint_global.active_compress_path, path) == 0) {
+        PR_Unlock(log_maint_global.lock);
+        return true;
+    }
+    for (job = log_maint_global.queue_head; job != NULL; job = job->next) {
+        if (job->logtype == logtype &&
+            job->path != NULL &&
+            strcmp(job->path, path) == 0) {
+            PR_Unlock(log_maint_global.lock);
+            return true;
+        }
+    }
+    PR_Unlock(log_maint_global.lock);
+
+    return false;
+}
+
+/*
+ * Find a rotation-chain node by creation time. Caller must hold the stream
+ * write lock if the chain may be mutated concurrently.
+ */
+static LogFileInfo *
+log__find_chain_entry(LogFileInfo *chain, time_t ctime)
+{
+    LogFileInfo *logp = NULL;
+
+    for (logp = chain; logp != NULL; logp = logp->l_next) {
+        if (logp->l_ctime == ctime) {
+            return logp;
+        }
+    }
+    return NULL;
+}
+
+/*
+ * After a successful background compress: update chain metadata, rewrite
+ * *.rotationinfo, and run retention deletes for the stream. Caller holds
+ * no locks; this function acquires the stream write lock.
+ */
+static void
+log_maint_after_compress(int stream_idx, time_t log_ctime)
+{
+    LogFileInfo *entry = NULL;
+
+    switch (log_maint_streams[stream_idx].logtype) {
+    case SLAPD_ACCESS_LOG:
+        LOG_ACCESS_LOCK_WRITE();
+        entry = log__find_chain_entry(loginfo.log_access_logchain, log_ctime);
+        if (entry != NULL) {
+            entry->l_compressed = true;
+            log__update_logentry_compressed_size(loginfo.log_access_file,
+                                                 loginfo.log_access_maxlogsize,
+                                                 entry);
+        }
+        log__write_rotationinfo(SLAPD_ACCESS_LOG);
+        while (log__delete_access_logfile(LOG_DELETE_RETENTION))
+            ;
+        LOG_ACCESS_UNLOCK_WRITE();
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        entry = log__find_chain_entry(loginfo.log_security_logchain, log_ctime);
+        if (entry != NULL) {
+            entry->l_compressed = true;
+            log__update_logentry_compressed_size(loginfo.log_security_file,
+                                                 loginfo.log_security_maxlogsize,
+                                                 entry);
+        }
+        log__write_rotationinfo(SLAPD_SECURITY_LOG);
+        while (log__delete_security_logfile(LOG_DELETE_RETENTION))
+            ;
+        LOG_SECURITY_UNLOCK_WRITE();
+        break;
+    case SLAPD_ERROR_LOG:
+        LOG_ERROR_LOCK_WRITE();
+        entry = log__find_chain_entry(loginfo.log_error_logchain, log_ctime);
+        if (entry != NULL) {
+            entry->l_compressed = true;
+            log__update_logentry_compressed_size(loginfo.log_error_file,
+                                                 loginfo.log_error_maxlogsize,
+                                                 entry);
+        }
+        log__write_rotationinfo(SLAPD_ERROR_LOG);
+        while (log__delete_error_logfile(1, LOG_DELETE_RETENTION))
+            ;
+        LOG_ERROR_UNLOCK_WRITE();
+        break;
+    case SLAPD_AUDIT_LOG:
+        LOG_AUDIT_LOCK_WRITE();
+        entry = log__find_chain_entry(loginfo.log_audit_logchain, log_ctime);
+        if (entry != NULL) {
+            entry->l_compressed = true;
+            log__update_logentry_compressed_size(loginfo.log_audit_file,
+                                                 loginfo.log_audit_maxlogsize,
+                                                 entry);
+        }
+        log__write_rotationinfo(SLAPD_AUDIT_LOG);
+        while (log__delete_audit_logfile(LOG_DELETE_RETENTION))
+            ;
+        LOG_AUDIT_UNLOCK_WRITE();
+        break;
+    case SLAPD_AUDITFAIL_LOG:
+        LOG_AUDITFAIL_LOCK_WRITE();
+        entry = log__find_chain_entry(loginfo.log_auditfail_logchain, log_ctime);
+        if (entry != NULL) {
+            entry->l_compressed = true;
+            log__update_logentry_compressed_size(loginfo.log_auditfail_file,
+                                                 loginfo.log_auditfail_maxlogsize,
+                                                 entry);
+        }
+        log__write_rotationinfo(SLAPD_AUDITFAIL_LOG);
+        while (log__delete_auditfail_logfile(LOG_DELETE_RETENTION))
+            ;
+        LOG_AUDITFAIL_UNLOCK_WRITE();
+        break;
+    default:
+        break;
+    }
+}
+
+/*
+ * Dispatch one dequeued maintenance job (compress or retention sweep).
+ * compress_log_file() runs without any log write lock held.
+ */
+static void
+log_maint_process_job(LogMaintenanceJob *job)
+{
+    int stream_idx = log_maint_stream_index(job->logtype);
+
+    if (stream_idx < 0) {
+        return;
+    }
+
+    if (compress_log_file(job->path, job->mode) == 0) {
+        log_maint_after_compress(stream_idx, job->log_ctime);
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, "log_maint_process_job",
+                        "Log maintenance failed: stream=%s file=%s reason=compress failed (errno %d: %s)\n",
+                        log_maint_streams[stream_idx].stream_name, job->path, errno,
+                        slapd_system_strerror(errno));
+    }
+}
+
+/*
+ * Global maintenance worker thread: wait on the queue, dequeue, process.
+ */
+static void
+log_maint_worker(void *arg)
+{
+    bool shutting_down = false;
+    (void)arg;
+
+    slapi_set_thread_name("log_maint");
+
+    while (1) {
+        LogMaintenanceJob *job = NULL;
+
+        PR_Lock(log_maint_global.lock);
+        while (log_maint_global.queue_head == NULL && !log_maint_global.shutdown) {
+            PR_WaitCondVar(log_maint_global.cvar, PR_INTERVAL_NO_TIMEOUT);
+        }
+        if (log_maint_global.shutdown && log_maint_global.queue_head == NULL) {
+            PR_Unlock(log_maint_global.lock);
+            break;
+        } else if (log_maint_global.shutdown && !shutting_down) {
+            shutting_down = true;
+        }
+        job = log_maint_global.queue_head;
+        log_maint_global.queue_head = job->next;
+        if (log_maint_global.queue_head == NULL) {
+            log_maint_global.queue_tail = NULL;
+        }
+        log_maint_global.active_compress_path = job->path;
+        log_maint_global.active_compress_logtype = job->logtype;
+        PR_Unlock(log_maint_global.lock);
+
+        log_maint_process_job(job);
+
+        PR_Lock(log_maint_global.lock);
+        log_maint_global.active_compress_path = NULL;
+        log_maint_global.active_compress_logtype = 0;
+        PR_Unlock(log_maint_global.lock);
+
+        log_maint_free_job(job);
+    }
+}
+
+/*
+ * Free one maintenance queue job and its path string.
+ */
+static void
+log_maint_free_job(LogMaintenanceJob *job)
+{
+    if (job == NULL) {
+        return;
+    }
+    slapi_ch_free_string(&job->path);
+    slapi_ch_free((void **)&job);
+}
+
+/*
+ * Free all jobs still on the global maintenance queue.
+ */
+static void
+log_maint_free_global_queue(void)
+{
+    LogMaintenanceJob *job = NULL;
+    LogMaintenanceJob *next = NULL;
+
+    for (job = log_maint_global.queue_head; job != NULL; job = next) {
+        next = job->next;
+        log_maint_free_job(job);
+    }
+    log_maint_global.queue_head = NULL;
+    log_maint_global.queue_tail = NULL;
+}
+
+/*
+ * Free any jobs left on a stream pending list.
+ */
+static void
+log_maint_free_stream_pending(LogMaintenanceStream *stream)
+{
+    LogMaintPendingJob *pending = NULL;
+    LogMaintPendingJob *next = NULL;
+
+    if (stream == NULL || stream->pending_lock == NULL) {
+        return;
+    }
+
+    PR_Lock(stream->pending_lock);
+    pending = stream->pending_head;
+    stream->pending_head = NULL;
+    stream->pending_tail = NULL;
+    PR_Unlock(stream->pending_lock);
+
+    for (; pending != NULL; pending = next) {
+        next = pending->next;
+        slapi_ch_free_string(&pending->path);
+        slapi_ch_free((void **)&pending);
+    }
+}
+
+/*
+ * Destroy maintenance synchronization objects. Pending lists and the global
+ * queue must already be empty.
+ */
+static void
+log_maint_destroy_sync(void)
+{
+    size_t i = 0;
+
+    if (log_maint_global.cvar != NULL) {
+        PR_DestroyCondVar(log_maint_global.cvar);
+        log_maint_global.cvar = NULL;
+    }
+    if (log_maint_global.lock != NULL) {
+        PR_DestroyLock(log_maint_global.lock);
+        log_maint_global.lock = NULL;
+    }
+    for (i = 0; i < LOG_MAINT_NUM_STREAMS; i++) {
+        if (log_maint_streams[i].pending_lock != NULL) {
+            PR_DestroyLock(log_maint_streams[i].pending_lock);
+            log_maint_streams[i].pending_lock = NULL;
+        }
+    }
+}
+
+/*
+ * Append a job to the global FIFO and wake the worker. Caller must set job fields.
+ */
+static void
+log_maint_enqueue_job(LogMaintenanceJob *job)
+{
+    if (job == NULL) {
+        return;
+    }
+
+    PR_Lock(log_maint_global.lock);
+    if (log_maint_global.queue_tail != NULL) {
+        log_maint_global.queue_tail->next = job;
+    } else {
+        log_maint_global.queue_head = job;
+    }
+    log_maint_global.queue_tail = job;
+    PR_NotifyCondVar(log_maint_global.cvar);
+    PR_Unlock(log_maint_global.lock);
+}
+
+/*
+ * Stage a compress job on the stream pending list during rotation.
+ * Must be called while the stream write lock is held. Duplicate paths are
+ * ignored (pending list, global queue, and in-flight worker job).
+ */
+static void
+log_maint_schedule_compress(int logtype, const char *path, int32_t mode, time_t log_ctime)
+{
+    int idx = log_maint_stream_index(logtype);
+    LogMaintPendingJob *job = NULL;
+    LogMaintenanceStream *stream = NULL;
+
+    if (idx < 0 || path == NULL || !log_maint_initialized) {
+        return;
+    }
+
+    stream = &log_maint_streams[idx];
+    if (log_maint_compress_path_scheduled(logtype, path)) {
+        return;
+    }
+
+    job = (LogMaintPendingJob *)slapi_ch_calloc(1, sizeof(LogMaintPendingJob));
+    job->path = slapi_ch_strdup(path);
+    job->mode = mode;
+    job->log_ctime = log_ctime;
+
+    PR_Lock(stream->pending_lock);
+    if (stream->pending_tail != NULL) {
+        stream->pending_tail->next = job;
+    } else {
+        stream->pending_head = job;
+    }
+    stream->pending_tail = job;
+    PR_Unlock(stream->pending_lock);
+}
+
+/*
+ * Move all pending jobs for a stream onto the global queue. Called from
+ * LOG_*_UNLOCK_WRITE() after the write lock is released.
+ */
+void
+log_maint_submit_pending(int logtype)
+{
+    int idx = log_maint_stream_index(logtype);
+    LogMaintenanceStream *stream = NULL;
+    LogMaintPendingJob *pending = NULL;
+    LogMaintPendingJob *next = NULL;
+
+    if (idx < 0 || !log_maint_initialized) {
+        return;
+    }
+
+    stream = &log_maint_streams[idx];
+
+    PR_Lock(stream->pending_lock);
+    if (stream->pending_head == NULL) {
+        PR_Unlock(stream->pending_lock);
+        return;
+    }
+
+    pending = stream->pending_head;
+    stream->pending_head = NULL;
+    stream->pending_tail = NULL;
+    PR_Unlock(stream->pending_lock);
+
+    for (; pending; pending = next) {
+        LogMaintenanceJob *job = NULL;
+
+        next = pending->next;
+        job = (LogMaintenanceJob *)slapi_ch_calloc(1, sizeof(LogMaintenanceJob));
+        job->logtype = logtype;
+        job->path = pending->path;
+        pending->path = NULL;
+        job->mode = pending->mode;
+        job->log_ctime = pending->log_ctime;
+
+        log_maint_enqueue_job(job);
+        slapi_ch_free((void **)&pending);
+    }
+}
+
+/*
+ * Start the log_maint worker thread and per-stream pending lists.
+ * Called from g_log_init().
+ */
+void
+logs_maintenance_init(void)
+{
+    static const struct {
+        int logtype;
+        const char *stream_name;
+    } stream_cfg[LOG_MAINT_NUM_STREAMS] = {
+        {SLAPD_ACCESS_LOG, "access"},
+        {SLAPD_SECURITY_LOG, "security"},
+        {SLAPD_ERROR_LOG, "error"},
+        {SLAPD_AUDIT_LOG, "audit"},
+        {SLAPD_AUDITFAIL_LOG, "auditfail"},
+    };
+
+    if (log_maint_initialized) {
+        return;
+    }
+
+    for (size_t i = 0; i < LOG_MAINT_NUM_STREAMS; i++) {
+        log_maint_streams[i].logtype = stream_cfg[i].logtype;
+        log_maint_streams[i].stream_name = stream_cfg[i].stream_name;
+        log_maint_streams[i].pending_head = NULL;
+        log_maint_streams[i].pending_tail = NULL;
+        log_maint_streams[i].pending_lock = PR_NewLock();
+        if (log_maint_streams[i].pending_lock == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "logs_maintenance_init",
+                          "Failed to create log maintenance pending lock\n");
+            log_maint_destroy_sync();
+            exit(-1);
+        }
+    }
+
+    log_maint_global.lock = PR_NewLock();
+    log_maint_global.cvar = PR_NewCondVar(log_maint_global.lock);
+    if (log_maint_global.lock == NULL || log_maint_global.cvar == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "logs_maintenance_init",
+                      "Failed to create log maintenance lock\n");
+        log_maint_destroy_sync();
+        exit(-1);
+    }
+    log_maint_global.queue_head = NULL;
+    log_maint_global.queue_tail = NULL;
+    log_maint_global.shutdown = false;
+    log_maint_global.active_compress_path = NULL;
+    log_maint_global.active_compress_logtype = 0;
+
+    log_maint_global.worker = PR_CreateThread(PR_USER_THREAD,
+                                              log_maint_worker,
+                                              NULL,
+                                              PR_PRIORITY_NORMAL,
+                                              PR_GLOBAL_THREAD,
+                                              PR_JOINABLE_THREAD,
+                                              SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (log_maint_global.worker == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "logs_maintenance_init",
+                      "Failed to create log maintenance worker\n");
+        log_maint_destroy_sync();
+        exit(-1);
+    }
+
+    log_maint_initialized = true;
+}
+
+/*
+ * Flush pending jobs, signal worker shutdown, and join log_maint.
+ * Called from daemon shutdown before the final logs_flush().
+ */
+void
+logs_maintenance_shutdown(void)
+{
+    if (!log_maint_initialized) {
+        return;
+    }
+
+    for (size_t i = 0; i < LOG_MAINT_NUM_STREAMS; i++) {
+        log_maint_submit_pending(log_maint_streams[i].logtype);
+    }
+
+    PR_Lock(log_maint_global.lock);
+    log_maint_global.shutdown = true;
+    PR_NotifyCondVar(log_maint_global.cvar);
+    PR_Unlock(log_maint_global.lock);
+
+    if (log_maint_global.worker != NULL) {
+        (void)PR_JoinThread(log_maint_global.worker);
+        log_maint_global.worker = NULL;
+    }
+
+    log_maint_free_global_queue();
+    for (size_t i = 0; i < LOG_MAINT_NUM_STREAMS; i++) {
+        log_maint_free_stream_pending(&log_maint_streams[i]);
+    }
+    log_maint_global.active_compress_path = NULL;
+    log_maint_global.active_compress_logtype = 0;
+    log_maint_global.shutdown = false;
+    log_maint_initialized = false;
+
+    log_maint_destroy_sync();
 }
 
 static int
@@ -329,9 +966,10 @@ g_log_init()
     if (loginfo.log_access_buffer == NULL) {
         exit(-1);
     }
-    if ((loginfo.log_access_buffer->lock = PR_NewLock()) == NULL) {
+    if ((loginfo.log_access_lock = PR_NewLock()) == NULL) {
         exit(-1);
     }
+    log_access_writer_init();
     loginfo.log_access_stat_level = cfg->statloglevel;
 
     /* SECURITY LOG */
@@ -356,7 +994,7 @@ g_log_init()
     loginfo.log_security_fdes = NULL;
     loginfo.log_security_file = NULL;
     loginfo.log_securityinfo_file = NULL;
-    loginfo.log_numof_access_logs = 1;
+    loginfo.log_numof_security_logs = 1;
     loginfo.log_security_logchain = NULL;
     loginfo.log_security_buffer = log_create_buffer(LOG_BUFFER_MAXSIZE);
     loginfo.log_security_compress = cfg->securitylog_compress;
@@ -744,8 +1382,8 @@ log_update_accesslogdir(char *pathname, int apply)
     if (!(fp = PR_Open(pathname, PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
                        loginfo.log_access_mode)))
     {
-        slapi_log_err(SLAPI_LOG_WARNING, "log_update_accesslogdir - Can't open file %s. "
-                                         "errno %d (%s)\n",
+        slapi_log_err(SLAPI_LOG_WARNING, "log_update_accesslogdir",
+                      "Can't open file %s. errno %d (%s)\n",
                       pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
         return LDAP_UNWILLING_TO_PERFORM;
@@ -766,9 +1404,10 @@ log_update_accesslogdir(char *pathname, int apply)
         LogFileInfo *logp, *d_logp;
 
         slapi_log_err(SLAPI_LOG_TRACE,
+                      "log_update_accesslogdir",
                       "LOGINFO:Closing the access log file. "
                       "Moving to a new access log file (%s)\n",
-                      pathname, 0, 0);
+                      pathname);
 
         PR_Close(loginfo.log_access_fdes);
         loginfo.log_access_fdes = 0;
@@ -910,8 +1549,8 @@ log_update_auditlogdir(char *pathname, int apply)
     if (!(fp = PR_Open(pathname, PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
                        loginfo.log_audit_mode)))
     {
-        slapi_log_err(SLAPI_LOG_WARNING, "log_update_auditlogdir - Can't open file %s. "
-                                         "errno %d (%s)\n",
+        slapi_log_err(SLAPI_LOG_WARNING, "log_update_auditlogdir",
+                      "Can't open file %s. errno %d (%s)\n",
                       pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
         return LDAP_UNWILLING_TO_PERFORM;
@@ -931,9 +1570,10 @@ log_update_auditlogdir(char *pathname, int apply)
     if (loginfo.log_audit_fdes) {
         LogFileInfo *logp, *d_logp;
         slapi_log_err(SLAPI_LOG_TRACE,
+                      "log_update_auditlogdir",
                       "LOGINFO:Closing the audit log file. "
                       "Moving to a new audit file (%s)\n",
-                      pathname, 0, 0);
+                      pathname);
 
         PR_Close(loginfo.log_audit_fdes);
         loginfo.log_audit_fdes = 0;
@@ -994,8 +1634,8 @@ log_update_auditfaillogdir(char *pathname, int apply)
                        loginfo.log_auditfail_mode)))
     {
         slapi_log_err(SLAPI_LOG_WARNING,
-                      "log_update_auditfaillogdir - Can't open file %s. "
-                      "errno %d (%s)\n",
+                      "log_update_auditfaillogdir",
+                      "Can't open file %s. errno %d (%s)\n",
                       pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
         return LDAP_UNWILLING_TO_PERFORM;
@@ -1015,9 +1655,10 @@ log_update_auditfaillogdir(char *pathname, int apply)
     if (loginfo.log_auditfail_fdes) {
         LogFileInfo *logp, *d_logp;
         slapi_log_err(SLAPI_LOG_TRACE,
+                      "log_update_auditfaillogdir",
                       "LOGINFO:Closing the auditfail log file. "
                       "Moving to a new auditfail file (%s)\n",
-                      pathname, 0, 0);
+                      pathname);
 
         PR_Close(loginfo.log_auditfail_fdes);
         loginfo.log_auditfail_fdes = 0;
@@ -1140,6 +1781,22 @@ log_set_mode(const char *attrname, char *value, int logtype, char *errorbuf, int
         }
         LOG_AUDIT_UNLOCK_WRITE();
         break;
+    case SLAPD_AUDITFAIL_LOG:
+        LOG_AUDITFAIL_LOCK_WRITE();
+        if (loginfo.log_auditfail_file &&
+            (chmod(loginfo.log_auditfail_file, v) != 0)) {
+            int oserr = errno;
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "%s: Failed to chmod auditfail log file to %s: errno %d (%s)",
+                                  attrname, value, oserr, slapd_system_strerror(oserr));
+            retval = LDAP_UNWILLING_TO_PERFORM;
+        } else { /* only apply the changes if no file or if successful */
+            slapi_ch_free((void **)&fe_cfg->auditfaillog_mode);
+            fe_cfg->auditfaillog_mode = slapi_ch_strdup(value);
+            loginfo.log_auditfail_mode = v;
+        }
+        LOG_AUDITFAIL_UNLOCK_WRITE();
+        break;
     }
     return retval;
 }
@@ -1212,7 +1869,7 @@ log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char
         default:
             rv = LDAP_OPERATIONS_ERROR;
             slapi_log_err(SLAPI_LOG_ERR, "log_set_numlogsperdir",
-                          "Invalid log type %d", logtype);
+                          "Invalid log type %d\n", logtype);
         }
     }
     return rv;
@@ -1355,7 +2012,8 @@ log_set_rotationsync_enabled(const char *attrname, char *value, int logtype, cha
     case SLAPD_ACCESS_LOG:
         LOG_ACCESS_LOCK_WRITE();
         fe_cfg->accesslog_rotationsync_enabled = v;
-        loginfo.log_access_rotationsync_enabled = v;
+        /* Read without this lock in log_access_reserve() */
+        slapi_atomic_store_32((int32_t *)&(loginfo.log_access_rotationsync_enabled), v, __ATOMIC_RELEASE);
         LOG_ACCESS_UNLOCK_WRITE();
         break;
     case SLAPD_SECURITY_LOG:
@@ -1422,7 +2080,8 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
     case SLAPD_ACCESS_LOG:
         LOG_ACCESS_LOCK_WRITE();
         loginfo.log_access_rotationsynchour = rhour;
-        loginfo.log_access_rotationsyncclock = log_get_rotationsyncclock(rhour, loginfo.log_access_rotationsyncmin);
+        slapi_atomic_store_64((uint64_t *)&(loginfo.log_access_rotationsyncclock),
+                              (uint64_t)log_get_rotationsyncclock(rhour, loginfo.log_access_rotationsyncmin), __ATOMIC_RELEASE);
         fe_cfg->accesslog_rotationsynchour = rhour;
         LOG_ACCESS_UNLOCK_WRITE();
         break;
@@ -1496,7 +2155,8 @@ log_set_rotationsyncmin(const char *attrname, char *rmin_str, int logtype, char 
         LOG_ACCESS_LOCK_WRITE();
         loginfo.log_access_rotationsyncmin = rmin;
         fe_cfg->accesslog_rotationsyncmin = rmin;
-        loginfo.log_access_rotationsyncclock = log_get_rotationsyncclock(loginfo.log_access_rotationsynchour, rmin);
+        slapi_atomic_store_64((uint64_t *)&(loginfo.log_access_rotationsyncclock),
+                              (uint64_t)log_get_rotationsyncclock(loginfo.log_access_rotationsynchour, rmin), __ATOMIC_RELEASE);
         LOG_ACCESS_UNLOCK_WRITE();
         break;
     case SLAPD_SECURITY_LOG:
@@ -2238,6 +2898,45 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
  * Write title line in log file
  *****************************************************************************/
 static void
+log_write_json_title(LOGFD fp, int32_t log_format)
+{
+    json_object *json_header = json_object_new_object();
+    json_object *json_obj = json_object_new_object();
+    slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
+    char log_buffer[SLAPI_LOG_BUFSIZ] = {0};
+    char *buildnum = config_get_buildnum();
+    char buff[512] = {0};
+    int bufflen = sizeof(buff);
+    char *msg = NULL;
+
+    PR_snprintf(buff, bufflen, "%s B%s",
+                fe_cfg->versionstring ? fe_cfg->versionstring : CAPBRAND "-Directory/" DS_PACKAGE_VERSION,
+                buildnum ? buildnum : "");
+    json_object_object_add(json_header, "version", json_object_new_string(buff));
+
+    if (fe_cfg->localhost) {
+        PR_snprintf(buff, bufflen, "%s:%d (%s)",
+                    fe_cfg->localhost,
+                    fe_cfg->security ? fe_cfg->secureport : fe_cfg->port,
+                    fe_cfg->configdir ? fe_cfg->configdir : "");
+    } else {
+        PR_snprintf(buff, bufflen, "<host>:<port> (%s)",
+                    fe_cfg->configdir ? fe_cfg->configdir : "");
+    }
+    json_object_object_add(json_header, "instance", json_object_new_string(buff));
+    json_object_object_add(json_obj, "header", json_header);
+    msg = (char *)json_object_to_json_string_ext(json_obj, log_format);
+
+    /* Now write the JSON title */
+    PR_snprintf(log_buffer, sizeof(log_buffer), "%s\n", msg);
+    log_write(fp, log_buffer, strlen(log_buffer), 0, FLUSH);
+
+    /* Free it all */
+    json_object_put(json_obj);
+    slapi_ch_free_string(&buildnum);
+}
+
+static void
 log_write_title(LOGFD fp)
 {
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
@@ -2400,7 +3099,7 @@ vslapd_log_audit(const char *log_data, PRBool json_format)
     int32_t rc = LDAP_SUCCESS;
     int32_t msg_len = strlen(log_data);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_audit__entry);
 #endif
 
@@ -2420,7 +3119,7 @@ vslapd_log_audit(const char *log_data, PRBool json_format)
         lbi.refcount = 0;
         log_flush_buffer(&lbi, SLAPD_AUDIT_LOG, 0, 1);
 
-        PR_Unlock(loginfo.log_audit_buffer->lock);
+        LOG_AUDIT_UNLOCK_WRITE();
         return 0;
     }
 
@@ -2437,12 +3136,12 @@ vslapd_log_audit(const char *log_data, PRBool json_format)
         }
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_audit__prepared);
 #endif
     log_append_audit_buffer(tnl, loginfo.log_audit_buffer, buffer, blen);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_audit__buffer);
 #endif
 
@@ -2503,7 +3202,7 @@ log_append_audit_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size)
     lbi->current += size;
     /* Increment the copy refcount */
     slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
-    PR_Unlock(lbi->lock);
+    LOG_AUDIT_UNLOCK_WRITE();
 
     /* Now we can copy without holding the lock */
     memcpy(insert_point, msg, size);
@@ -2513,9 +3212,9 @@ log_append_audit_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size)
 
     /* If we are asked to sync to disk immediately, do so */
     if (!slapdFrontendConfig->auditlogbuffering) {
-        PR_Lock(lbi->lock);
+        LOG_AUDIT_LOCK_WRITE();
         log_flush_buffer(lbi, SLAPD_AUDIT_LOG, 1 /* sync to disk now */, 1);
-        PR_Unlock(lbi->lock);
+        LOG_AUDIT_UNLOCK_WRITE();
     }
 }
 
@@ -2531,7 +3230,7 @@ vslapd_log_auditfail(const char *log_data, PRBool json_format)
     int32_t rc = LDAP_SUCCESS;
     int32_t msg_len = strlen(log_data);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_auditfail__entry);
 #endif
 
@@ -2551,7 +3250,7 @@ vslapd_log_auditfail(const char *log_data, PRBool json_format)
         lbi.refcount = 0;
         log_flush_buffer(&lbi, SLAPD_AUDITFAIL_LOG, 0, 1);
 
-        PR_Unlock(loginfo.log_auditfail_buffer->lock);
+        LOG_AUDITFAIL_UNLOCK_WRITE();
         return 0;
     }
 
@@ -2568,12 +3267,12 @@ vslapd_log_auditfail(const char *log_data, PRBool json_format)
         }
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_auditfail__prepared);
 #endif
     log_append_auditfail_buffer(tnl, loginfo.log_auditfail_buffer, buffer, blen);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_auditfail__buffer);
 #endif
 
@@ -2633,7 +3332,7 @@ log_append_auditfail_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t si
     lbi->current += size;
     /* Increment the copy refcount */
     slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
-    PR_Unlock(lbi->lock);
+    LOG_AUDITFAIL_UNLOCK_WRITE();
 
     /* Now we can copy without holding the lock */
     memcpy(insert_point, msg, size);
@@ -2643,9 +3342,9 @@ log_append_auditfail_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t si
 
     /* If we are asked to sync to disk immediately, do so */
     if (!slapdFrontendConfig->auditlogbuffering) {
-        PR_Lock(lbi->lock);
+        LOG_AUDITFAIL_LOCK_WRITE();
         log_flush_buffer(lbi, SLAPD_AUDITFAIL_LOG, 1 /* sync to disk now */, 1);
-        PR_Unlock(lbi->lock);
+        LOG_AUDITFAIL_UNLOCK_WRITE();
     }
 }
 
@@ -2726,7 +3425,12 @@ slapd_log_error_proc_internal(
         }
         if (loginfo.log_error_fdes != NULL) {
             if (loginfo.log_error_state & LOGGING_NEED_TITLE) {
-                log_write_title(loginfo.log_error_fdes);
+                int32_t errorlog_format = config_get_errorlog_log_format();
+                if (errorlog_format != LOG_FORMAT_DEFAULT) {
+                    log_write_json_title(loginfo.log_error_fdes, errorlog_format);
+                } else {
+                    log_write_title(loginfo.log_error_fdes);
+                }
                 loginfo.log_error_state &= ~LOGGING_NEED_TITLE;
             }
             rc = vslapd_log_error(loginfo.log_error_fdes, sev_level, subsystem, fmt, ap_file, 1);
@@ -2826,6 +3530,7 @@ log_append_error_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size, 
     /* Increment the copy refcount */
     slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
     PR_Unlock(lbi->lock);
+    log_maint_submit_pending(SLAPD_ERROR_LOG);
 
     /* Now we can copy without holding the lock */
     memcpy(insert_point, msg, size);
@@ -2839,6 +3544,7 @@ log_append_error_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size, 
         log_flush_buffer(lbi, SLAPD_ERROR_LOG, 1 /* sync to disk now */,
                          locked);
         PR_Unlock(lbi->lock);
+        log_maint_submit_pending(SLAPD_ERROR_LOG);
     }
 }
 
@@ -2851,55 +3557,91 @@ vslapd_log_error(
     va_list ap,
     int locked)
 {
+    int32_t log_format = config_get_errorlog_log_format();
     time_t tnl = slapi_current_utc_time();
     char buffer[SLAPI_LOG_BUFSIZ];
+    char local_time[TBUFSIZE] = {0};
     struct timespec tsnow;
     char sev_name[10];
     int blen = TBUFSIZE;
+    int32_t vlen = 0;
     char *vbuf = NULL;
+    json_object *json_obj = NULL;
 
-    if (vasprintf(&vbuf, fmt, ap) == -1) {
+    if ((vlen = vasprintf(&vbuf, fmt, ap)) == -1) {
         log__error_emergency("vslapd_log_error, Unable to format message", 1, locked);
         return -1;
     }
 
-    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-        PR_snprintf(buffer, sizeof(buffer),
-                    "vslapd_log_error, Unable to determine system time for message :: %s",
-                    vbuf);
-        log__error_emergency(buffer, 1, locked);
-        return -1;
-    }
-    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
-        /* MSG may be truncated */
-        PR_snprintf(buffer, sizeof(buffer),
-                    "vslapd_log_error, Unable to format system time for message :: %s",
-                    vbuf);
-        log__error_emergency(buffer, 1, locked);
-        return -1;
-    }
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        /* JSON format */
+        char *time_format = config_get_errorlog_time_format();
+        int32_t ltlen = TBUFSIZE;
+        struct timespec curr_time =  slapi_current_utc_time_hr();
 
-    /*
-     * To be able to remove timestamp to not over pollute the syslog, we may
-     * need to skip the timestamp part of the message.
-     *
-     *  The size of the header is:
-     *    the size of the time string
-     *    + size of space
-     *    + size of one char (sign)
-     *    + size of 2 char
-     *    + size of 2 char
-     *    + size of [
-     *    + size of ]
-     */
+        if (format_localTime_hr_json_log(&curr_time, local_time, &ltlen,
+                                         time_format) != 0)
+        {
+            /* MSG may be truncated */
+            PR_snprintf(local_time, sizeof(local_time),
+                        "build_base_obj, Unable to format system time");
+            log__error_emergency(local_time, 1, 0);
+            slapi_ch_free_string(&time_format);
+            return -1;
+        }
+        slapi_ch_free_string(&time_format);
 
-    /* This truncates again... But we have the nice smprintf from above! */
-    if (subsystem == NULL) {
-        snprintf(buffer + blen, sizeof(buffer) - blen, "- %s - %s",
-                 get_log_sev_name(sev_level, sev_name), vbuf);
+        /* strip off "\n" */
+        if (vbuf[vlen-1] == '\n') {
+            vbuf[vlen-1] = '\0';
+        }
+
+        json_obj = json_object_new_object();
+        json_object_object_add(json_obj, "local_time",      json_object_new_string(local_time));
+        json_object_object_add(json_obj, "severity",  json_object_new_string(get_log_sev_name(sev_level, sev_name)));
+        json_object_object_add(json_obj, "subsystem", json_object_new_string(subsystem ? subsystem : ""));
+        json_object_object_add(json_obj, "msg",       json_object_new_string(vbuf));
+
+        PR_snprintf(buffer, sizeof(buffer), "%s\n",
+                    json_object_to_json_string_ext(json_obj, log_format));
     } else {
-        snprintf(buffer + blen, sizeof(buffer) - blen, "- %s - %s - %s",
-                 get_log_sev_name(sev_level, sev_name), subsystem, vbuf);
+        /* Old format.  This truncates again... But we have the nice smprintf
+         * from above!
+         *
+         * To be able to remove timestamp to not over pollute the syslog, we may
+         * need to skip the timestamp part of the message.
+         *
+         *  The size of the header is:
+         *    the size of the time string
+         *    + size of space
+         *    + size of one char (sign)
+         *    + size of 2 char
+         *    + size of 2 char
+         *    + size of [
+         *    + size of ]
+         */
+        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+            PR_snprintf(buffer, sizeof(buffer),
+                        "vslapd_log_error, Unable to determine system time for message :: %s",
+                        vbuf);
+            log__error_emergency(buffer, 1, locked);
+            return -1;
+        }
+        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
+            /* MSG may be truncated */
+            PR_snprintf(buffer, sizeof(buffer),
+                        "vslapd_log_error, Unable to format system time for message :: %s",
+                        vbuf);
+            log__error_emergency(buffer, 1, locked);
+            return -1;
+        }
+        if (subsystem == NULL) {
+            snprintf(buffer + blen, sizeof(buffer) - blen, "- %s - %s",
+                    get_log_sev_name(sev_level, sev_name), vbuf);
+        } else {
+            snprintf(buffer + blen, sizeof(buffer) - blen, "- %s - %s - %s",
+                    get_log_sev_name(sev_level, sev_name), subsystem, vbuf);
+        }
     }
 
     buffer[sizeof(buffer) - 1] = '\0';
@@ -2912,6 +3654,9 @@ vslapd_log_error(
     }
 
     slapi_ch_free_string(&vbuf);
+    if (json_obj) {
+        json_object_put(json_obj);
+    }
     return (0);
 }
 
@@ -3030,6 +3775,45 @@ slapi_log_backtrace(int loglevel)
     }
 }
 
+/*
+ * Dump a memory buffer in hexa and ascii in error log
+ *
+ * addr - The memory buffer address.
+ * len - The memory buffer lenght.
+ */
+void
+slapi_log_hexadump(int loglevel, char *fname, const void *addr, size_t len)
+{
+    char hexdigit[] = "0123456789ABCDEF";
+    const unsigned char *pt = addr;
+    char buff[HEXADUMP_BUF_SIZE+1];
+    size_t offset = 0;
+
+    if (!slapi_is_loglevel_set(loglevel)) {
+        return;
+    }
+    memset (buff, ' ', HEXADUMP_BUF_SIZE);
+    buff[HEXADUMP_BUF_SIZE] = '\0';
+    while (len > 0) {
+        int dpl;
+        for (dpl = 0; dpl < 16 && len>0; dpl++, len--) {
+           buff[3*dpl] = hexdigit[((*pt) >> 4) & 0xf];
+           buff[3*dpl+1] = hexdigit[(*pt) & 0xf];
+           buff[3*16+HEXADUMP_TAB+dpl] = (*pt>=0x20 && *pt<0x7f) ? *pt : '.';
+           pt++;
+        }
+        for (;dpl < 16; dpl++) {
+           buff[3*dpl] = ' ';
+           buff[3*dpl+1] = ' ';
+           buff[3*16+HEXADUMP_TAB+dpl] = ' ';
+        }
+        slapi_log_err(loglevel, fname, "[0x%08lx]  %s\n", offset, buff);
+        offset += 16;
+    }
+}
+
+
+
 /******************************************************************************
 * write in the access log
 ******************************************************************************/
@@ -3044,7 +3828,7 @@ vslapd_log_access(const char *fmt, va_list ap)
     struct timespec tsnow;
     time_t tnl;
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_access__entry);
 #endif
 
@@ -3085,17 +3869,61 @@ vslapd_log_access(const char *fmt, va_list ap)
         rc = -1;
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_access__prepared);
 #endif
 
-    log_append_access_buffer(tnl, loginfo.log_access_buffer, buffer, blen, vbuf, vlen);
+    log_append_access_buffer(tnl, buffer, blen, vbuf, vlen);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_access__buffer);
 #endif
 
     return (rc);
+}
+
+int32_t
+slapd_log_access_json(char *buffer)
+{
+    /* We use this to route audit log entries to where they need to go */
+    int32_t retval = LDAP_SUCCESS;
+    int32_t lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
+
+    if (lbackend & LOGGING_BACKEND_INTERNAL) {
+        char log_buffer[SLAPI_LOG_BUFSIZ] = {0};
+        int32_t buffer_len = strlen(buffer) + 1;
+        time_t tnl = slapi_current_utc_time();
+
+        if (buffer_len > SLAPI_LOG_BUFSIZ) {
+            /*
+             * We won't be able to fit the message in! Uh-oh!
+             * If the issue is not resolved during the fmt string creation (see op_shared_search()),
+             * we truncate the line and still log the message allowing the admin to check if
+             * someone is trying to do something bad.
+             */
+            memcpy(&log_buffer, buffer, SLAPI_LOG_BUFSIZ-6);
+            memcpy(&log_buffer[SLAPI_LOG_BUFSIZ-6], "...\n}\n", 5); /* cap the json event */
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_log_access_json",
+                          "Insufficient buffer capacity to fit message! "
+                          "The line in the access log was truncated\n");
+            buffer_len = strlen(log_buffer);
+            retval = -1;
+        } else {
+            PR_snprintf(log_buffer, sizeof(log_buffer), "%s\n", buffer);
+        }
+        log_append_access_json_buffer(tnl, log_buffer, buffer_len);
+    }
+
+    if (lbackend & LOGGING_BACKEND_SYSLOG) {
+        /* This returns void, so we hope it worked */
+        syslog(LOG_NOTICE, "%s\n", buffer);
+    }
+#ifdef HAVE_JOURNALD
+    if (lbackend & LOGGING_BACKEND_JOURNALD) {
+        retval = sd_journal_print(LOG_NOTICE, "%s\n", buffer);
+    }
+#endif
+    return retval;
 }
 
 int
@@ -3218,7 +4046,7 @@ log__open_accesslogfile(int logfile_state, int locked)
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
-    int rc;
+    int rc = 0;
 
     if (!locked)
         LOG_ACCESS_LOCK_WRITE();
@@ -3244,7 +4072,7 @@ log__open_accesslogfile(int logfile_state, int locked)
         ** If there is just one file, then  access and access.rotation files
         ** are deleted. After that we start fresh
         */
-        while (log__delete_access_logfile())
+        while (log__delete_access_logfile(LOG_DELETE_AT_ROTATION))
             ;
 
         /* close the file */
@@ -3259,7 +4087,7 @@ log__open_accesslogfile(int logfile_state, int locked)
             log = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             log->l_ctime = loginfo.log_access_ctime;
             log->l_size = f_size;
-            log->l_compressed = PR_FALSE;
+            log->l_compressed = false;
             log_convert_time(log->l_ctime, tbuf, 1 /*short */);
             PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_access_file, tbuf);
             if (PR_Rename(loginfo.log_access_file, newfile) != PR_SUCCESS) {
@@ -3275,13 +4103,8 @@ log__open_accesslogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_access_compress) {
-                if (compress_log_file(newfile) != 0) {
-                    slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
-                            "failed to compress rotated access log (%s)\n",
-                            newfile);
-                } else {
-                    log->l_compressed = PR_TRUE;
-                }
+                log_maint_schedule_compress(SLAPD_ACCESS_LOG, newfile,
+                                            loginfo.log_access_mode, log->l_ctime);
             }
             /* add the log to the chain */
             log->l_next = loginfo.log_access_logchain;
@@ -3342,7 +4165,7 @@ log__open_accesslogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_access_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_access_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_access_maxlogsize;
@@ -3386,7 +4209,7 @@ log__open_securitylogfile(int logfile_state, int locked)
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
-    int rc;
+    int rc = 0;
 
     if (!locked)
         LOG_SECURITY_LOCK_WRITE();
@@ -3412,7 +4235,7 @@ log__open_securitylogfile(int logfile_state, int locked)
         ** If there is just one file, then security and security.rotation files
         ** are deleted. After that we start fresh
         */
-        while (log__delete_security_logfile())
+        while (log__delete_security_logfile(LOG_DELETE_AT_ROTATION))
             ;
 
         /* close the file */
@@ -3427,7 +4250,7 @@ log__open_securitylogfile(int logfile_state, int locked)
             log = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             log->l_ctime = loginfo.log_security_ctime;
             log->l_size = f_size;
-            log->l_compressed = PR_FALSE;
+            log->l_compressed = false;
             log_convert_time(log->l_ctime, tbuf, 1 /*short */);
             PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_security_file, tbuf);
             if (PR_Rename(loginfo.log_security_file, newfile) != PR_SUCCESS) {
@@ -3443,13 +4266,8 @@ log__open_securitylogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_security_compress) {
-                if (compress_log_file(newfile) != 0) {
-                    slapi_log_err(SLAPI_LOG_ERR, "log__open_securitylogfile",
-                            "failed to compress rotated security audit log (%s)\n",
-                            newfile);
-                } else {
-                    log->l_compressed = PR_TRUE;
-                }
+                log_maint_schedule_compress(SLAPD_SECURITY_LOG, newfile,
+                                            loginfo.log_security_mode, log->l_ctime);
             }
             /* add the log to the chain */
             log->l_next = loginfo.log_security_logchain;
@@ -3513,7 +4331,7 @@ log__open_securitylogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_security_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_security_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_security_maxlogsize;
@@ -3553,7 +4371,7 @@ log__open_securitylogfile(int logfile_state, int locked)
 *    Assumption: A WRITE lock has been acquired for the ACCESS
 ******************************************************************************/
 static int
-log__delete_security_logfile(void)
+log__delete_security_logfile(bool at_rotation)
 {
     struct logfileinfo *logp = NULL;
     struct logfileinfo *delete_logp = NULL;
@@ -3567,6 +4385,11 @@ log__delete_security_logfile(void)
     char *logstr;
     char buffer[BUFSIZ];
     char tbuf[TBUFSIZE];
+
+    if (!at_rotation &&
+        (loginfo.log_security_maxnumlogs == 1 || loginfo.log_security_fdes == NULL)) {
+        return 0;
+    }
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_security_maxnumlogs == 1) {
@@ -3604,9 +4427,11 @@ log__delete_security_logfile(void)
     /* If we have already the maximum number of log files, we
     ** have to delete one any how.
     */
-    if (++numoflogs > loginfo.log_security_maxnumlogs) {
-        logstr = "Exceeded max number of logs allowed";
-        goto delete_logfile;
+    if (at_rotation) {
+        if (++numoflogs > loginfo.log_security_maxnumlogs) {
+            logstr = "Exceeded max number of logs allowed";
+            goto delete_logfile;
+        }
     }
 
     /* Now check based on the maxdiskspace */
@@ -3696,30 +4521,30 @@ delete_logfile:
 
     /* Delete the security file */
     log_convert_time(delete_logp->l_ctime, tbuf, 1 /*short */);
-    PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_security_file, tbuf);
+    if (delete_logp->l_compressed) {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_security_file, tbuf);
+    } else {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_security_file, tbuf);
+    }
     if (PR_Delete(buffer) != PR_SUCCESS) {
         PRErrorCode prerr = PR_GetError();
-        if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+        if (PR_FILE_NOT_FOUND_ERROR == prerr && !delete_logp->l_compressed) {
             /*
              * Log not found, perhaps log was compressed, try .gz extension
              */
-            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_security_file, tbuf);
             if (PR_Delete(buffer) != PR_SUCCESS) {
                 prerr = PR_GetError();
                 if (PR_FILE_NOT_FOUND_ERROR != prerr) {
                     slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
-                            "Unable to remove file: %s error %d (%s)\n",
-                            buffer, prerr, slapd_pr_strerror(prerr));
-                } else {
-                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
-                            "File %s already removed\n",
-                            loginfo.log_security_file);
+                                  "Unable to remove file: %s error %d (%s)\n",
+                                  buffer, prerr, slapd_pr_strerror(prerr));
                 }
             }
-        } else {
+        } else if (PR_FILE_NOT_FOUND_ERROR != prerr) {
             slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
-                    "Unable to remove file: %s error %d (%s)\n",
-                    buffer, prerr, slapd_pr_strerror(prerr));
+                          "Unable to remove file: %s error %d (%s)\n",
+                          buffer, prerr, slapd_pr_strerror(prerr));
         }
     } else {
         slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
@@ -3728,6 +4553,7 @@ delete_logfile:
     }
     slapi_ch_free((void **)&delete_logp);
     loginfo.log_numof_security_logs--;
+    log__write_rotationinfo(SLAPD_SECURITY_LOG);
 
     return 1;
 }
@@ -3748,7 +4574,7 @@ log__security_rotationinfof(char *pathname)
     int main_log = 1;
     time_t now;
     FILE *fp;
-    PRBool compressed = PR_FALSE;
+    bool compressed = false;
     int rval, logfile_type = LOGFILE_REOPENED;
 
     /*
@@ -3839,8 +4665,9 @@ log_update_securitylogdir(char *pathname, int apply)
                        loginfo.log_security_mode)))
     {
         slapi_log_err(SLAPI_LOG_WARNING,
-                "log_update_securitylogdir - Can't open file %s. errno %d (%s)\n",
-                pathname, errno, slapd_system_strerror(errno));
+                      "log_update_securitylogdir",
+                      "Can't open file %s. errno %d (%s)\n",
+                      pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
         return LDAP_UNWILLING_TO_PERFORM;
     }
@@ -3860,9 +4687,10 @@ log_update_securitylogdir(char *pathname, int apply)
         LogFileInfo *logp, *d_logp;
 
         slapi_log_err(SLAPI_LOG_TRACE,
+                      "log_update_securitylogdir",
                       "LOGINFO:Closing the security log file. "
                       "Moving to a new security log file (%s)\n",
-                      pathname, 0, 0);
+                      pathname);
 
         PR_Close(loginfo.log_security_fdes);
         loginfo.log_security_fdes = 0;
@@ -3949,7 +4777,7 @@ log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t siz
     lbi->current += size;
     /* Increment the copy refcount */
     slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
-    PR_Unlock(lbi->lock);
+    LOG_SECURITY_UNLOCK_WRITE();
 
     /* Now we can copy without holding the lock */
     memcpy(insert_point, msg, size);
@@ -3959,9 +4787,9 @@ log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t siz
 
     /* If we are asked to sync to disk immediately, do so */
     if (!slapdFrontendConfig->securitylogbuffering) {
-        PR_Lock(lbi->lock);
+        LOG_SECURITY_LOCK_WRITE();
         log_flush_buffer(lbi, SLAPD_SECURITY_LOG, 1 /* sync to disk now */, 1);
-        PR_Unlock(lbi->lock);
+        LOG_SECURITY_UNLOCK_WRITE();
     }
 }
 
@@ -3976,7 +4804,7 @@ vslapd_log_security(const char *log_data)
     int32_t blen = TBUFSIZE;
     int32_t rc = LDAP_SUCCESS;
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_security__entry);
 #endif
 
@@ -3986,13 +4814,13 @@ vslapd_log_security(const char *log_data)
         return -1;
     }
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_security__prepared);
 #endif
     tnl = slapi_current_utc_time();
     log_append_security_buffer(tnl, loginfo.log_security_buffer, buffer, blen);
 
-#ifdef SYSTEMTAP
+#ifdef USDT
     STAP_PROBE(ns-slapd, vslapd_log_security__buffer);
 #endif
 
@@ -4382,6 +5210,137 @@ log_rotate:
     return (type == LOG_CONTINUE) ? LOG_CONTINUE : LOG_ROTATE;
 }
 
+/*
+ * If logp is compressed, refresh l_size from the .gz file on disk.
+ */
+static void
+log__update_logentry_compressed_size(const char *log_file, PRInt64 maxlogsize,
+                                     LogFileInfo *logp)
+{
+    char tbuf[TBUFSIZE];
+    char logfile[BUFSIZ];
+
+    if (logp == NULL || !logp->l_compressed) {
+        return;
+    }
+
+    log_convert_time(logp->l_ctime, tbuf, 1);
+    PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
+    PR_snprintf(logfile, sizeof(logfile), "%s.%s", log_file, tbuf);
+    if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
+        logp->l_size = maxlogsize;
+    }
+}
+
+/*
+ * Rewrite *.rotationinfo for the given log stream from the in-memory chain.
+ * Updates compressed sizes and .gz suffixes. Called after compress completes
+ * and after each successful log__delete_*_logfile().
+ *
+ * Assumption: stream write lock is held by the caller.
+ */
+static int
+log__write_rotationinfo(int logtype)
+{
+    LOGFD fpinfo;
+    char tbuf[TBUFSIZE];
+    LogFileInfo *logp;
+    char buffer[BUFSIZ];
+    char *info_file = NULL;
+    char *log_file = NULL;
+    int mode = 0;
+    time_t ctime = 0;
+    PRInt64 maxlogsize = 0;
+    LogFileInfo *logchain = NULL;
+    int rc = 0;
+
+    switch (logtype) {
+    case SLAPD_ACCESS_LOG:
+        info_file = loginfo.log_accessinfo_file;
+        log_file = loginfo.log_access_file;
+        mode = loginfo.log_access_mode;
+        ctime = loginfo.log_access_ctime;
+        maxlogsize = loginfo.log_access_maxlogsize;
+        logchain = loginfo.log_access_logchain;
+        break;
+    case SLAPD_SECURITY_LOG:
+        info_file = loginfo.log_securityinfo_file;
+        log_file = loginfo.log_security_file;
+        mode = loginfo.log_security_mode;
+        ctime = loginfo.log_security_ctime;
+        maxlogsize = loginfo.log_security_maxlogsize;
+        logchain = loginfo.log_security_logchain;
+        break;
+    case SLAPD_ERROR_LOG:
+        info_file = loginfo.log_errorinfo_file;
+        log_file = loginfo.log_error_file;
+        mode = loginfo.log_error_mode;
+        ctime = loginfo.log_error_ctime;
+        maxlogsize = loginfo.log_error_maxlogsize;
+        logchain = loginfo.log_error_logchain;
+        break;
+    case SLAPD_AUDIT_LOG:
+        info_file = loginfo.log_auditinfo_file;
+        log_file = loginfo.log_audit_file;
+        mode = loginfo.log_audit_mode;
+        ctime = loginfo.log_audit_ctime;
+        maxlogsize = loginfo.log_audit_maxlogsize;
+        logchain = loginfo.log_audit_logchain;
+        break;
+    case SLAPD_AUDITFAIL_LOG:
+        info_file = loginfo.log_auditfailinfo_file;
+        log_file = loginfo.log_auditfail_file;
+        mode = loginfo.log_auditfail_mode;
+        ctime = loginfo.log_auditfail_ctime;
+        maxlogsize = loginfo.log_auditfail_maxlogsize;
+        logchain = loginfo.log_auditfail_logchain;
+        break;
+    default:
+        return LOG_ERROR;
+    }
+
+    if (info_file == NULL) {
+        return LOG_ERROR;
+    }
+
+    if (!(fpinfo = PR_Open(info_file, PR_WRONLY | PR_TRUNCATE | PR_CREATE_FILE, mode))) {
+        if (logtype == SLAPD_ERROR_LOG) {
+            PR_snprintf(buffer, sizeof(buffer),
+                        "Failed to open/write to errors log file %s: error %d (%s). Exiting...",
+                        log_file, errno, slapd_system_strerror(errno));
+            log__error_emergency(buffer, 1, 1);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "log__write_rotationinfo",
+                          "rotationinfo file open %s failed errno %d (%s)\n",
+                          info_file, errno, slapd_system_strerror(errno));
+        }
+        return LOG_UNABLE_TO_OPENFILE;
+    }
+
+    log_convert_time(ctime, tbuf, 2);
+    PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n",
+                tbuf, (unsigned long)ctime);
+    log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
+
+    for (logp = logchain; logp; logp = logp->l_next) {
+        log__update_logentry_compressed_size(log_file, maxlogsize, logp);
+        log_convert_time(logp->l_ctime, tbuf, 1);
+        if (logp->l_compressed) {
+            PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
+        }
+        PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 ")\n",
+                    PREVLOGFILE, log_file, tbuf,
+                    (unsigned long)logp->l_ctime, logp->l_size);
+        rc = log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
+        if (rc != 0) {
+            break;
+        }
+    }
+
+    PR_Close(fpinfo);
+    return (rc == 0) ? LOG_SUCCESS : LOG_ERROR;
+}
+
 /******************************************************************************
 * log__delete_access_logfile
 *
@@ -4392,7 +5351,7 @@ log_rotate:
 *    Assumption: A WRITE lock has been acquired for the ACCESS
 ******************************************************************************/
 static int
-log__delete_access_logfile(void)
+log__delete_access_logfile(bool at_rotation)
 {
     struct logfileinfo *logp = NULL;
     struct logfileinfo *delete_logp = NULL;
@@ -4400,12 +5359,17 @@ log__delete_access_logfile(void)
     struct logfileinfo *prev_logp = NULL;
     PRInt64 total_size = 0;
     time_t cur_time;
-    PRInt64 f_size;
+    PRInt64 f_size = 0;
     int numoflogs = loginfo.log_numof_access_logs;
     int rv = 0;
     char *logstr;
     char buffer[BUFSIZ];
     char tbuf[TBUFSIZE];
+
+    if (!at_rotation &&
+        (loginfo.log_access_maxnumlogs == 1 || loginfo.log_access_fdes == NULL)) {
+        return 0;
+    }
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_access_maxnumlogs == 1) {
@@ -4443,9 +5407,11 @@ log__delete_access_logfile(void)
     /* If we have already the maximum number of log files, we
     ** have to delete one any how.
     */
-    if (++numoflogs > loginfo.log_access_maxnumlogs) {
-        logstr = "Exceeded max number of logs allowed";
-        goto delete_logfile;
+    if (at_rotation) {
+        if (++numoflogs > loginfo.log_access_maxnumlogs) {
+            logstr = "Exceeded max number of logs allowed";
+            goto delete_logfile;
+        }
     }
 
     /* Now check based on the maxdiskspace */
@@ -4534,30 +5500,30 @@ delete_logfile:
 
     /* Delete the access file */
     log_convert_time(delete_logp->l_ctime, tbuf, 1 /*short */);
-    PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_access_file, tbuf);
+    if (delete_logp->l_compressed) {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_access_file, tbuf);
+    } else {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_access_file, tbuf);
+    }
     if (PR_Delete(buffer) != PR_SUCCESS) {
         PRErrorCode prerr = PR_GetError();
-        if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+        if (PR_FILE_NOT_FOUND_ERROR == prerr && !delete_logp->l_compressed) {
             /*
              * Log not found, perhaps log was compressed, try .gz extension
              */
-            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_access_file, tbuf);
             if (PR_Delete(buffer) != PR_SUCCESS) {
                 prerr = PR_GetError();
                 if (PR_FILE_NOT_FOUND_ERROR != prerr) {
                     slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
-                            "Unable to remove file: %s error %d (%s)\n",
-                            buffer, prerr, slapd_pr_strerror(prerr));
-                } else {
-                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
-                            "File %s already removed\n",
-                            loginfo.log_access_file);
+                                  "Unable to remove file: %s error %d (%s)\n",
+                                  buffer, prerr, slapd_pr_strerror(prerr));
                 }
             }
-        } else {
+        } else if (PR_FILE_NOT_FOUND_ERROR != prerr) {
             slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
-                    "Unable to remove file: %s error %d (%s)\n",
-                    buffer, prerr, slapd_pr_strerror(prerr));
+                          "Unable to remove file: %s error %d (%s)\n",
+                          buffer, prerr, slapd_pr_strerror(prerr));
         }
     } else {
         slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
@@ -4566,117 +5532,174 @@ delete_logfile:
     }
     slapi_ch_free((void **)&delete_logp);
     loginfo.log_numof_access_logs--;
+    log__write_rotationinfo(SLAPD_ACCESS_LOG);
 
     return 1;
+}
+
+/*
+ * Remove all rotated log files and in-memory chain nodes for one stream.
+ * Caller must hold the stream write lock. Uses plain unlock (not
+ * LOG_*_UNLOCK_WRITE) so pending compress jobs are not submitted during
+ * emergency disk-monitor purge.
+ */
+static void
+log__purge_rotated_logchain(LogFileInfo **logchain, unsigned int *numof_logs,
+                            const char *log_file, int logtype)
+{
+    LogFileInfo *logp = NULL;
+    LogFileInfo *prev_logp = NULL;
+    char buffer[BUFSIZ];
+    char tbuf[TBUFSIZE];
+
+    if (logchain == NULL || log_file == NULL || *logchain == NULL) {
+        return;
+    }
+
+    logp = *logchain;
+    while (logp) {
+        log_convert_time(logp->l_ctime, tbuf, 1);
+        if (logp->l_compressed) {
+            PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", log_file, tbuf);
+        } else {
+            PR_snprintf(buffer, sizeof(buffer), "%s.%s", log_file, tbuf);
+        }
+        if (PR_Delete(buffer) != PR_SUCCESS) {
+            PRErrorCode prerr = PR_GetError();
+            if (PR_FILE_NOT_FOUND_ERROR == prerr && !logp->l_compressed) {
+                PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", log_file, tbuf);
+                if (PR_Delete(buffer) != PR_SUCCESS) {
+                    prerr = PR_GetError();
+                    if (PR_FILE_NOT_FOUND_ERROR != prerr) {
+                        if (logtype == SLAPD_ERROR_LOG) {
+                            char msg_buf[BUFSIZ] = {0};
+                            PR_snprintf(msg_buf, sizeof(msg_buf), "LOGINFO:Unable to remove file: %s - error %d (%s)\n",
+                                        buffer, prerr, slapd_pr_strerror(prerr));
+                            log__error_emergency(msg_buf, 0, 1 /* locked */);
+                        } else {
+                            slapi_log_err(SLAPI_LOG_ERR, "log__purge_rotated_logchain",
+                                          "Unable to remove file: %s - error %d (%s)\n",
+                                          buffer, prerr, slapd_pr_strerror(prerr));
+                        }
+                    }
+                }
+            } else if (PR_FILE_NOT_FOUND_ERROR != prerr) {
+                if (logtype == SLAPD_ERROR_LOG) {
+                    char msg_buf[BUFSIZ] = {0};
+                    PR_snprintf(msg_buf, sizeof(msg_buf), "LOGINFO:Unable to remove file: %s - error %d (%s)\n",
+                                buffer, prerr, slapd_pr_strerror(prerr));
+                    log__error_emergency(msg_buf, 0, 1 /* locked */);
+                } else {
+                    slapi_log_err(SLAPI_LOG_ERR, "log__purge_rotated_logchain",
+                                  "Unable to remove file: %s - error %d (%s)\n",
+                                  buffer, prerr, slapd_pr_strerror(prerr));
+                }
+            }
+            logp = logp->l_next;
+            continue;
+        }
+
+        /* clean up the list */
+        prev_logp = logp;
+        if (numof_logs != NULL) {
+            *numof_logs -= 1;
+        }
+        logp = logp->l_next;
+        slapi_ch_free((void **)&prev_logp);
+    } /* end of while */
+
+    *logchain = NULL;
+    log__write_rotationinfo(logtype);
 }
 
 /*
  *  This function is used by the disk monitoring thread (daemon.c)
  *
  *  When we get close to running out of disk space we delete the rotated logs
- *  as a last resort to help keep the server up and running.
+ *  as a last resort to help keep the server up and running. Each stream chain
+ *  is updated under that stream's write lock; rotationinfo is rewritten.
  */
 void
 log__delete_rotated_logs()
 {
-    struct logfileinfo *logp = NULL;
-    struct logfileinfo *prev_log = NULL;
-    char buffer[BUFSIZ];
-    char tbuf[TBUFSIZE];
+    LOG_ACCESS_LOCK_WRITE();
+    log__purge_rotated_logchain(&loginfo.log_access_logchain,
+                                &loginfo.log_numof_access_logs,
+                                loginfo.log_access_file,
+                                SLAPD_ACCESS_LOG);
+    PR_Unlock(loginfo.log_access_lock);
 
-    /*
-     *  Access Log
-     */
-    logp = loginfo.log_access_logchain;
-    while (logp) {
-        tbuf[0] = buffer[0] = '\0';
-        log_convert_time(logp->l_ctime, tbuf, 1);
-        PR_snprintf(buffer, sizeof(buffer), "%s.%s%s", loginfo.log_access_file, tbuf, logp->l_compressed ? ".gz" : "");
-        if (PR_Delete(buffer) != PR_SUCCESS) {
-            PRErrorCode prerr = PR_GetError();
-            slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
-                          "Unable to remove file: %s - error %d (%s)\n",
-                          buffer, prerr, slapd_pr_strerror(prerr));
-            logp = logp->l_next;
-            continue;
-        }
-        prev_log = logp;
-        loginfo.log_numof_access_logs--;
-        logp = logp->l_next;
-        slapi_ch_free((void **)&prev_log);
+    LOG_SECURITY_LOCK_WRITE();
+    log__purge_rotated_logchain(&loginfo.log_security_logchain,
+                                &loginfo.log_numof_security_logs,
+                                loginfo.log_security_file,
+                                SLAPD_SECURITY_LOG);
+    PR_Unlock(loginfo.log_security_buffer->lock);
+
+    LOG_AUDIT_LOCK_WRITE();
+    log__purge_rotated_logchain(&loginfo.log_audit_logchain,
+                                &loginfo.log_numof_audit_logs,
+                                loginfo.log_audit_file,
+                                SLAPD_AUDIT_LOG);
+    PR_Unlock(loginfo.log_audit_buffer->lock);
+
+    LOG_AUDITFAIL_LOCK_WRITE();
+    log__purge_rotated_logchain(&loginfo.log_auditfail_logchain,
+                                &loginfo.log_numof_auditfail_logs,
+                                loginfo.log_auditfail_file,
+                                SLAPD_AUDITFAIL_LOG);
+    PR_Unlock(loginfo.log_auditfail_buffer->lock);
+
+    LOG_ERROR_LOCK_WRITE();
+    log__purge_rotated_logchain(&loginfo.log_error_logchain,
+                                &loginfo.log_numof_error_logs,
+                                loginfo.log_error_file,
+                                SLAPD_ERROR_LOG);
+    slapi_rwlock_unlock(loginfo.log_error_rwlock);
+}
+
+/*
+ * log__validate_rotated_logname
+ *
+ * Validates that a log filename timestamp suffix matches the expected format:
+ * YYYYMMDD-HHMMSS (15 chars) or YYYYMMDD-HHMMSS.gz (18 chars) for compressed files.
+ * Uses regex pattern: ^[0-9]{8}-[0-9]{6}(\.gz)?$
+ *
+ * \param timestamp_str The timestamp portion of the log filename (after the first '.')
+ * \param is_compressed Output parameter set to true if the file has .gz suffix
+ * \return 1 if valid, 0 if invalid
+ */
+static int
+log__validate_rotated_logname(const char *timestamp_str, bool *is_compressed)
+{
+    Slapi_Regex *re = NULL;
+    char *re_error = NULL;
+    int rc = 0;
+
+    /* Match YYYYMMDD-HHMMSS with optional .gz suffix */
+    static const char *pattern = "^[0-9]{8}-[0-9]{6}(\\.gz)?$";
+
+    *is_compressed = false;
+
+    re = slapi_re_comp(pattern, &re_error);
+    if (re == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "log__validate_rotated_logname",
+                      "Failed to compile regex: %s\n", re_error ? re_error : "unknown error");
+        slapi_ch_free_string(&re_error);
+        return 0;
     }
 
-    /*
-     *  Audit Log
-     */
-    logp = loginfo.log_audit_logchain;
-    while (logp) {
-        tbuf[0] = buffer[0] = '\0';
-        log_convert_time(logp->l_ctime, tbuf, 1);
-        PR_snprintf(buffer, sizeof(buffer), "%s.%s%s", loginfo.log_audit_file, tbuf, logp->l_compressed ? ".gz" : "");
-        if (PR_Delete(buffer) != PR_SUCCESS) {
-            PRErrorCode prerr = PR_GetError();
-            slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
-                          "Unable to remove file: %s - error %d (%s)\n",
-                          buffer, prerr, slapd_pr_strerror(prerr));
-            logp = logp->l_next;
-            continue;
+    rc = slapi_re_exec_nt(re, timestamp_str);
+    if (rc == 1) {
+        /* Check if compressed by looking for .gz suffix */
+        size_t len = strlen(timestamp_str);
+        if (len >= 3 && strcmp(timestamp_str + len - 3, ".gz") == 0) {
+            *is_compressed = true;
         }
-        prev_log = logp;
-        loginfo.log_numof_audit_logs--;
-        logp = logp->l_next;
-        slapi_ch_free((void **)&prev_log);
     }
 
-    /*
-     *  Audit Fail Log
-     */
-    logp = loginfo.log_auditfail_logchain;
-    while (logp) {
-        tbuf[0] = buffer[0] = '\0';
-        log_convert_time(logp->l_ctime, tbuf, 1);
-        PR_snprintf(buffer, sizeof(buffer), "%s.%s%s", loginfo.log_auditfail_file, tbuf, logp->l_compressed ? ".gz" : "");
-        if (PR_Delete(buffer) != PR_SUCCESS) {
-            PRErrorCode prerr = PR_GetError();
-            slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
-                          "Unable to remove file: %s - error %d (%s)\n",
-                          buffer, prerr, slapd_pr_strerror(prerr));
-            logp = logp->l_next;
-            continue;
-        }
-        prev_log = logp;
-        loginfo.log_numof_auditfail_logs--;
-        logp = logp->l_next;
-        slapi_ch_free((void **)&prev_log);
-    }
-
-    /*
-     *  Error log
-     */
-    logp = loginfo.log_error_logchain;
-    while (logp) {
-        tbuf[0] = buffer[0] = '\0';
-        log_convert_time(logp->l_ctime, tbuf, 1);
-        PR_snprintf(buffer, sizeof(buffer), "%s.%s%s", loginfo.log_error_file, tbuf, logp->l_compressed ? ".gz" : "");
-        if (PR_Delete(buffer) != PR_SUCCESS) {
-            PRErrorCode prerr = PR_GetError();
-            slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
-                          "Unable to remove file: %s - error %d (%s)\n",
-                          buffer, prerr, slapd_pr_strerror(prerr));
-            logp = logp->l_next;
-            continue;
-        }
-        prev_log = logp;
-        loginfo.log_numof_error_logs--;
-        logp = logp->l_next;
-        slapi_ch_free((void **)&prev_log);
-    }
-
-    /* reset the log struct */
-    loginfo.log_access_logchain = NULL;
-    loginfo.log_audit_logchain = NULL;
-    loginfo.log_auditfail_logchain = NULL;
-    loginfo.log_error_logchain = NULL;
+    slapi_re_free(re);
+    return rc == 1 ? 1 : 0;
 }
 
 #define ERRORSLOG 1
@@ -4760,32 +5783,20 @@ log__fix_rotationinfof(char *pathname)
                 break;
             }
         } else if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
-                   (p = strchr(dirent->name, '.')) != NULL &&
-                   NULL != strchr(p, '-')) /* e.g., errors.20051123-165135 */
+                   (p = (char *)strchr(dirent->name, '.')) != NULL &&
+                   NULL != strchr(p, '-')) /* e.g., errors.20051123-165135 or errors.20051123-165135.gz */
         {
             struct logfileinfo *logp;
-            char *q;
-            int ignoreit = 0;
+            bool is_compressed = false;
 
-            for (q = ++p; q && *q; q++) {
-                if (*q != '-' &&
-                    *q != '.' && /* .gz */
-                    *q != 'g' &&
-                    *q != 'z' &&
-                    !isdigit(*q))
-                {
-                    ignoreit = 1;
-                }
-            }
-            if (ignoreit || (q - p != 15)) {
+            /* Skip the '.' to get the timestamp portion */
+            p++;
+            if (!log__validate_rotated_logname(p, &is_compressed)) {
                 continue;
             }
             logp = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             logp->l_ctime = log_reverse_convert_time(p);
-            logp->l_compressed = PR_FALSE;
-            if (strcmp(p + strlen(p) - 3, ".gz") == 0) {
-                logp->l_compressed = PR_TRUE;
-            }
+            logp->l_compressed = is_compressed;
             PR_snprintf(rotated_log, rotated_log_len, "%s/%s",
                         logsdir, dirent->name);
 
@@ -4840,7 +5851,7 @@ log__access_rotationinfof(char *pathname)
     int main_log = 1;
     time_t now;
     FILE *fp;
-    PRBool compressed = PR_FALSE;
+    bool compressed = false;
     int rval, logfile_type = LOGFILE_REOPENED;
 
     /*
@@ -4907,7 +5918,9 @@ log__access_rotationinfof(char *pathname)
         loginfo.log_access_rotationunit != LOG_UNIT_HOURS &&
         loginfo.log_access_rotationunit != LOG_UNIT_MINS &&
         loginfo.log_access_ctime < loginfo.log_access_rotationsyncclock - PR_ABS(loginfo.log_access_rotationtime_secs)) {
-        loginfo.log_access_rotationsyncclock -= PR_ABS(loginfo.log_access_rotationtime_secs);
+        slapi_atomic_store_64((uint64_t *)&(loginfo.log_access_rotationsyncclock),
+                              (uint64_t)(loginfo.log_access_rotationsyncclock - PR_ABS(loginfo.log_access_rotationtime_secs)),
+                              __ATOMIC_RELEASE);
     }
     return logfile_type;
 }
@@ -4952,23 +5965,15 @@ log__check_prevlogs(FILE *fp, char *pathname)
     for (dirent = PR_ReadDir(dirptr, dirflags); dirent;
          dirent = PR_ReadDir(dirptr, dirflags)) {
         if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
-            (p = strrchr(dirent->name, '.')) != NULL &&
-            NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 */
-            char *q;
-            int ignoreit = 0;
+            (p = (char *)strchr(dirent->name, '.')) != NULL &&
+            NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 or errors.20051123-165135.gz */
+            bool is_compressed = false;
 
-            for (q = ++p; q && *q; q++) {
-                if (*q != '-' &&
-                    *q != '.' && /* .gz */
-                    *q != 'g' &&
-                    *q != 'z' &&
-                    !isdigit(*q))
-                {
-                    ignoreit = 1;
-                }
-            }
-            if (ignoreit || (q - p != 15))
+            /* Skip the '.' to get the timestamp portion */
+            p++;
+            if (!log__validate_rotated_logname(p, &is_compressed)) {
                 continue;
+            }
 
             fseek(fp, 0, SEEK_SET);
             buf[BUFSIZ - 1] = '\0';
@@ -4999,7 +6004,7 @@ done:
 *    size info of all the old log files.
 ******************************************************************************/
 static int
-log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size, PRBool *compressed)
+log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size, bool *compressed)
 {
 
     char buf[BUFSIZ];
@@ -5071,7 +6076,7 @@ log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size, PRBool *compres
             return LOG_ERROR;
         }
         if (strcmp(p + strlen(p) - 3, ".gz") == 0) {
-            *compressed = PR_TRUE;
+            *compressed = true;
         }
     }
     return LOG_CONTINUE;
@@ -5092,7 +6097,7 @@ log__getfilesize(LOGFD fp)
 {
     PRFileInfo64 info;
 
-    if (PR_GetOpenFileInfo64(fp, &info) == PR_FAILURE) {
+    if (fp == NULL || PR_GetOpenFileInfo64(fp, &info) == PR_FAILURE) {
         return -1;
     }
     return (PRInt64)info.size; /* type of size is PROffset64 */
@@ -5196,6 +6201,12 @@ log_get_loglist(int logtype)
         logp = loginfo.log_audit_logchain;
         file = loginfo.log_audit_file;
         break;
+    case SLAPD_AUDITFAIL_LOG:
+        LOG_AUDITFAIL_LOCK_READ();
+        num = loginfo.log_numof_auditfail_logs;
+        logp = loginfo.log_auditfail_logchain;
+        file = loginfo.log_auditfail_file;
+        break;
     default:
         return NULL;
     }
@@ -5227,6 +6238,11 @@ log_get_loglist(int logtype)
     case SLAPD_AUDIT_LOG:
         LOG_AUDIT_UNLOCK_READ();
         break;
+    case SLAPD_AUDITFAIL_LOG:
+        LOG_AUDITFAIL_UNLOCK_READ();
+        break;
+    default:
+        break;
     }
     return list;
 }
@@ -5241,7 +6257,7 @@ log_get_loglist(int logtype)
 *    Assumption: A WRITE lock has been acquired for the error log.
 ******************************************************************************/
 static int
-log__delete_error_logfile(int locked)
+log__delete_error_logfile(int locked, bool at_rotation)
 {
     struct logfileinfo *logp = NULL;
     struct logfileinfo *delete_logp = NULL;
@@ -5255,6 +6271,11 @@ log__delete_error_logfile(int locked)
     char *logstr;
     char buffer[BUFSIZ];
     char tbuf[TBUFSIZE] = {0};
+
+    if (!at_rotation &&
+        (loginfo.log_error_maxnumlogs == 1 || loginfo.log_error_fdes == NULL)) {
+        return 0;
+    }
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_error_maxnumlogs == 1) {
@@ -5294,9 +6315,11 @@ log__delete_error_logfile(int locked)
     /* If we have already the maximum number of log files, we
     ** have to delete one any how.
     */
-    if (++numoflogs > loginfo.log_error_maxnumlogs) {
-        logstr = "Exceeded max number of logs allowed";
-        goto delete_logfile;
+    if (at_rotation) {
+        if (++numoflogs > loginfo.log_error_maxnumlogs) {
+            logstr = "Exceeded max number of logs allowed";
+            goto delete_logfile;
+        }
     }
 
     /* Now check based on the maxdiskspace */
@@ -5380,6 +6403,7 @@ delete_logfile:
         /* if locked, we should not call slapi_log_err,
            which tries to get a lock internally. */
         slapi_log_err(SLAPI_LOG_TRACE,
+                      "log__delete_error_logfile",
                       "LOGINFO:Removing file:%s.%s because of (%s)\n",
                       loginfo.log_error_file, tbuf,
                       logstr);
@@ -5393,21 +6417,27 @@ delete_logfile:
     }
 
     /* Delete the error file */
-    PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
+    if (delete_logp->l_compressed) {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_error_file, tbuf);
+    } else {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
+    }
     if (PR_Delete(buffer) != PR_SUCCESS) {
         PRErrorCode prerr = PR_GetError();
         if (PR_FILE_NOT_FOUND_ERROR != prerr) {
-            PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Unable to remove file:%s.%s error %d (%s)\n",
-                        loginfo.log_error_file, tbuf, prerr, slapd_pr_strerror(prerr));
-            log__error_emergency(buffer, 0, locked);
-        } else {
+            char log_msg[BUFSIZ] = {0};
+            PR_snprintf(log_msg, sizeof(log_msg), "LOGINFO:Unable to remove file:%s error %d (%s)\n",
+                        buffer, prerr, slapd_pr_strerror(prerr));
+            log__error_emergency(log_msg, 0, locked);
+        } else if (!delete_logp->l_compressed) {
             /* Log not found, perhaps log was compressed, try .gz extension */
-            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_error_file, tbuf);
             PR_Delete(buffer);
         }
     }
     slapi_ch_free((void **)&delete_logp);
     loginfo.log_numof_error_logs--;
+    log__write_rotationinfo(SLAPD_ERROR_LOG);
 
     return 1;
 }
@@ -5422,7 +6452,7 @@ delete_logfile:
 *    Assumption: A WRITE lock has been acquired for the audit
 ******************************************************************************/
 static int
-log__delete_audit_logfile(void)
+log__delete_audit_logfile(bool at_rotation)
 {
     struct logfileinfo *logp = NULL;
     struct logfileinfo *delete_logp = NULL;
@@ -5436,6 +6466,11 @@ log__delete_audit_logfile(void)
     char *logstr;
     char buffer[BUFSIZ];
     char tbuf[TBUFSIZE];
+
+    if (!at_rotation &&
+        (loginfo.log_audit_maxnumlogs == 1 || loginfo.log_audit_fdes == NULL)) {
+        return 0;
+    }
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_audit_maxnumlogs == 1) {
@@ -5469,9 +6504,11 @@ log__delete_audit_logfile(void)
     /* If we have already the maximum number of log files, we
     ** have to delete one any how.
     */
-    if (++numoflogs > loginfo.log_audit_maxnumlogs) {
-        logstr = "Delete Error Log File: Exceeded max number of logs allowed";
-        goto delete_logfile;
+    if (at_rotation) {
+        if (++numoflogs > loginfo.log_audit_maxnumlogs) {
+            logstr = "Delete Error Log File: Exceeded max number of logs allowed";
+            goto delete_logfile;
+        }
     }
 
     /* Now check based on the maxdiskspace */
@@ -5560,37 +6597,39 @@ delete_logfile:
 
     /* Delete the audit file */
     log_convert_time(delete_logp->l_ctime, tbuf, 1 /*short */);
-    PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_audit_file, tbuf);
+    if (delete_logp->l_compressed) {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_audit_file, tbuf);
+    } else {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_audit_file, tbuf);
+    }
     if (PR_Delete(buffer) != PR_SUCCESS) {
         PRErrorCode prerr = PR_GetError();
-        if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+        if (PR_FILE_NOT_FOUND_ERROR == prerr && !delete_logp->l_compressed) {
             /*
              * Log not found, perhaps log was compressed, try .gz extension
              */
-            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_audit_file, tbuf);
             if (PR_Delete(buffer) != PR_SUCCESS) {
                 prerr = PR_GetError();
                 if (PR_FILE_NOT_FOUND_ERROR != prerr) {
                     slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile",
-                            "Unable to remove file: %s error %d (%s)\n",
-                            buffer, prerr, slapd_pr_strerror(prerr));
-                } else {
-                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile",
-                            "File %s already removed\n", loginfo.log_auditfail_file);
+                                  "Unable to remove file: %s error %d (%s)\n",
+                                  buffer, prerr, slapd_pr_strerror(prerr));
                 }
             }
-        } else {
+        } else if (PR_FILE_NOT_FOUND_ERROR != prerr) {
             slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile",
-                    "Unable to remove file: %s error %d (%s)\n",
-                    buffer, prerr, slapd_pr_strerror(prerr));
+                          "Unable to remove file: %s error %d (%s)\n",
+                          buffer, prerr, slapd_pr_strerror(prerr));
         }
     } else {
         slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile",
-                "Removed file:%s.%s because of (%s)\n",
-                loginfo.log_audit_file, tbuf, logstr);
+                      "Removed file:%s.%s because of (%s)\n",
+                      loginfo.log_audit_file, tbuf, logstr);
     }
     slapi_ch_free((void **)&delete_logp);
     loginfo.log_numof_audit_logs--;
+    log__write_rotationinfo(SLAPD_AUDIT_LOG);
 
     return 1;
 }
@@ -5605,7 +6644,7 @@ delete_logfile:
 *    Assumption: A WRITE lock has been acquired for the auditfail log
 ******************************************************************************/
 static int
-log__delete_auditfail_logfile(void)
+log__delete_auditfail_logfile(bool at_rotation)
 {
     struct logfileinfo *logp = NULL;
     struct logfileinfo *delete_logp = NULL;
@@ -5619,6 +6658,11 @@ log__delete_auditfail_logfile(void)
     char *logstr;
     char buffer[BUFSIZ];
     char tbuf[TBUFSIZE];
+
+    if (!at_rotation &&
+        (loginfo.log_auditfail_maxnumlogs == 1 || loginfo.log_auditfail_fdes == NULL)) {
+        return 0;
+    }
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_auditfail_maxnumlogs == 1) {
@@ -5652,9 +6696,11 @@ log__delete_auditfail_logfile(void)
     /* If we have already the maximum number of log files, we
     ** have to delete one any how.
     */
-    if (++numoflogs > loginfo.log_auditfail_maxnumlogs) {
-        logstr = "Delete Error Log File: Exceeded max number of logs allowed";
-        goto delete_logfile;
+    if (at_rotation) {
+        if (++numoflogs > loginfo.log_auditfail_maxnumlogs) {
+            logstr = "Delete Error Log File: Exceeded max number of logs allowed";
+            goto delete_logfile;
+        }
     }
 
     /* Now check based on the maxdiskspace */
@@ -5741,37 +6787,41 @@ delete_logfile:
         p_delete_logp->l_next = delete_logp->l_next;
     }
 
-    /* Delete the audit file */
+    /* Delete the auditfail file */
     log_convert_time(delete_logp->l_ctime, tbuf, 1 /*short */);
-    PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_auditfail_file, tbuf);
+    if (delete_logp->l_compressed) {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_auditfail_file, tbuf);
+    } else {
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_auditfail_file, tbuf);
+    }
     if (PR_Delete(buffer) != PR_SUCCESS) {
         PRErrorCode prerr = PR_GetError();
-        if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+        if (PR_FILE_NOT_FOUND_ERROR == prerr && !delete_logp->l_compressed) {
             /*
              * Log not found, perhaps log was compressed, try .gz extension
              */
-            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            PR_snprintf(buffer, sizeof(buffer), "%s.%s.gz", loginfo.log_auditfail_file, tbuf);
             if (PR_Delete(buffer) != PR_SUCCESS) {
                 prerr = PR_GetError();
                 if (PR_FILE_NOT_FOUND_ERROR != prerr) {
                     slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile",
-                            "Unable to remove file: %s error %d (%s)\n",
-                            buffer, prerr, slapd_pr_strerror(prerr));
-                } else {
-                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile",
-                            "File %s already removed\n", loginfo.log_auditfail_file);
+                                  "Unable to remove file: %s error %d (%s)\n",
+                                  buffer, prerr, slapd_pr_strerror(prerr));
                 }
             }
-        } else {
-            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "Unable to remove file: %s error %d (%s)\n",
-                    buffer, prerr, slapd_pr_strerror(prerr));
+        } else if (PR_FILE_NOT_FOUND_ERROR != prerr) {
+            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile",
+                          "Unable to remove file: %s error %d (%s)\n",
+                          buffer, prerr, slapd_pr_strerror(prerr));
         }
     } else {
         slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile",
-                "Removed file:%s.%s because of (%s)\n", loginfo.log_auditfail_file, tbuf, logstr);
+                      "Removed file:%s.%s because of (%s)\n",
+                      loginfo.log_auditfail_file, tbuf, logstr);
     }
     slapi_ch_free((void **)&delete_logp);
     loginfo.log_numof_auditfail_logs--;
+    log__write_rotationinfo(SLAPD_AUDITFAIL_LOG);
 
     return 1;
 }
@@ -5792,7 +6842,7 @@ log__error_rotationinfof(char *pathname)
     int main_log = 1;
     time_t now;
     FILE *fp;
-    PRBool compressed = PR_FALSE;
+    bool compressed = false;
     int rval, logfile_type = LOGFILE_REOPENED;
 
     /*
@@ -5880,7 +6930,7 @@ log__audit_rotationinfof(char *pathname)
     int main_log = 1;
     time_t now;
     FILE *fp;
-    PRBool compressed = PR_FALSE;
+    bool compressed = false;
     int rval, logfile_type = LOGFILE_REOPENED;
 
     /*
@@ -5969,7 +7019,7 @@ log__auditfail_rotationinfof(char *pathname)
     int main_log = 1;
     time_t now;
     FILE *fp;
-    PRBool compressed = PR_FALSE;
+    bool compressed = false;
     int rval, logfile_type = LOGFILE_REOPENED;
 
     /*
@@ -6045,7 +7095,7 @@ log__auditfail_rotationinfof(char *pathname)
     return logfile_type;
 }
 
-static void
+void
 log__error_emergency(const char *errstr, int reopen, int locked)
 {
     syslog(LOG_ERR, "%s\n", errstr);
@@ -6131,7 +7181,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 
 
         /*  Check if I have to delete any old file, delete it if it is required.*/
-        while (log__delete_error_logfile(1))
+        while (log__delete_error_logfile(1, LOG_DELETE_AT_ROTATION))
             ;
 
         /* close the file */
@@ -6144,6 +7194,7 @@ log__open_errorlogfile(int logfile_state, int locked)
             log = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             log->l_ctime = loginfo.log_error_ctime;
             log->l_size = f_size;
+            log->l_compressed = false;
 
             log_convert_time(log->l_ctime, tbuf, 1 /*short */);
             PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_error_file, tbuf);
@@ -6161,12 +7212,8 @@ log__open_errorlogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_error_compress) {
-                if (compress_log_file(newfile) != 0) {
-                    PR_snprintf(buffer, sizeof(buffer), "Failed to compress errors log file (%s)\n", newfile);
-                    log__error_emergency(buffer, 1, 1);
-                } else {
-                    log->l_compressed = PR_TRUE;
-                }
+                log_maint_schedule_compress(SLAPD_ERROR_LOG, newfile,
+                                            loginfo.log_error_mode, log->l_ctime);
             }
 
             /* add the log to the chain */
@@ -6255,7 +7302,7 @@ log__open_errorlogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_error_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_error_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_error_maxlogsize;
@@ -6299,7 +7346,7 @@ log__open_auditlogfile(int logfile_state, int locked)
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
-    int rc;
+    int rc = 0;
 
     if (!locked)
         LOG_AUDIT_LOCK_WRITE();
@@ -6323,7 +7370,7 @@ log__open_auditlogfile(int logfile_state, int locked)
         }
 
         /* Check if I have to delete any old file, delete it if it is required. */
-        while (log__delete_audit_logfile())
+        while (log__delete_audit_logfile(LOG_DELETE_AT_ROTATION))
             ;
 
         /* close the file */
@@ -6334,6 +7381,7 @@ log__open_auditlogfile(int logfile_state, int locked)
             log = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             log->l_ctime = loginfo.log_audit_ctime;
             log->l_size = f_size;
+            log->l_compressed = false;
 
             log_convert_time(log->l_ctime, tbuf, 1 /*short */);
             PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_audit_file, tbuf);
@@ -6349,13 +7397,8 @@ log__open_auditlogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_audit_compress) {
-                if (compress_log_file(newfile) != 0) {
-                    slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
-                            "failed to compress rotated audit log (%s)\n",
-                            newfile);
-                } else {
-                    log->l_compressed = PR_TRUE;
-                }
+                log_maint_schedule_compress(SLAPD_AUDIT_LOG, newfile,
+                                            loginfo.log_audit_mode, log->l_ctime);
             }
 
             /* add the log to the chain */
@@ -6420,7 +7463,7 @@ log__open_auditlogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_audit_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_audit_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_audit_maxlogsize;
@@ -6464,7 +7507,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
-    int rc;
+    int rc = 0;
 
     if (!locked)
         LOG_AUDITFAIL_LOCK_WRITE();
@@ -6488,7 +7531,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
         }
 
         /* Check if I have to delete any old file, delete it if it is required. */
-        while (log__delete_auditfail_logfile())
+        while (log__delete_auditfail_logfile(LOG_DELETE_AT_ROTATION))
             ;
 
         /* close the file */
@@ -6499,6 +7542,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
             log = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             log->l_ctime = loginfo.log_auditfail_ctime;
             log->l_size = f_size;
+            log->l_compressed = false;
 
             log_convert_time(log->l_ctime, tbuf, 1 /*short */);
             PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_auditfail_file, tbuf);
@@ -6514,13 +7558,8 @@ log__open_auditfaillogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_auditfail_compress) {
-                if (compress_log_file(newfile) != 0) {
-                    slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
-                            "failed to compress rotated auditfail log (%s)\n",
-                            newfile);
-                } else {
-                    log->l_compressed = PR_TRUE;
-                }
+                log_maint_schedule_compress(SLAPD_AUDITFAIL_LOG, newfile,
+                                            loginfo.log_auditfail_mode, log->l_ctime);
             }
 
             /* add the log to the chain */
@@ -6585,7 +7624,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
             PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
 
             /* get and set the size of the new gziped file */
-            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_auditfail_file, tbuf);
+            PR_snprintf(logfile, sizeof(logfile), "%s.%s", loginfo.log_auditfail_file, tbuf);
             if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
                 /* Then assume that we have the max size */
                 logp->l_size = loginfo.log_auditfail_maxlogsize;
@@ -6626,14 +7665,264 @@ log_create_buffer(size_t sz)
     lbi->top = (char *)slapi_ch_malloc(sz);
     lbi->current = lbi->top;
     lbi->maxsize = sz;
+    lbi->lock = NULL;
+    lbi->next = NULL;
+    lbi->sync_now = 0;
     slapi_atomic_store_64(&(lbi->refcount), 0, __ATOMIC_RELEASE);
+    return lbi;
+}
+
+/*
+ * Access log writer
+ *
+ * Logging threads reserve space in the active access log buffer under
+ * log_access_writer.lock and copy their message after releasing it. When the
+ * active buffer is full, or a flush is due, the thread holding the lock queues
+ * it for the access log writer thread and makes a free buffer active. The
+ * writer writes the queued buffers in order under the access log lock
+ * (LOG_ACCESS_LOCK_WRITE), which also covers rotation, so logging threads never
+ * wait on a disk write unless every buffer is queued. Until the writer is
+ * started, and once it has stopped, the thread that would have queued a buffer
+ * writes it itself, as before.
+ *
+ * Lock order: never log an access message while holding the access log lock
+ * (LOG_ACCESS_LOCK_WRITE). If every buffer is queued, the logging thread waits
+ * for the writer, and the writer needs that lock to write.
+ */
+#define LOG_ACCESS_NUM_BUFFERS 4
+
+typedef struct {
+    PRLock *lock;              /* active buffer, queue and free list */
+    PRCondVar *queue_cvar;     /* a buffer was queued, or shutdown */
+    PRCondVar *done_cvar;      /* a queued buffer was written */
+    LogBufferInfo *queue_head; /* buffers waiting to be written */
+    LogBufferInfo *queue_tail;
+    LogBufferInfo *free_list;  /* spare buffers */
+    uint64_t queued;           /* number of buffers queued so far */
+    uint64_t written;          /* number of queued buffers written so far */
+    PRThread *worker;
+    bool running;
+    bool shutdown;
+} LogAccessWriter;
+
+static LogAccessWriter log_access_writer;
+
+/*
+ * Create the spare access log buffers and the buffer lock.
+ * Called from g_log_init().
+ */
+static void
+log_access_writer_init(void)
+{
+    if ((log_access_writer.lock = PR_NewLock()) == NULL) {
+        exit(-1);
+    }
+    log_access_writer.queue_cvar = PR_NewCondVar(log_access_writer.lock);
+    log_access_writer.done_cvar = PR_NewCondVar(log_access_writer.lock);
+    if (log_access_writer.queue_cvar == NULL || log_access_writer.done_cvar == NULL) {
+        exit(-1);
+    }
+    for (size_t i = 1; i < LOG_ACCESS_NUM_BUFFERS; i++) {
+        LogBufferInfo *lbi = log_create_buffer(LOG_BUFFER_MAXSIZE);
+
+        lbi->next = log_access_writer.free_list;
+        log_access_writer.free_list = lbi;
+    }
+}
+
+/*
+ * Queue the active access log buffer for the writer thread and make a spare
+ * buffer active. Caller must hold log_access_writer.lock.
+ *
+ * If the writer is not running, the active buffer is written directly instead.
+ * Returns PR_FALSE if there was no spare buffer: the lock was released while
+ * waiting for the writer, so the caller must look at the active buffer again.
+ */
+static PRBool
+log_access_queue_buffer(int sync_now)
+{
+    LogBufferInfo *lbi = loginfo.log_access_buffer;
+
+    if (!log_access_writer.running) {
+        LOG_ACCESS_LOCK_WRITE();
+        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, sync_now, 1);
+        LOG_ACCESS_UNLOCK_WRITE();
+        return PR_TRUE;
+    }
+    if (log_access_writer.free_list == NULL) {
+        PR_WaitCondVar(log_access_writer.done_cvar, PR_INTERVAL_NO_TIMEOUT);
+        return PR_FALSE;
+    }
+
+    loginfo.log_access_buffer = log_access_writer.free_list;
+    log_access_writer.free_list = loginfo.log_access_buffer->next;
+    loginfo.log_access_buffer->next = NULL;
+
+    lbi->sync_now = sync_now;
+    if (log_access_writer.queue_tail != NULL) {
+        log_access_writer.queue_tail->next = lbi;
+    } else {
+        log_access_writer.queue_head = lbi;
+    }
+    log_access_writer.queue_tail = lbi;
+    log_access_writer.queued++;
+    PR_NotifyCondVar(log_access_writer.queue_cvar);
+    return PR_TRUE;
+}
+
+/*
+ * Access log writer thread: write the queued buffers in order. On shutdown it
+ * only exits once the queue is empty.
+ */
+static void
+log_access_writer_main(void *arg __attribute__((unused)))
+{
+    LogBufferInfo *lbi = NULL;
+
+    slapi_set_thread_name("log_access");
+
+    PR_Lock(log_access_writer.lock);
+    while (1) {
+        while (log_access_writer.queue_head == NULL && !log_access_writer.shutdown) {
+            PR_WaitCondVar(log_access_writer.queue_cvar, PR_INTERVAL_NO_TIMEOUT);
+        }
+        if (log_access_writer.queue_head == NULL) {
+            break;
+        }
+        lbi = log_access_writer.queue_head;
+        log_access_writer.queue_head = lbi->next;
+        if (log_access_writer.queue_head == NULL) {
+            log_access_writer.queue_tail = NULL;
+        }
+        PR_Unlock(log_access_writer.lock);
+
+        LOG_ACCESS_LOCK_WRITE();
+        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, lbi->sync_now, 1);
+        LOG_ACCESS_UNLOCK_WRITE();
+
+        PR_Lock(log_access_writer.lock);
+        lbi->next = log_access_writer.free_list;
+        log_access_writer.free_list = lbi;
+        log_access_writer.written++;
+        PR_NotifyAllCondVar(log_access_writer.done_cvar);
+    }
+    /* From now on the logging threads write the buffers themselves */
+    log_access_writer.running = false;
+    PR_NotifyAllCondVar(log_access_writer.done_cvar);
+    PR_Unlock(log_access_writer.lock);
+}
+
+/*
+ * Start the access log writer thread. Called from slapd_daemon().
+ */
+void
+logs_access_writer_start(void)
+{
+    PR_Lock(log_access_writer.lock);
+    log_access_writer.shutdown = false;
+    log_access_writer.worker = PR_CreateThread(PR_USER_THREAD,
+                                               log_access_writer_main,
+                                               NULL,
+                                               PR_PRIORITY_NORMAL,
+                                               PR_GLOBAL_THREAD,
+                                               PR_JOINABLE_THREAD,
+                                               SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (log_access_writer.worker != NULL) {
+        log_access_writer.running = true;
+    }
+    PR_Unlock(log_access_writer.lock);
+
+    if (log_access_writer.worker == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "logs_access_writer_start",
+                      "Failed to create the access log writer thread, "
+                      "access log buffers will be written by the logging threads\n");
+    }
+}
+
+/*
+ * Stop the access log writer thread once every queued buffer is written.
+ * Called from slapd_daemon() before the final logs_flush().
+ */
+void
+logs_access_writer_shutdown(void)
+{
+    PRThread *worker = NULL;
+
+    PR_Lock(log_access_writer.lock);
+    worker = log_access_writer.worker;
+    log_access_writer.worker = NULL;
+    log_access_writer.shutdown = true;
+    PR_NotifyCondVar(log_access_writer.queue_cvar);
+    PR_Unlock(log_access_writer.lock);
+
+    if (worker != NULL) {
+        (void)PR_JoinThread(worker);
+    }
+}
+
+/*
+ * Queue the active access log buffer, if it is not empty, and wait until it
+ * and every buffer queued before it have been written.
+ */
+static void
+log_access_flush(int sync_now)
+{
+    uint64_t target;
+
+    PR_Lock(log_access_writer.lock);
+    while (loginfo.log_access_buffer->current != loginfo.log_access_buffer->top &&
+           !log_access_queue_buffer(sync_now)) {
+        /* We waited for a spare buffer, look at the active buffer again */
+    }
+    target = log_access_writer.queued;
+    while (log_access_writer.written < target) {
+        PR_WaitCondVar(log_access_writer.done_cvar, PR_INTERVAL_NO_TIMEOUT);
+    }
+    PR_Unlock(log_access_writer.lock);
+}
+
+/*
+ * Reserve size bytes in the active access log buffer and take a copy
+ * reference on it. The buffer is queued first if the message does not fit,
+ * or if a rotation sync is due. Returns the buffer the space was reserved in.
+ */
+static LogBufferInfo *
+log_access_reserve(time_t tnl, size_t size, char **insert_point)
+{
+    LogBufferInfo *lbi = NULL;
+
+    PR_Lock(log_access_writer.lock);
+    while (1) {
+        lbi = loginfo.log_access_buffer;
+        /* An empty buffer has nothing to flush */
+        if (lbi->current == lbi->top) {
+            break;
+        }
+        /*
+         * The rotation sync settings are written under the access log lock,
+         * which is not held here, so read them atomically.  A value that is
+         * one update old only moves the flush to an earlier or later line.
+         */
+        if ((lbi->current - lbi->top) + size <= lbi->maxsize &&
+            !(tnl >= (time_t)slapi_atomic_load_64((uint64_t *)&(loginfo.log_access_rotationsyncclock), __ATOMIC_ACQUIRE) &&
+              slapi_atomic_load_32((int32_t *)&(loginfo.log_access_rotationsync_enabled), __ATOMIC_ACQUIRE))) {
+            break;
+        }
+        (void)log_access_queue_buffer(0 /* do not sync to disk right now */);
+    }
+    *insert_point = lbi->current;
+    lbi->current += size;
+    /* Increment the copy refcount */
+    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+    PR_Unlock(log_access_writer.lock);
+
     return lbi;
 }
 
 /*
  * Some notes about this function. It is written the way it is for performance
  * reasons. Tests showed that on 4 processor systems, there is significant
- * contention for the lbi->lock. This is because the lock was held for the
+ * contention for the buffer lock. This is because the lock was held for the
  * duration of the copy of the log message into the buffer. Therefore the
  * routine was re-written to avoid holding the lock for that time. Instead we
  * gain the lock, take a copy of the buffer pointer where we need to copy our
@@ -6648,28 +7937,14 @@ log_create_buffer(size_t sz)
  * systems.
  */
 static void
-log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2)
+log_append_access_buffer(time_t tnl, char *msg1, size_t size1, char *msg2, size_t size2)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     size_t size = size1 + size2;
+    LogBufferInfo *lbi = NULL;
     char *insert_point = NULL;
 
-    /* While holding the lock, we determine if there is space in the buffer for our payload,
-       and if we need to flush.
-     */
-    PR_Lock(lbi->lock);
-    if (((lbi->current - lbi->top) + size > lbi->maxsize) ||
-        (tnl >= loginfo.log_access_rotationsyncclock &&
-         loginfo.log_access_rotationsync_enabled)) {
-
-        log_flush_buffer(lbi, SLAPD_ACCESS_LOG,
-                         0 /* do not sync to disk right now */, 1);
-    }
-    insert_point = lbi->current;
-    lbi->current += size;
-    /* Increment the copy refcount */
-    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
-    PR_Unlock(lbi->lock);
+    lbi = log_access_reserve(tnl, size, &insert_point);
 
     /* Now we can copy without holding the lock */
     memcpy(insert_point, msg1, size1);
@@ -6680,9 +7955,28 @@ log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size
 
     /* If we are asked to sync to disk immediately, do so */
     if (!slapdFrontendConfig->accesslogbuffering) {
-        PR_Lock(lbi->lock);
-        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, 1 /* sync to disk now */, 1);
-        PR_Unlock(lbi->lock);
+        log_access_flush(1 /* sync to disk now */);
+    }
+}
+
+static void
+log_append_access_json_buffer(time_t tnl, char *msg, size_t size)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    LogBufferInfo *lbi = NULL;
+    char *insert_point = NULL;
+
+    lbi = log_access_reserve(tnl, size, &insert_point);
+
+    /* Now we can copy without holding the lock */
+    memcpy(insert_point, msg, size);
+
+    /* Decrement the copy refcount */
+    slapi_atomic_decr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+
+    /* If we are asked to sync to disk immediately, do so */
+    if (!slapdFrontendConfig->accesslogbuffering) {
+        log_access_flush(1 /* sync to disk now */);
     }
 }
 
@@ -6691,7 +7985,9 @@ log_update_sync_clock(int32_t log_type, int32_t secs)
 {
     switch (log_type) {
     case SLAPD_ACCESS_LOG:
-        loginfo.log_access_rotationsyncclock += PR_ABS(secs);
+        /* Read without the access log lock in log_access_reserve() */
+        slapi_atomic_store_64((uint64_t *)&(loginfo.log_access_rotationsyncclock),
+                              (uint64_t)(loginfo.log_access_rotationsyncclock + PR_ABS(secs)), __ATOMIC_RELEASE);
         return loginfo.log_access_rotationsyncclock;
     case SLAPD_SECURITY_LOG:
         loginfo.log_security_rotationsyncclock += PR_ABS(secs);
@@ -6750,6 +8046,23 @@ log_refresh_state(int32_t log_type)
         return 0;
     }
 }
+static LOGFD
+log_refresh_fd(int32_t log_type)
+{
+    switch (log_type) {
+    case SLAPD_ACCESS_LOG:
+        return loginfo.log_access_fdes;
+    case SLAPD_SECURITY_LOG:
+        return loginfo.log_security_fdes;
+    case SLAPD_AUDIT_LOG:
+        return loginfo.log_audit_fdes;
+    case SLAPD_AUDITFAIL_LOG:
+        return loginfo.log_auditfail_fdes;
+    case SLAPD_ERROR_LOG:
+        return loginfo.log_error_fdes;
+    }
+    return NULL;
+}
 
 /* this function assumes the lock is already acquired */
 /* if sync_now is non-zero, data is flushed to physical storage */
@@ -6766,6 +8079,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
     int32_t log_state;
     PRBool log_buffering = PR_FALSE;
     open_log *open_log_file = NULL;
+    int32_t log_format = 0;
     int rc = 0;
 
     /*
@@ -6792,6 +8106,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         log_state = loginfo.log_access_state;
         log_buffering = slapdFrontendConfig->accesslogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "access";
+        log_format = config_get_accesslog_log_format();
         break;
 
     case SLAPD_SECURITY_LOG:
@@ -6804,6 +8119,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         log_state = loginfo.log_security_state;
         log_buffering = slapdFrontendConfig->securitylogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "security audit";
+        log_format = LOG_FORMAT_JSON;
         break;
 
     case SLAPD_AUDIT_LOG:
@@ -6816,6 +8132,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         log_state = loginfo.log_audit_state;
         log_buffering = slapdFrontendConfig->auditlogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "audit";
+        log_format = config_get_auditlog_log_format();
         break;
 
     case SLAPD_AUDITFAIL_LOG:
@@ -6829,6 +8146,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         /* Audit fail log still uses the audit log buffering setting */
         log_buffering = slapdFrontendConfig->auditlogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "audit fail";
+        log_format = config_get_auditlog_log_format();
         break;
 
     case SLAPD_ERROR_LOG:
@@ -6841,6 +8159,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         log_state = loginfo.log_error_state;
         log_buffering = slapdFrontendConfig->errorlogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "error";
+        log_format = config_get_errorlog_log_format();
         break;
 
     default:
@@ -6861,10 +8180,15 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
                                                         rotationtime_secs);
         }
         log_state = log_refresh_state(log_type);
+        fd = log_refresh_fd(log_type);
     }
 
     if (log_state & LOGGING_NEED_TITLE) {
-        log_write_title(fd);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            log_write_json_title(fd, log_format);
+        } else {
+            log_write_title(fd);
+        }
         log_state_remove_need_title(log_type);
     }
 
@@ -6892,10 +8216,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
 void
 logs_flush()
 {
-    LOG_ACCESS_LOCK_WRITE();
-    log_flush_buffer(loginfo.log_access_buffer, SLAPD_ACCESS_LOG,
-                     1 /* sync to disk now */, 1 /* locked*/);
-    LOG_ACCESS_UNLOCK_WRITE();
+    log_access_flush(1 /* sync to disk now */);
     LOG_SECURITY_LOCK_WRITE();
     log_flush_buffer(loginfo.log_security_buffer, SLAPD_SECURITY_LOG,
                      1 /* sync to disk now */, 1 /* locked*/);
@@ -6997,6 +8318,10 @@ check_log_max_size(char *maxdiskspace_str,
         current_mlogsize = slapdFrontendConfig->auditlog_maxlogsize;
         current_maxdiskspace = slapdFrontendConfig->auditlog_maxdiskspace;
         break;
+    case SLAPD_AUDITFAIL_LOG:
+        current_mlogsize = slapdFrontendConfig->auditfaillog_maxlogsize;
+        current_maxdiskspace = slapdFrontendConfig->auditfaillog_maxdiskspace;
+        break;
     default:
         current_mlogsize = -1;
         current_maxdiskspace = -1;
@@ -7048,6 +8373,10 @@ check_log_max_size(char *maxdiskspace_str,
         loginfo.log_audit_maxlogsize = mlogsizeB;
         loginfo.log_audit_maxdiskspace = maxdiskspaceB;
         break;
+    case SLAPD_AUDITFAIL_LOG:
+        loginfo.log_auditfail_maxlogsize = mlogsizeB;
+        loginfo.log_auditfail_maxdiskspace = maxdiskspaceB;
+        break;
     default:
         break;
     }
@@ -7066,10 +8395,21 @@ slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock 
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     }
 
+    memset(logpb, 0, sizeof(slapd_log_pblock));
+
+    logpb->loginfo = &loginfo;
+    logpb->level = 256; /* default log level */
     logpb->log_format = log_format;
     logpb->pb = pb;
+    logpb->op_id = -1;
     logpb->op_internal_id = -1;
     logpb->op_nested_count = -1;
+    logpb->pr_cookie = -1;
+    logpb->pr_idx = -1;
+    logpb->wbusy = -1;
+    logpb->wmax = -1;
+    logpb->wqdepth = -1;
+    logpb->curr_time = slapi_current_utc_time_hr();
 
     if (conn) {
         logpb->conn_time = conn->c_starttime;
@@ -7084,6 +8424,6 @@ slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock 
     if (op) {
         logpb->op_id = op->o_opid;
         logpb->request_controls = operation_get_req_controls(op);
-        logpb->result_controls = operation_get_result_controls(op);
+        logpb->response_controls = operation_get_result_controls(op);
     }
 }

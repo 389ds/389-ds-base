@@ -472,7 +472,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
         logpb.target_dn = dn;
         logpb.newrdn = newrdn;
         logpb.newsup = newsuperior;
-        logpb.deletoldrdn = deloldrdn ? PR_TRUE : PR_FALSE;
+        logpb.deleteoldrdn = deloldrdn ? PR_TRUE : PR_FALSE;
         logpb.authzid = proxydn;
 
         if (proxydn) {
@@ -507,6 +507,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
                 logpb.op_id = op_id;
                 logpb.op_internal_id = op_internal_id;
                 logpb.op_nested_count = op_nested_count;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_modrdn(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_ARGS,
@@ -566,13 +567,13 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
                       "Syntax check of newSuperior failed\n");
         if (!internal_op) {
             slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
-                          "conn=%" PRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
+                          "conn=%" PRIu64 " op=%d MODRDN invalid new superior (\"%s\")\n",
                           pb_conn->c_connid,
                           operation->o_opid,
                           newsuperior ? newsuperior : "(null)");
         } else {
             slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
-                          "conn=%s op=%d MODRDN invalid new superior (\"%s\")",
+                          "conn=%s op=%d MODRDN invalid new superior (\"%s\")\n",
                           LOG_INTERNAL_OP_CON_ID,
                           LOG_INTERNAL_OP_OP_ID,
                           newsuperior ? newsuperior : "(null)");
@@ -704,11 +705,14 @@ free_and_return_nolock : {
     slapi_ch_free_string(&newdn);
 
     slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &ecopy);
+    slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, NULL);
     slapi_entry_free(ecopy);
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
+    slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
     slapi_entry_free(pse);
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     ldap_mods_free(mods, 1);
+    slapi_pblock_set(pb, SLAPI_MODIFY_MODS, NULL);
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);
 

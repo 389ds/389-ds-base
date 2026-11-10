@@ -9,7 +9,7 @@
 import pytest, os, ldap
 
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 from lib389.idm.account import Anonymous
 from lib389.idm.user import UserAccount, UserAccounts

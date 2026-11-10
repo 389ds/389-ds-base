@@ -10,7 +10,7 @@ import logging
 import pytest
 import os
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 from lib389.cli_base import FakeArgs
 from lib389.cli_conf.security import cacert_add, cacert_list, cert_del
 from lib389.cli_ctl.tls import import_ca
@@ -83,7 +83,6 @@ jBqLRMRQN4FvzuCZiMl/DwJv4yhAZ8hylYjRjqjY/fEPvhvJRncPVy8z
 -----END CERTIFICATE-----
 """
 
-
 def test_ca_cert_bundle(topo):
     """Test we can add a CAS certificate bundle
 
@@ -106,6 +105,8 @@ def test_ca_cert_bundle(topo):
 
     """
     inst = topo.standalone
+    # Init NSS DB for dyncerts
+    inst.enable_tls()
     lc = LogCapture()
 
     # Create PEM file with 2 CA certs
@@ -119,6 +120,8 @@ def test_ca_cert_bundle(topo):
     args = FakeArgs()
     args.name = ['CA_CERT_1', 'CA_CERT_2']
     args.file = pem_file
+    # Allow CA certs that fail verification (self-signed)
+    args.force = True
     cacert_add(inst, DEFAULT_SUFFIX, log, args)
 
     # List CA certs
@@ -153,6 +156,9 @@ def test_ca_cert_bundle(topo):
     lc.flush()
     args = FakeArgs()
     args.json = False
+    # import update directly the NSS db with pk12util
+    # so instance should be restarted to sync the db
+    inst.restart()
     cacert_list(inst, DEFAULT_SUFFIX, lc.log, args)
     assert lc.contains('CA_CERT_1')
     assert lc.contains('CA_CERT_2')

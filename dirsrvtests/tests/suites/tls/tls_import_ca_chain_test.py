@@ -12,7 +12,7 @@ import ldap
 import os
 
 from lib389.nss_ssl import NssSsl
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 pytestmark = pytest.mark.tier1
 
@@ -38,7 +38,7 @@ def test_tls_import_chain(topology_st):
     tls.reinit()
 
     with pytest.raises(ValueError):
-        tls.add_cert(nickname='CA_CHAIN_1', input_file=CA_CHAIN_FILE)
+        tls.add_cert(nickname='CA_CHAIN_1', cert_file=CA_CHAIN_FILE)
 
     with pytest.raises(ValueError):
         tls.import_rsa_crt(crt=CRT_CHAIN_FILE)

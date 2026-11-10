@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn, isValidIpAddress, is_port_in_use } from "../tools.jsx";
+import { log_cmd, valid_dn, isValidIpAddress, isValidIpAddressOrCIDR, is_port_in_use, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -23,11 +23,7 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
@@ -115,22 +111,11 @@ export class ServerSettings extends React.Component {
         };
         this.handleOnHaproxyIPsSelect = (event, selection, nav_tab) => {
             const id = 'nsslapd-haproxy-trusted-ip';
-            const { haproxyIPs } = this.state;
-            // The first if-block is when removing an item from the list
-            if (haproxyIPs.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        haproxyIPs: prevState.haproxyIPs.filter(item => item !== selection),
-                        isHaproxyIPsOpen: false
-                    }), () => { this.validateSaveBtn(nav_tab, id, haproxyIPs.filter(item => item !== selection)) });
-            // The second if-block is when adding an item to the list
-            } else {
-                this.setState(
-                    prevState => ({
-                        haproxyIPs: [...prevState.haproxyIPs, selection],
-                        isHaproxyIPsOpen: false,
-                    }), () => { this.validateSaveBtn(nav_tab, id, [...haproxyIPs, selection]) });
-            }
+            const newHaproxyIPs = Array.isArray(selection) ? selection : [];
+            this.setState({
+                haproxyIPs: newHaproxyIPs,
+                isHaproxyIPsOpen: false,
+            }, () => { this.validateSaveBtn(nav_tab, id, newHaproxyIPs) });
         };
 
         this.handleOnHaproxyIPsClear = (event, nav_tab) => {
@@ -190,6 +175,7 @@ export class ServerSettings extends React.Component {
         this.handleSaveAdvanced = this.handleSaveAdvanced.bind(this);
         this.reloadAdvanced = this.reloadAdvanced.bind(this);
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
+        this.validatePortOnBlur = this.validatePortOnBlur.bind(this);
 
         this.onMinusConfig = (id, nav_tab) => {
             this.setState({
@@ -237,7 +223,7 @@ export class ServerSettings extends React.Component {
         for (const attr of path_attrs) {
             const cmd = `[ -d "${this.state[attr]}" ]`;
             cockpit
-                    .script(cmd, [], { superuser: true, err: "message" })
+                    .script(cmd, [], { superuser: "require", err: "message" })
                     .done(output => {
                         errObj[attr] = false;
                         this.setState({
@@ -303,25 +289,6 @@ async validateSaveBtn(nav_tab, attr, value) {
                 valueErr = true;
                 disableSaveBtn = true;
             }
-            if (attr === 'nsslapd-port' || attr === 'nsslapd-secureport') {
-                const portValue = Number(value)
-                if (!isNaN(portValue)) {
-                    try {
-                        // Check port value is not already in use.
-                        const portInUse = await is_port_in_use(portValue);
-                        if (portInUse) {
-                            disableSaveBtn = true;
-                            if (portValue !== Number(this.state['_' + attr])) {
-                                valueErr = true;
-                            }
-                        }
-                    } catch (error) {
-                        console.error("Error checking port:", error);
-                        disableSaveBtn = true;
-                        valueErr = true;
-                    }
-                }
-            }
         } else if (nav_tab === "rootdn") {
             // Handle validating passwords are in sync
             if (attr === 'nsslapd-rootpw') {
@@ -363,9 +330,10 @@ async validateSaveBtn(nav_tab, attr, value) {
             }
         } else if (nav_tab === "adv") {
             // Handle special cases for anon limit dn
-            if (attr === 'nsslapd-anonlimitsdn' && !valid_dn(value)) {
+            if (attr === 'nsslapd-anonlimitsdn' && value !== "" && !valid_dn(value)) {
                 valueErr = true;
                 errObj[attr] = true;
+                disableSaveBtn = true;
             }
             if (value === "" && attr !== 'nsslapd-anonlimitsdn' && (typeof value !== "boolean")) {
                 valueErr = true;
@@ -373,7 +341,7 @@ async validateSaveBtn(nav_tab, attr, value) {
             }
             if (attr === 'nsslapd-haproxy-trusted-ip') {
                 for (const ip of value) {
-                    if (value && !isValidIpAddress(ip)) {
+                    if (value && !isValidIpAddressOrCIDR(ip)) {
                         invalidIP = true;
                         disableSaveBtn = true;
                         break;
@@ -422,6 +390,43 @@ async validateSaveBtn(nav_tab, attr, value) {
                 this.validateSaveBtn(tab, attr, this.state[attr]);
             });
         });
+    }
+
+    async validatePortOnBlur(attr) {
+        const portValue = Number(this.state[attr]);
+        if (isNaN(portValue)) {
+            return;
+        }
+
+        try {
+            const portInUse = await is_port_in_use(portValue);
+            const origValue = Number(this.state['_' + attr]);
+
+            const errObj = { ...this.state.errObjConfig };
+
+            if (portInUse && portValue !== origValue) {
+                errObj[attr] = true;
+            } else {
+                errObj[attr] = false;
+            }
+
+            const hasErrors = Object.values(errObj).some(error => error === true);
+            this.setState({
+                errObjConfig: errObj,
+                configSaveDisabled: hasErrors
+            });
+
+        } catch (error) {
+            console.error("Error checking port:", error);
+            const errObj = { ...this.state.errObjConfig };
+            errObj[attr] = true;
+
+            const hasErrors = Object.values(errObj).some(error => error === true);
+            this.setState({
+                errObjConfig: errObj,
+                configSaveDisabled: hasErrors
+            });
+        }
     }
 
     loadConfig() {
@@ -489,8 +494,8 @@ async validateSaveBtn(nav_tab, attr, value) {
             errObjDiskMon: {},
             errObjAdv: {},
             // Settings
-            'nsslapd-port': attrs['nsslapd-port'][0],
-            'nsslapd-secureport': attrs['nsslapd-secureport'][0],
+            'nsslapd-port': parseInt(attrs['nsslapd-port'][0]),
+            'nsslapd-secureport': parseInt(attrs['nsslapd-secureport'][0]),
             'nsslapd-localhost': attrs['nsslapd-localhost'][0],
             'nsslapd-listenhost': listenhost,
             'nsslapd-bakdir': attrs['nsslapd-bakdir'][0],
@@ -504,8 +509,8 @@ async validateSaveBtn(nav_tab, attr, value) {
             'nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             haproxyIPs: attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
             'nsslapd-haproxy-trusted-ip': attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
-            'nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
-            'nsslapd-disk-monitoring-grace-period': attrs['nsslapd-disk-monitoring-grace-period'][0],
+            'nsslapd-disk-monitoring-threshold': parseInt(attrs['nsslapd-disk-monitoring-threshold'][0]),
+            'nsslapd-disk-monitoring-grace-period': parseInt(attrs['nsslapd-disk-monitoring-grace-period'][0]),
             'nsslapd-allow-anonymous-access': attrs['nsslapd-allow-anonymous-access'][0],
             'nsslapd-disk-monitoring': diskMonitoring,
             'nsslapd-disk-monitoring-logging-critical': diskLogCritical,
@@ -520,8 +525,8 @@ async validateSaveBtn(nav_tab, attr, value) {
             'nsslapd-ignore-time-skew': ignoreSkew,
             'nsslapd-readonly': readOnly,
             // Record original values
-            '_nsslapd-port': attrs['nsslapd-port'][0],
-            '_nsslapd-secureport': attrs['nsslapd-secureport'][0],
+            '_nsslapd-port': parseInt(attrs['nsslapd-port'][0]),
+            '_nsslapd-secureport': parseInt(attrs['nsslapd-secureport'][0]),
             '_nsslapd-localhost': attrs['nsslapd-localhost'][0],
             '_nsslapd-listenhost': listenhost,
             '_nsslapd-bakdir': attrs['nsslapd-bakdir'][0],
@@ -535,8 +540,8 @@ async validateSaveBtn(nav_tab, attr, value) {
             '_nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             _haproxyIPs: attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
             '_nsslapd-haproxy-trusted-ip': attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
-            '_nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
-            '_nsslapd-disk-monitoring-grace-period': attrs['nsslapd-disk-monitoring-grace-period'][0],
+            '_nsslapd-disk-monitoring-threshold': parseInt(attrs['nsslapd-disk-monitoring-threshold'][0]),
+            '_nsslapd-disk-monitoring-grace-period': parseInt(attrs['nsslapd-disk-monitoring-grace-period'][0]),
             '_nsslapd-allow-anonymous-access': attrs['nsslapd-allow-anonymous-access'][0],
             '_nsslapd-disk-monitoring': diskMonitoring,
             '_nsslapd-disk-monitoring-logging-critical': diskLogCritical,
@@ -573,7 +578,7 @@ async validateSaveBtn(nav_tab, attr, value) {
 
         log_cmd("handleSaveRootDN", "Saving changes to root DN", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.reloadRootDN();
                     this.props.addNotification(
@@ -582,11 +587,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.reloadRootDN();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating Directory Manager configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating Directory Manager configuration - $0"), errMsg)
                     );
                 });
     }
@@ -598,7 +603,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("handleReloadConfig", "Reload Directory Manager configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -619,13 +624,13 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         rootDNReloading: false,
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error reloading Directory Manager configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error reloading Directory Manager configuration - $0"), errMsg)
                     );
                 });
     }
@@ -654,7 +659,7 @@ async validateSaveBtn(nav_tab, attr, value) {
 
         log_cmd("handleSaveDiskMonitoring", "Saving changes to Disk Monitoring", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
@@ -663,11 +668,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating Disk Monitoring configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating Disk Monitoring configuration - $0"), errMsg)
                     );
                 });
     }
@@ -679,7 +684,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("reloadDiskMonitoring", "Reload Disk Monitoring configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -710,13 +715,13 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         diskMonReloading: false,
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error reloading Disk Monitoring configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error reloading Disk Monitoring configuration - $0"), errMsg)
                     );
                 });
     }
@@ -729,7 +734,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("handleMultivaluedAttributeReplace", "Removing cn=config attribute", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     if (attrs.length > 0) {
                         const cmd = [
@@ -738,7 +743,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                         ];
                         log_cmd("handleMultivaluedAttributeReplace", "Adding multivalued cn=config attribute", cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
+                                .spawn(cmd, { superuser: "require", err: "message" })
                                 .done(content => {
                                     this.reloadAdvanced();
                                     this.props.addNotification(
@@ -747,11 +752,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                                     );
                                 })
                                 .fail(err => {
-                                    const errMsg = JSON.parse(err);
+                                    const errMsg = getApiErrorMessage(err);
                                     this.reloadAdvanced();
                                     this.props.addNotification(
                                         "error",
-                                        `Error updating Advanced configuration - ${errMsg.desc}`
+                                        `Error updating Advanced configuration - ${errMsg}`
                                     );
                                 });
                     } else {
@@ -763,11 +768,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.reloadAdvanced();
                     this.props.addNotification(
                         "error",
-                        `Error updating Advanced configuration - ${errMsg.desc}`
+                        `Error updating Advanced configuration - ${errMsg}`
                     );
                 });
     }
@@ -813,7 +818,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         }
         log_cmd("handleSaveAdvanced", "Saving Advanced configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     if (doHaproxy) {
                         this.handleMultivaluedAttributeReplace(addHAproxy);
@@ -826,11 +831,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     }
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.reloadAdvanced();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating Advanced configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating Advanced configuration - $0"), errMsg)
                     );
                 });
     }
@@ -842,7 +847,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("reloadAdvanced", "Reload Advanced configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -927,10 +932,10 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading Advanced configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading Advanced configuration - $0"), errMsg)
                     );
                     this.setState({
                         advReloading: false,
@@ -956,7 +961,7 @@ async validateSaveBtn(nav_tab, attr, value) {
 
         log_cmd("handleSaveConfig", "Applying server config change", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     // Continue with the next mod
                     this.handleReloadConfig();
@@ -966,11 +971,11 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.handleReloadConfig();
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating server configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating server configuration - $0"), errMsg)
                     );
                 });
     }
@@ -982,7 +987,7 @@ async validateSaveBtn(nav_tab, attr, value) {
         ];
         log_cmd("handleReloadConfig", "Reload server configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -1020,10 +1025,10 @@ async validateSaveBtn(nav_tab, attr, value) {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error reloading server configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error reloading server configuration - $0"), errMsg)
                     );
                     this.setState({
                         configReloading: false,
@@ -1129,7 +1134,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("Server Settings")}
-                                    <Button 
+                                    <Button
                                         variant="plain"
                                         aria-label={_("Refresh configuration settings")}
                                         onClick={this.handleReloadConfig}
@@ -1144,14 +1149,14 @@ async validateSaveBtn(nav_tab, attr, value) {
                     <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
                         <Tabs isFilled className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>{_("General Settings")}</TabTitleText>}>
-                                <Form autoComplete="off" className="ds-margin-top-xlg">
+                                <Form autoComplete="off" className="ds-margin-top-xlg ds-left-margin">
                                     <Grid
                                         title={_("The version of the Directory Server package")}
                                     >
                                         <GridItem className="ds-label" span={2}>
                                             {_("Server Version")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.props.version}
                                                 type="text"
@@ -1168,7 +1173,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Server Hostname")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-localhost']}
                                                 type="text"
@@ -1188,21 +1193,28 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("LDAP Port")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <NumberInput
                                                 value={this.state['nsslapd-port']}
                                                 min={1}
                                                 max={65534}
                                                 onMinus={() => { this.onMinusConfig("nsslapd-port", "config") }}
                                                 onChange={(e) => { this.onConfigChange(e, "nsslapd-port", 1, 65534, "config") }}
+                                                onBlur={() => { this.validatePortOnBlur("nsslapd-port") }}
                                                 onPlus={() => { this.onPlusConfig("nsslapd-port", "config") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={8}
-                                                validated={this.state.errObjConfig['nsslapd-port'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
+                                            {this.state.errObjConfig['nsslapd-port'] &&
+                                                <HelperText>
+                                                    <HelperTextItem variant="error">
+                                                        This port is already in use, please choose another.
+                                                    </HelperTextItem>
+                                                </HelperText>
+                                            }
                                         </GridItem>
                                     </Grid>
                                     <Grid
@@ -1211,21 +1223,29 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("LDAPS Port")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <NumberInput
                                                 value={this.state['nsslapd-secureport']}
                                                 min={1}
                                                 max={65534}
                                                 onMinus={() => { this.onMinusConfig("nsslapd-secureport", "config") }}
                                                 onChange={(e) => { this.onConfigChange(e, "nsslapd-secureport", 1, 65534, "config") }}
+                                                onBlur={() => { this.validatePortOnBlur("nsslapd-secureport") }}
                                                 onPlus={() => { this.onPlusConfig("nsslapd-secureport", "config") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={8}
-                                                validated={this.state.errObjConfig['nsslapd-secureport'] ? ValidatedOptions.error : ValidatedOptions.default}
+
                                             />
+                                            {this.state.errObjConfig['nsslapd-secureport'] &&
+                                                <HelperText>
+                                                    <HelperTextItem variant="error">
+                                                        This port is already in use, please choose another.
+                                                    </HelperTextItem>
+                                                </HelperText>
+                                            }
                                         </GridItem>
                                     </Grid>
                                     <Grid
@@ -1234,7 +1254,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Listen Host Address")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-listenhost']}
                                                 type="text"
@@ -1254,7 +1274,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Backup Directory")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-bakdir']}
                                                 type="text"
@@ -1278,7 +1298,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("LDIF File Directory")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-ldifdir']}
                                                 type="text"
@@ -1302,7 +1322,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Schema Directory")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-schemadir']}
                                                 type="text"
@@ -1326,7 +1346,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={2}>
                                             {_("Certificate Directory")}
                                         </GridItem>
-                                        <GridItem span={10}>
+                                        <GridItem span={9}>
                                             <TextInput
                                                 value={this.state['nsslapd-certdir']}
                                                 type="text"
@@ -1348,7 +1368,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 <Button
                                     isDisabled={this.state.configSaveDisabled || this.state.configReloading}
                                     variant="primary"
-                                    className="ds-margin-top-xlg"
+                                    className="ds-margin-top-xlg ds-left-margin"
                                     onClick={this.handleSaveConfig}
                                     isLoading={this.state.configReloading}
                                     spinnerAriaValueText={this.state.configReloading ? _("Saving") : undefined}
@@ -1359,14 +1379,14 @@ async validateSaveBtn(nav_tab, attr, value) {
                             </Tab>
 
                             <Tab eventKey={1} title={<TabTitleText>{_("Directory Manager")}</TabTitleText>}>
-                                <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
+                                <Form className="ds-margin-top-xlg ds-left-margin" isHorizontal>
                                     <Grid
                                         title={_("The DN of the unrestricted directory manager (nsslapd-rootdn).")}
                                     >
                                         <GridItem className="ds-label" span={3}>
                                             {_("Directory Manager DN")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <TextInput
                                                 value={this.state['nsslapd-rootdn']}
                                                 type="text"
@@ -1383,7 +1403,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Directory Manager Password")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <TextInput
                                                 value={this.state['nsslapd-rootpw']}
                                                 type="password"
@@ -1403,7 +1423,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Confirm Password")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <TextInput
                                                 value={this.state.confirmRootpw}
                                                 type="password"
@@ -1423,7 +1443,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Password Storage Scheme")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <FormSelect
                                                 id="nsslapd-rootpwstoragescheme"
                                                 value={this.state['nsslapd-rootpwstoragescheme']}
@@ -1441,7 +1461,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 </Form>
                                 <Button
                                     variant="primary"
-                                    className="ds-margin-top-xlg"
+                                    className="ds-margin-top-xlg ds-left-margin"
                                     isDisabled={this.state.rootDNSaveDisabled || this.state.rootDNReloading}
                                     onClick={this.handleSaveRootDN}
                                     isLoading={this.state.rootDNReloading}
@@ -1476,7 +1496,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 </Button>
                             </Tab>
                             <Tab eventKey={3} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
-                                <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                                <Form className="ds-margin-top-xlg ds-left-margin" isHorizontal autoComplete="off">
                                     <Grid>
                                         <GridItem span={5}>
                                             <Checkbox
@@ -1605,7 +1625,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Allow Anonymous Access")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <FormSelect
                                                 id="nsslapd-allow-anonymous-access"
                                                 value={this.state['nsslapd-allow-anonymous-access']}
@@ -1631,7 +1651,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                         <GridItem className="ds-label" span={3}>
                                             {_("Anonymous Resource Limits DN")}
                                         </GridItem>
-                                        <GridItem span={9}>
+                                        <GridItem span={5}>
                                             <TextInput
                                                 value={this.state['nsslapd-anonlimitsdn']}
                                                 type="text"
@@ -1641,46 +1661,38 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                validated={this.state.errObjAdv.anonLimitsDN ? ValidatedOptions.error : ValidatedOptions.default}
+                                                validated={this.state.errObjAdv['nsslapd-anonlimitsdn'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="HAProxy header is only checked if this setting (nsslapd-haproxy-trusted-ip) is configured. It should have a list of trusted HAProxy server IPs"
+                                        title="HAProxy header is only checked if this setting (nsslapd-haproxy-trusted-ip) is configured. It should have a list of trusted HAProxy server IPs or subnets in CIDR notation (e.g., 192.168.1.0/24)"
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Trusted HAProxy Server IPs
+                                            Trusted HAProxy Server IPs/Subnets
                                         </GridItem>
-                                        <GridItem span={9}>
-                                            <Select
-                                                variant={SelectVariant.typeaheadMulti}
-                                                id="nsslpad-haproxy-trusted-ip"
-                                                typeAheadAriaLabel="Type trusted HAProxy server IP address"
-                                                onToggle={(event, isOpen) => this.handleOnHaproxyIPsToggle(event, isOpen)}
+                                        <GridItem span={5}>
+                                            <TypeaheadSelect
+                                                selected={this.state.haproxyIPs}
                                                 onSelect={(e, selection) => {
                                                     this.handleOnHaproxyIPsSelect(e, selection, "adv");
                                                 }}
                                                 onClear={(e) => {
                                                     this.handleOnHaproxyIPsClear(e, "adv");
                                                 }}
-                                                selections={this.state.haproxyIPs}
+                                                options={[]}
                                                 isOpen={this.state.isHaproxyIPsOpen}
-                                                aria-labelledby="typeAhead-haproxy-ips"
-                                                placeholderText="Type trusted HAProxy server IP address"
-                                                isCreatable
+                                                onToggle={this.handleOnHaproxyIPsToggle}
+                                                placeholder="Type trusted HAProxy server IP or subnet (e.g., 192.168.1.0/24)"
+                                                ariaLabel="Type trusted HAProxy server IP address or CIDR subnet"
+                                                validated={this.state.invalidIP ? "error" : "default"}
+                                                isMulti={true}
+                                                isCreatable={true}
                                                 onCreateOption={this.handleOnCreateHaproxyIP}
-                                                validated={this.state.invalidIP ? ValidatedOptions.error : ValidatedOptions.default}
-                                            >
-                                                {[].map((attr, index) => (
-                                                    <SelectOption
-                                                        key={index}
-                                                        value={attr}
-                                                    />
-                                                ))}
-                                            </Select>
+                                            />
                                             {(this.state.invalidIP) &&
                                                 <HelperText className="ds-left-margin">
-                                                    <HelperTextItem variant="error">Invalid format for IP address</HelperTextItem>
+                                                    <HelperTextItem variant="error">Invalid format for IP address or CIDR subnet</HelperTextItem>
                                                 </HelperText>}
                                         </GridItem>
                                     </Grid>
@@ -1688,7 +1700,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 <Button
                                     isDisabled={this.state.advSaveDisabled || this.state.advReloading}
                                     variant="primary"
-                                    className="ds-margin-top-xlg"
+                                    className="ds-margin-top-xlg ds-left-margin"
                                     onClick={this.handleSaveAdvanced}
                                     isLoading={this.state.advReloading}
                                     spinnerAriaValueText={this.state.advReloading ? _("Saving") : undefined}

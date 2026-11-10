@@ -78,7 +78,6 @@ static char *ldbm_config_moved_attributes[] =
         CONFIG_DB_DEBUG_CHECKPOINTING,
         CONFIG_DB_HOME_DIRECTORY,
         CONFIG_IMPORT_CACHE_AUTOSIZE,
-        CONFIG_CACHE_AUTOSIZE,
         CONFIG_CACHE_AUTOSIZE_SPLIT,
         CONFIG_IMPORT_CACHESIZE,
         CONFIG_BYPASS_FILTER_TEST,
@@ -768,44 +767,6 @@ ldbm_config_serial_lock_set(void *arg,
 }
 
 static void *
-ldbm_config_entryrdn_switch_get(void *arg __attribute__((unused)))
-{
-    return (void *)((uintptr_t)entryrdn_get_switch());
-}
-
-static int
-ldbm_config_entryrdn_switch_set(void *arg __attribute__((unused)),
-                                void *value,
-                                char *errorbuf __attribute__((unused)),
-                                int phase __attribute__((unused)),
-                                int apply)
-{
-    if (apply) {
-        entryrdn_set_switch((int)((uintptr_t)value));
-    }
-    return LDAP_SUCCESS;
-}
-
-static void *
-ldbm_config_entryrdn_noancestorid_get(void *arg __attribute__((unused)))
-{
-    return (void *)((uintptr_t)entryrdn_get_noancestorid());
-}
-
-static int
-ldbm_config_entryrdn_noancestorid_set(void *arg __attribute__((unused)),
-                                      void *value,
-                                      char *errorbuf __attribute__((unused)),
-                                      int phase __attribute__((unused)),
-                                      int apply)
-{
-    if (apply) {
-        entryrdn_set_noancestorid((int)((uintptr_t)value));
-    }
-    return LDAP_SUCCESS;
-}
-
-static void *
 ldbm_config_legacy_errcode_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
@@ -958,6 +919,145 @@ ldbm_config_exclude_from_export_get(void *arg)
 }
 
 
+static int
+ldbm_config_dynamic_lists_enabled_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int val = (int)((uintptr_t)value);
+
+    if (apply) {
+        li->li_dynamic_lists_enabled = val;
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+ldbm_config_dynamic_lists_enabled_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dynamic_lists_enabled);
+}
+
+static int
+ldbm_config_dynamic_lists_attr_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    char *val = (char *)value;
+
+    if (!slapi_attr_syntax_exists(val)) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "The %s configuration attribute must be set "
+                    "to an existing attribute with DN syntax (unknown %s)",
+                    CONFIG_DYNAMIC_LISTS_ATTR, val);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (!slapi_attr_is_dn_syntax_type(val)) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "The %s configuration attribute must be set "
+                    "to an attribute with DN syntax (incorrect syntax: %s)",
+                    CONFIG_DYNAMIC_LISTS_ATTR, val);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+    if (li->li_dynamic_lists_url_attr &&
+        strcasecmp(li->li_dynamic_lists_url_attr, val) == 0)
+    {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "The %s configuration attribute must not be set "
+                    "to the same attribute as the %s configuration attribute (same: %s)",
+                    CONFIG_DYNAMIC_LISTS_ATTR, CONFIG_DYNAMIC_LISTS_URL_ATTR,
+                    li->li_dynamic_lists_url_attr);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+
+    if (apply) {
+        slapi_ch_free_string(&(li->li_dynamic_lists_attr));
+        li->li_dynamic_lists_attr = slapi_ch_strdup(val);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+ldbm_config_dynamic_lists_attr_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)slapi_ch_strdup(li->li_dynamic_lists_attr);
+}
+
+static int
+ldbm_config_dynamic_lists_oc_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    char *val = (char *)value;
+    char *oc_value = NULL;
+
+    /* Check if this is a real objectclass */
+    if ((oc_value = slapi_schema_get_superior_name(val)) == NULL) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "The %s configuration attribute must be set "
+                    "to an existing objectclass (unknown: %s)",
+                    CONFIG_DYNAMIC_LISTS_OC, val);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+    slapi_ch_free_string(&oc_value);
+
+    if (apply) {
+        slapi_ch_free_string(&(li->li_dynamic_lists_oc));
+        li->li_dynamic_lists_oc = slapi_ch_strdup(val);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+ldbm_config_dynamic_lists_oc_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)slapi_ch_strdup(li->li_dynamic_lists_oc);
+}
+
+static int
+ldbm_config_dynamic_lists_url_attr_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    char *val = (char *)value;
+
+    if (!slapi_attr_syntax_exists(val)) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "The %s configuration attribute must be set "
+                    "to an existing attribute (unknown: %s)",
+                    CONFIG_DYNAMIC_LISTS_URL_ATTR, val);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    /* Now make sure we are not using this attribute for the list attr */
+    if (li->li_dynamic_lists_attr && strcasecmp(li->li_dynamic_lists_attr, val) == 0) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "The %s configuration attribute must not be set "
+                    "to the same attribute as the %s configuration attribute (same: %s)",
+                    CONFIG_DYNAMIC_LISTS_URL_ATTR, CONFIG_DYNAMIC_LISTS_ATTR,
+                    li->li_dynamic_lists_attr);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        slapi_ch_free_string(&(li->li_dynamic_lists_url_attr));
+        li->li_dynamic_lists_url_attr = slapi_ch_strdup(val);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+ldbm_config_dynamic_lists_url_attr_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)slapi_ch_strdup(li->li_dynamic_lists_url_attr);
+}
+
 /*------------------------------------------------------------------------
  * Configuration array for ldbm and dblayer variables
  *----------------------------------------------------------------------*/
@@ -980,13 +1080,16 @@ static config_info ldbm_config[] = {
     {CONFIG_EXCLUDE_FROM_EXPORT, CONFIG_TYPE_STRING, CONFIG_EXCLUDE_FROM_EXPORT_DEFAULT_VALUE, &ldbm_config_exclude_from_export_get, &ldbm_config_exclude_from_export_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &ldbm_config_serial_lock_get, &ldbm_config_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_USE_LEGACY_ERRORCODE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_legacy_errcode_get, &ldbm_config_legacy_errcode_set, 0},
-    {CONFIG_ENTRYRDN_SWITCH, CONFIG_TYPE_ONOFF, "on", &ldbm_config_entryrdn_switch_get, &ldbm_config_entryrdn_switch_set, CONFIG_FLAG_ALWAYS_SHOW},
-    {CONFIG_ENTRYRDN_NOANCESTORID, CONFIG_TYPE_ONOFF, "off", &ldbm_config_entryrdn_noancestorid_get, &ldbm_config_entryrdn_noancestorid_set, 0 /* no show */},
     {CONFIG_PAGEDLOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedlookthroughlimit_get, &ldbm_config_pagedlookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_PAGEDIDLISTSCANLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedallidsthreshold_get, &ldbm_config_pagedallidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_RANGELOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_rangelookthroughlimit_get, &ldbm_config_rangelookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_BACKEND_OPT_LEVEL, CONFIG_TYPE_INT, "1", &ldbm_config_backend_opt_level_get, &ldbm_config_backend_opt_level_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_BACKEND_IMPLEMENT, CONFIG_TYPE_STRING, "bdb", &ldbm_config_backend_implement_get, &ldbm_config_backend_implement_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    /* dynamic lists */
+    {CONFIG_DYNAMIC_LISTS_ENABLED, CONFIG_TYPE_ONOFF, "off", &ldbm_config_dynamic_lists_enabled_get, &ldbm_config_dynamic_lists_enabled_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DYNAMIC_LISTS_ATTR, CONFIG_TYPE_STRING, "member", &ldbm_config_dynamic_lists_attr_get, &ldbm_config_dynamic_lists_attr_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DYNAMIC_LISTS_OC, CONFIG_TYPE_STRING, "groupOfUrls", &ldbm_config_dynamic_lists_oc_get, &ldbm_config_dynamic_lists_oc_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DYNAMIC_LISTS_URL_ATTR, CONFIG_TYPE_STRING, "memberURL", &ldbm_config_dynamic_lists_url_attr_get, &ldbm_config_dynamic_lists_url_attr_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void
@@ -1201,7 +1304,6 @@ bail:
     return rval;
 }
 
-
 /* Utility function used in creating config entries.  Using the
  * config_info, this function gets info and formats in the correct
  * way.
@@ -1294,7 +1396,9 @@ ldbm_config_search_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
             if (attrs) {
                 for (size_t i = 0; attrs[i]; i++) {
                     if (ldbm_config_moved_attr(attrs[i])) {
-                        slapi_pblock_set(pb, SLAPI_RESULT_TEXT, "at least one required attribute has been moved to the DB scecific configuration entry");
+                        /* operation_done() free's result text, so we must pass a copy */
+                        char *msg = slapi_ch_strdup("at least one required attribute has been moved to the DB scecific configuration entry");
+                        slapi_pblock_set(pb, SLAPI_RESULT_TEXT, msg);
                         break;
                     }
                 }
@@ -1774,9 +1878,9 @@ ldbm_config_destroy(struct ldbminfo *li)
     if (li->li_attrs_to_exclude_from_export != NULL) {
         charray_free(li->li_attrs_to_exclude_from_export);
     }
-    slapi_ch_free((void **)&(li->li_new_directory));
-    slapi_ch_free((void **)&(li->li_directory));
-    slapi_ch_free((void **)&(li->li_backend_implement));
+    slapi_ch_free_string(&(li->li_new_directory));
+    slapi_ch_free_string(&(li->li_directory));
+    slapi_ch_free_string(&(li->li_backend_implement));
     /* Destroy the mutexes and cond var */
     if (li->li_shutdown_mutex) {
         PR_DestroyLock(li->li_shutdown_mutex);
@@ -1784,6 +1888,11 @@ ldbm_config_destroy(struct ldbminfo *li)
     if (li->li_config_mutex) {
         PR_DestroyLock(li->li_config_mutex);
     }
+
+    /* dynamic lists */
+    slapi_ch_free_string(&(li->li_dynamic_lists_attr));
+    slapi_ch_free_string(&(li->li_dynamic_lists_oc));
+    slapi_ch_free_string(&(li->li_dynamic_lists_url_attr));
 
     /* Finally free the ldbminfo */
     slapi_ch_free((void **)&li);

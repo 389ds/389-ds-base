@@ -27,6 +27,8 @@ extern "C" {
 #include "nspr.h"
 #include "portable.h"
 #include "slapi-plugin.h"
+#include <stdbool.h>
+#include <plhash.h>
 /*
  * XXXmcs: we can stop including slapi-plugin-compat4.h once we stop using
  * deprecated functions internally.
@@ -130,6 +132,8 @@ int slapi_destructive_rename(const char *srcfilename,
                              const char *destfilename);
 /* make a copy of a file */
 int slapi_copy(const char *srcfilename, const char *destfile);
+/* fsync a directory so renames/links in it are durable; returns 0 or errno */
+int slapi_fsync_dir(const char *dirpath);
 
 /* CSN */
 
@@ -243,6 +247,8 @@ typedef struct csngen CSNGen;
 CSNGen *csngen_new(ReplicaId rid, Slapi_Attr *state);
 /* frees csn generator data structure */
 void csngen_free(CSNGen **gen);
+/* overrides the clock source used by the generator (for testing) */
+void csngen_set_gettime(CSNGen *gen, int32_t (*gettime)(struct timespec *tp));
 /* generates new csn. If notify is non-zero, the generator calls
    "generate" functions registered through csngen_register_callbacks call */
 int csngen_new_csn(CSNGen *gen, CSN **csn, PRBool notify);
@@ -462,6 +468,8 @@ struct component_keys_lookup
     char *attribute_type;
     char *key;
     int id_lookup_cnt;
+    struct timespec key_lookup_start;
+    struct timespec key_lookup_end;
     struct component_keys_lookup *next;
 };
 typedef struct op_search_stat
@@ -846,6 +854,7 @@ void task_cleanup(void);
 /* for reversible encyrption */
 #define SLAPI_MB_CREDENTIALS "nsmultiplexorcredentials"
 #define SLAPI_REP_CREDENTIALS "nsds5ReplicaCredentials"
+#define SLAPI_REP_BOOTSTRAP_CREDENTIALS "nsds5ReplicaBootstrapCredentials"
 int pw_rever_encode(Slapi_Value **vals, char *attr_name);
 int pw_rever_decode(char *cipher, char **plain, const char *attr_name);
 
@@ -1180,6 +1189,7 @@ void schema_expand_objectclasses_nolock(Slapi_Entry *e);
 #define DSE_SCHEMA_LOCKED            0x0020  /* already locked with reload_schemafile_lock; no further lock needed */
 #define DSE_SCHEMA_USER_DEFINED_ONLY 0x0100  /* refresh user defined schema */
 #define DSE_SCHEMA_USE_PRIV_SCHEMA   0x0200  /* Use a provided private schema */
+#define DSE_SCHEMA_USE_GLOBAL        0x0400  /* Use the global schema */
 
 /* */
 #define OC_CONSUMER "consumer"
@@ -1236,6 +1246,7 @@ struct slapi_td_log_op_state_t {
 };
 
 int slapi_td_init(void);
+void slapi_td_destroy(void);
 int slapi_td_set_dn(char *dn);
 void slapi_td_get_dn(char **dn);
 int slapi_td_plugin_lock_init(void);
@@ -1246,6 +1257,10 @@ struct slapi_td_log_op_state_t * slapi_td_get_log_op_state(void);
 void slapi_td_internal_op_start(void);
 void slapi_td_internal_op_finish(void);
 void slapi_td_reset_internal_logging(uint64_t conn_id, int32_t op_id, time_t start_time);
+int32_t slapi_td_set_attr_syntax_name_table(PLHashTable *ht);
+void slapi_td_get_attr_syntax_name_table(PLHashTable **ht);
+int32_t slapi_td_set_attr_syntax_oid_table(PLHashTable *ht);
+void slapi_td_get_attr_syntax_oid_table(PLHashTable **ht);
 
 /*  Thread Local Storage Index Types - thread_data.c */
 
@@ -1261,6 +1276,9 @@ char get_sep(char *path);
 int mkdir_p(char *dir, unsigned int mode);
 const char *ldif_getline_ro( const char **next);
 void dup_ldif_line(struct berval *copy, const char *line, const char *endline);
+const char *get_oid_name(const char *oid);
+bool slapi_db_is_lmdb(void);
+char *get_ip_str(struct sockaddr *addr, char *str, size_t str_size);
 
 /* slapi-memberof.c */
 int slapi_memberof(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_MemberOfResult *result);
@@ -1405,7 +1423,7 @@ int slapi_add_internal_attr_syntax(const char *name, const char *oid, const char
 
 /* pw.c */
 void pw_exp_init(void);
-int pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e);
+int pw_copy_entry_ext(const Slapi_Entry *src_e, Slapi_Entry *dest_e);
 int pw_get_ext_size(Slapi_Entry *e, size_t *size);
 
 /* op_shared.c */
@@ -1455,6 +1473,7 @@ char *slapi_getSSLVersion_str(PRUint16 vnum, char *buf, size_t bufsize);
 time_t slapi_parse_duration(const char *value);
 long long slapi_parse_duration_longlong(const char *value) __attribute__((deprecated));
 int slapi_is_duration_valid(const char *value);
+int slapi_is_duration_valid_strict(const char *value);
 
 /**
  * Possible results of a cachesize check
@@ -1521,13 +1540,34 @@ void slapi_pblock_set_task_warning(Slapi_PBlock *pb, task_warning warning);
 int slapi_exists_or_add_internal(Slapi_DN *dn, const char *filter, const char *entry, const char *modifier_name);
 
 void slapi_log_backtrace(int loglevel);
+void slapi_log_hexadump(int loglevel, char *fname, const void *addr, size_t len);
+
 
 /*
  * accesslog.c
  */
+/* Fine grain operation timing */
+typedef struct fgot_t {
+    bool enabled;
+    struct timespec c;  /* Cumuled time */
+    struct timespec s;  /* Start time */
+} fgot_t;
+
+typedef enum fgot_id_t {
+    FGOT_WQ,     /* Time spent in Work Queue */
+    FGOT_W,      /* Time spent before starting processing the operation */
+    FGOT_OP,     /* Time spent after starting processing the operation */
+    FGOT_WRITE,  /* Time spent sending data over the network */
+    FGOT_ETIME,  /* Time spent to fully process an operation */
+    FGOT_MAX     /* Fgot table size - Should be the last enum */
+} fgot_id_t;
+
 typedef struct slapd_log_pblock {
     int32_t log_format;
     Slapi_PBlock *pb;
+    struct logging_opts *loginfo;
+    struct timespec curr_time;
+    uint32_t level; /* log level */
     /* Connection */
     time_t conn_time;
     uint64_t conn_id;
@@ -1541,8 +1581,15 @@ typedef struct slapd_log_pblock {
     char *haproxy_ip;
     char *haproxy_destip;
     PRBool using_tls;
-    PRBool hapoxied;
+    PRBool haproxied;
     const char *bind_dn;
+    /* TLS */
+    const char *tls_version;
+    int32_t keysize;
+    const char *cipher;
+    const char *subject;
+    const char *issuer;
+    const char *client_dn;
     /* Close connection */
     const char *close_error;
     const char *close_reason;
@@ -1567,17 +1614,19 @@ typedef struct slapd_log_pblock {
     /* Modrdn */
     const char *newrdn;
     const char *newsup;
-    PRBool deletoldrdn;
+    PRBool deleteoldrdn;
     /* Search */
     const char *base_dn;
     int32_t scope;
     char *filter;
     char **attrs;
     PRBool psearch;
+    char *sort_str;
     /* Stat */
     const char *stat_attr;
     const char *stat_key;
     const char *stat_value;
+    const char *stat_etime;
     int32_t stat_count;
     /*
      * VLV request:
@@ -1603,14 +1652,22 @@ typedef struct slapd_log_pblock {
     char *etime;
     char *sid;
     uint32_t notes;
+    uint32_t tag;
     CSN *csn;
     int32_t pr_idx;
     int32_t pr_cookie;
+    /* Thread pool stats, -1 if not captured */
+    int32_t wbusy;
+    int32_t wmax;
+    int32_t wqdepth;
     /* Misc */
     const char *oid;
     const char *msg;
+    const char *name;
+    const char *err_str;
     LDAPControl **request_controls;
-    LDAPControl **result_controls;
+    LDAPControl **response_controls;
+    char *fgot[FGOT_MAX];
 } slapd_log_pblock;
 
 int32_t slapd_log_access_abandon(slapd_log_pblock *logpb);
@@ -1634,6 +1691,13 @@ int32_t slapd_log_access_vlv(slapd_log_pblock *logpb);
 int32_t slapd_log_access_entry(slapd_log_pblock *logpb);
 int32_t slapd_log_access_referral(slapd_log_pblock *logpb);
 int32_t slapd_log_access_extop(slapd_log_pblock *logpb);
+int32_t slapd_log_access_extop_info(slapd_log_pblock *logpb);
+int32_t slapd_log_access_sort(slapd_log_pblock *logpb);
+int32_t slapd_log_access_tls(slapd_log_pblock *logpb);
+int32_t slapd_log_access_tls_client_auth(slapd_log_pblock *logpb);
+void slapi_log_fgot_json(struct op *op, slapd_log_pblock *logpb, char *buff, size_t buflen);
+void slapi_log_fgot_text(struct op *op, char *buff, size_t buflen);
+const char*fgot_get_name(fgot_id_t id);
 
 #ifdef __cplusplus
 }

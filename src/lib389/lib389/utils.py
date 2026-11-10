@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2026 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -11,19 +11,6 @@
 
     TODO put them in a module!
 """
-try:
-    from subprocess import Popen as my_popen, PIPE
-except ImportError:
-    from popen2 import popen2
-
-    def my_popen(cmd_l, stdout=None):
-        class MockPopenResult(object):
-            def wait(self):
-                pass
-        p = MockPopenResult()
-        p.stdout, p.stdin = popen2(cmd_l)
-        return p
-
 import json
 import re
 import os
@@ -33,6 +20,8 @@ import shutil
 import ldap
 import mmap
 import socket
+import ipaddress
+import itertools
 import time
 import stat
 from datetime import (datetime, timedelta)
@@ -44,16 +33,18 @@ import operator
 import subprocess
 import math
 import errno
+from typing import Optional, Union
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import pkcs12
 import lib389
 from pathlib import Path
 from subprocess import check_output
 from lib389.paths import ( Paths, DEFAULTS_PATH )
-from lib389.dseldif import DSEldif
 from lib389._constants import (
         DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST,
         ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS, DEFAULT_DB_LIB,
@@ -858,7 +849,7 @@ def isLocalHost(host_name):
 
     # next, see if this IP addr is one of our
     # local addresses
-    p = my_popen(['/sbin/ip', 'addr'], stdout=PIPE)
+    p = subprocess.Popen(['/sbin/ip', 'addr'], stdout=subprocess.PIPE)
     child_stdout = p.stdout.read()
     found = ('inet %s' % ip_addr).encode() in child_stdout
     p.wait()
@@ -1500,6 +1491,11 @@ def ensure_dict_str(val):
     return retdict
 
 
+def align_to_page_size(size):
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    return ((size + page_size - 1) // page_size) * page_size
+
+
 def pseudolocalize(string):
     pseudo_string = u""
     for char in string:
@@ -1522,41 +1518,6 @@ def format_cmd_list(cmd):
     """Format the subprocess command list to the quoted shell string"""
 
     return " ".join(map(shlex.quote, cmd))
-
-
-def get_ldapurl_from_serverid(instance):
-    """ Take an instance name, and get the host/port/protocol from dse.ldif
-    and return a LDAP URL to use in the CLI tools (dsconf)
-
-    :param instance: The server ID of a server instance
-    :return tuple of LDAPURL and certificate directory (for LDAPS)
-    """
-    try:
-        dse_ldif = DSEldif(None, instance)
-    except:
-        return (None, None)
-
-    port = dse_ldif.get("cn=config", "nsslapd-port", single=True)
-    secureport = dse_ldif.get("cn=config", "nsslapd-secureport", single=True)
-    host = dse_ldif.get("cn=config", "nsslapd-localhost", single=True)
-    sec = dse_ldif.get("cn=config", "nsslapd-security", single=True)
-    ldapi_listen = dse_ldif.get("cn=config", "nsslapd-ldapilisten", single=True)
-    ldapi_autobind = dse_ldif.get("cn=config", "nsslapd-ldapiautobind", single=True)
-    ldapi_socket = dse_ldif.get("cn=config", "nsslapd-ldapifilepath", single=True)
-    certdir = dse_ldif.get("cn=config", "nsslapd-certdir", single=True)
-
-    if ldapi_listen is not None and ldapi_listen.lower() == "on" and \
-       ldapi_autobind is not None and ldapi_autobind.lower() == "on" and \
-       ldapi_socket is not None:
-        # Use LDAPI
-        socket = ldapi_socket.replace("/", "%2f")  # Escape the path
-        return ("ldapi://" + socket, None)
-    elif sec is not None and sec.lower() == "on" and secureport is not None:
-        # Use LDAPS
-        return ("ldaps://{}:{}".format(host, secureport), certdir)
-    else:
-        # Use LDAP
-        return ("ldap://{}:{}".format(host, port), None)
 
 
 def get_instance_list():
@@ -1713,6 +1674,45 @@ def is_valid_hostname(hostname):
     allowed = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
 
+def is_valid_ip(ip):
+    """ Validate an IPv4 or IPv6 address, including asterisks for wildcards. """
+    if '*' in ip and '.' in ip:
+        ipv4_pattern = r'^(\d{1,3}|\*)\.(\d{1,3}|\*)\.(\d{1,3}|\*)\.(\d{1,3}|\*)$'
+        if re.match(ipv4_pattern, ip):
+            octets = ip.split('.')
+            for octet in octets:
+                if octet != '*':
+                    try:
+                        val = int(octet, 10)
+                        if not (0 <= val <= 255):
+                            return False
+                    except ValueError:
+                        return False
+            return True
+        else:
+            return False
+
+    if '*' in ip and ':' in ip:
+        ipv6_pattern = r'^([0-9a-fA-F]{1,4}|\*)(:([0-9a-fA-F]{1,4}|\*)){0,7}$'
+        if re.match(ipv6_pattern, ip):
+            octets = ip.split(':')
+            for octet in octets:
+                if octet != '*':
+                    try:
+                        val = int(octet, 16)
+                        if not (0 <= val <= 0xFFFF):
+                            return False
+                    except ValueError:
+                        return False
+            return True
+        else:
+            return False
+
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        return False
 
 def parse_size(size):
     """
@@ -1759,7 +1759,7 @@ def get_default_mdb_max_size(paths):
     """
     if paths is None:
         paths = Paths()
-    mdb_max_size = DEFAULT_LMDB_SIZE
+    mdb_max_size = format_size(parse_size(DEFAULT_LMDB_SIZE))
     size = parse_size(mdb_max_size)
     # Make sure that there is enough available disk space
     # otherwise decrease the value
@@ -1961,17 +1961,62 @@ def check_cert_info(cert_file_name, search_text):
     return search_text.lower() in cert_text.lower()
 
 
-def cert_is_ca(cert_file_name):
-    with open(cert_file_name, "rb") as f:
-        if is_cert_der(cert_file_name):
-            cert = x509.load_der_x509_certificate(f.read(), default_backend())
-        else:
-            cert = x509.load_pem_x509_certificate(f.read(), default_backend())
+def cert_is_ca(cert_data, pkcs12_password: Optional[Union[str, bytes]] = None):
+    """
+    Determine if a certificate is a CA.
+
+    Supports PEM, DER, and PKCS#12 certificates, from bytes or file paths.
+    """
+    # If passed bytes directly (DER,PEM)
+    cert_file = None
+    if isinstance(cert_data, (bytes, bytearray)):
+        data = bytes(cert_data)
+    else:
+        cert_file = cert_data
+        try:
+            with open(cert_file, "rb") as f:
+                data = f.read()
+        except OSError as e:
+            raise ValueError(f"Unable to load certificate '{cert_data}': {e}")
 
     try:
+        # p12
+        if cert_file and cert_file.lower().endswith((".p12", ".pfx")):
+            try:
+                privkey, cert, _ = pkcs12.load_key_and_certificates(
+                    data, ensure_bytes(pkcs12_password),
+                    backend=default_backend()
+                )
+            except Exception as e:
+                raise ValueError(f"Failed to load PKCS#12 file: {cert_file}: {e}")
+
+            if cert is None:
+                raise ValueError("No certificate found in PKCS#12 container")
+
+        # Bytes
+        elif cert_file is None:
+            try:
+                cert = x509.load_der_x509_certificate(data, default_backend())
+            except Exception:
+                cert = x509.load_pem_x509_certificate(data, default_backend())
+
+        # File
+        else:
+            try:
+                cert = x509.load_pem_x509_certificate(data, default_backend())
+            except Exception:
+                cert = x509.load_der_x509_certificate(data, default_backend())
+
+    except ValueError as ve:
+        raise ValueError(f"Unable to load certificate '{cert_file}': {ve}")
+
+    try:
+        # Check key usage
         key_usage = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.KEY_USAGE)
         if not key_usage.value.key_cert_sign:
             return False
+
+        # Check constraints
         basic_constraints = cert.extensions.get_extension_for_oid(
             x509.oid.ExtensionOID.BASIC_CONSTRAINTS
         )
@@ -1979,10 +2024,29 @@ def cert_is_ca(cert_file_name):
             return False
         else:
             return True
+
     except x509.ExtensionNotFound:
         # No extensions, check the cert info directly
-        return check_cert_info(cert_file_name, "CA:TRUE")
+        return check_cert_info(cert_file, "CA:TRUE")
 
+def pem_to_der(blob: bytes):
+    """
+    Convert PEM certificate bytes to DER format.
+
+    :param blob: PEM encoded certificate bytes
+    :return: DER encoded certificate bytes
+    """
+    cert = x509.load_pem_x509_certificate(blob)
+    return cert.public_bytes(serialization.Encoding.DER)
+
+def is_pem_cert(blob: bytes):
+    """
+    Check if the given blob is a PEM certificate.
+
+    :param blob: Certificate data bytes
+    :return: True if PEM format, else False
+    """
+    return b"-----BEGIN CERTIFICATE-----" in blob
 
 def get_passwd_from_file(passwd_file):
     if os.path.exists(passwd_file):
@@ -2013,3 +2077,118 @@ def check_plugin_strings(plugin_name, tested_strings):
                 return { astring:(mm.find(astring.encode()) >=0) for astring in tested_strings }
     return { astring:None for astring in tested_strings }
 
+
+def get_timeout_scale():
+    """
+    Get the timeout scale factor
+    :return float:
+    """
+    scale_factor = 1.0
+    if Paths().asan_enabled:
+        scale_factor = 2.0
+
+    env_value = os.getenv('DS_TIMEOUT_SCALE', default=str(scale_factor))
+
+    try:
+        return float(env_value)
+    except ValueError:
+        log.error(f"DS_TIMEOUT_SCALE should be a valid float. Using default value: {scale_factor}")
+        return scale_factor
+
+
+def rpm_is_older(pkg, version):
+    """Check if an RPM package version is older than specified version"""
+    # rpm module is not installed in build environment so let import it only when used.
+    import rpm
+    ts = rpm.TransactionSet()
+    mi = ts.dbMatch('name', pkg)
+    for h in mi:
+        log.debug(f"{pkg} {h['version']} {version}")
+        for n1,n2 in itertools.zip_longest(h['version'].split('.'), version.split('.'), fillvalue=""):
+            try:
+                if int(n1) > int(n2):
+                    return False
+                if int(n1) < int(n2):
+                    return True
+            except ValueError:
+                if n1 < n2:
+                    return True
+                if n1 > n2:
+                    return False
+    return False
+
+
+# Validate the max-age settings for changelogs.
+# The value must be a number followed by a duration unit [sSmMhHdDwW].
+# The first digit can not be a zero.
+def validate_max_age(value, ignore_value=None):
+    if ignore_value is not None and value == ignore_value:
+        return
+
+    # check value using digits except for the last character which must be a duration unit
+    if not re.match(r'^\d+[sSmMhHdDwW]$', value) or value[0] == '0':
+        raise ValueError(f"Invalid max age value: {value}")
+
+
+def get_mount_point(dir):
+    path = os.path.realpath(os.path.abspath(dir))
+    while not os.path.ismount(path):
+        path = os.path.dirname(path)
+    return path
+
+
+def get_disk_space(path):
+    stats = os.statvfs(path)
+    block_size = stats.f_frsize
+    total_size = stats.f_blocks * block_size
+    if total_size == 0:
+        return {
+            'total': 0,
+            'available': 0,
+            'used': 0,
+            'percent': 0
+        }
+
+    available_size = stats.f_bavail * block_size
+    used_size = total_size - available_size
+    used_percent = (used_size / total_size) * 100
+    return {
+        'total': total_size,
+        'available': available_size,
+        'used': used_size,
+        'percent': used_percent
+    }
+
+
+def check_asan_report(inst, err_string):
+    """
+    Check if the ASAN report contains the string.
+
+    This is used for CI tests that expect an ASAN report to exist after
+    stopping the server.
+
+    :param inst: Instance object
+    :param err_string: Error string to search for
+    :return: True if the error string is found, False otherwise
+    :raises ValueError: If the ASAN report does not exist
+    """
+    if not inst.has_asan():
+        return False
+
+    asan_report = os.path.join(inst.ds_paths.run_dir,
+                               f"ns-slapd-{inst.serverid}.asan.{inst.get_pid()}")
+
+    # Now we have the pid (and the proper file name) we can stop the server
+    inst.stop()
+
+    # Check the ASAN report
+    try:
+        with open(asan_report, 'r') as f:
+            content = f.read()
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        raise ValueError(f"Failed to read ASAN report '{asan_report}': {e}")
+
+    if err_string in content:
+        return True
+
+    return False

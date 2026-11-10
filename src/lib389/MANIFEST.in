@@ -1,1 +1,3 @@
-include README
+include README.md
+include build_hooks.py
+recursive-include cli *

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -663,7 +663,7 @@ slapi_send_ldap_intermediate(Slapi_PBlock *pb, LDAPControl **ectrls, char *respo
 int
 slapi_send_ldap_search_entry(Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls, char **attrs, int attrsonly)
 {
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock *, Slapi_Entry *, LDAPControl **, char **, int32_t) = NULL;
     slapi_pblock_get(pb, SLAPI_PLUGIN_DB_ENTRY_FN, (void *)&fn);
     if (NULL == fn) {
         return -1;
@@ -698,7 +698,7 @@ slapi_send_ldap_result_from_pb(Slapi_PBlock *pb)
     int err;
     char *matched;
     char *text;
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock*, int32_t, char*, char*, int32_t, struct berval **) = NULL;
 
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
     slapi_pblock_get(pb, SLAPI_RESULT_TEXT, &text);
@@ -708,17 +708,12 @@ slapi_send_ldap_result_from_pb(Slapi_PBlock *pb)
     if (NULL != fn) {
         (*fn)(pb, err, matched, text, 0, NULL);
     }
-
-    slapi_pblock_set(pb, SLAPI_RESULT_TEXT, NULL);
-    slapi_pblock_set(pb, SLAPI_RESULT_MATCHED, NULL);
-    slapi_ch_free((void **)&matched);
-    slapi_ch_free((void **)&text);
 }
 
 void
 slapi_send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int nentries, struct berval **urls)
 {
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock*, int32_t, char*, char*, int32_t, struct berval **) = NULL;
     Slapi_Operation *operation;
     long op_type;
 
@@ -756,7 +751,7 @@ slapi_send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int
 int
 slapi_send_ldap_referral(Slapi_PBlock *pb, Slapi_Entry *e, struct berval **refs, struct berval ***urls)
 {
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock*, Slapi_Entry*, struct berval **, struct berval ***) = NULL;
     slapi_pblock_get(pb, SLAPI_PLUGIN_DB_REFERRAL_FN, (void *)&fn);
     if (NULL == fn) {
         return -1;
@@ -1852,6 +1847,28 @@ plugin_dependency_closeall(void)
     }
 }
 
+/* Call the pre close functions of all the plugins */
+void
+plugin_pre_closeall(void)
+{
+    Slapi_PBlock *pb = NULL;
+    int plugins_pre_closed = 0;
+    int index = 0;
+
+    while (plugins_pre_closed < global_plugins_started) {
+        if (global_plugin_shutdown_order[index].name) {
+            if (!global_plugin_shutdown_order[index].removed) {
+                pb = slapi_pblock_new();
+                plugin_call_one(global_plugin_shutdown_order[index].plugin,
+                                SLAPI_PLUGIN_PRE_CLOSE_FN, pb);
+                slapi_pblock_destroy(pb);
+            }
+            plugins_pre_closed++;
+        }
+        index++;
+    }
+}
+
 void
 plugin_freeall(void)
 {
@@ -1969,7 +1986,7 @@ plugin_call_func(struct slapdplugin *list, int operation, Slapi_PBlock *pb, int 
     int count = 0;
 
     for (; list != NULL; list = list->plg_next) {
-        IFP func = NULL;
+        int32_t (*func)(Slapi_PBlock *) = NULL;
 
         slapi_pblock_set(pb, SLAPI_PLUGIN, list);
         set_db_default_result_handlers(pb); /* JCM: What's this do? Is it needed here? */
@@ -3630,6 +3647,7 @@ plugin_invoke_plugin_pb(struct slapdplugin *plugin, int operation, Slapi_PBlock 
     if (operation == SLAPI_PLUGIN_START_FN ||
         operation == SLAPI_PLUGIN_POSTSTART_FN ||
         operation == SLAPI_PLUGIN_CLOSE_FN ||
+        operation == SLAPI_PLUGIN_PRE_CLOSE_FN ||
         operation == SLAPI_PLUGIN_CLEANUP_FN ||
         operation == SLAPI_PLUGIN_BE_PRE_CLOSE_FN ||
         operation == SLAPI_PLUGIN_BE_POST_OPEN_FN ||

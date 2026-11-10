@@ -10,7 +10,7 @@ import os
 import pytest
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts, UserAccount
-from lib389.topologies import topology_i2
+from test389.topologies import topology_i2
 
 pytestmark = pytest.mark.tier1
 

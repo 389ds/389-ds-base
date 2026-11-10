@@ -243,6 +243,7 @@ nsslapd-pluginenabled: on
 dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
+objectClass: pwdPBKDF2PluginConfig
 cn: PBKDF2_SHA256
 nsslapd-pluginpath: libpwdstorage-plugin
 nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init
@@ -262,6 +263,7 @@ nsslapd-pluginId: PBKDF2
 nsslapd-pluginVersion: none
 nsslapd-pluginVendor: 389 Project
 nsslapd-pluginDescription: PBKDF2
+nsslapd-pwdPBKDF2AcceptMaxIterations: 600000
 
 dn: cn=PBKDF2-SHA1,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
@@ -276,6 +278,7 @@ nsslapd-pluginId: PBKDF2-SHA1
 nsslapd-pluginVersion: none
 nsslapd-pluginVendor: 389 Project
 nsslapd-pluginDescription: PBKDF2-SHA1\
+nsslapd-pwdPBKDF2AcceptMaxIterations: 600000
 
 dn: cn=PBKDF2-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
@@ -290,6 +293,7 @@ nsslapd-pluginId: PBKDF2-SHA256
 nsslapd-pluginVersion: none
 nsslapd-pluginVendor: 389 Project
 nsslapd-pluginDescription: PBKDF2-SHA256\
+nsslapd-pwdPBKDF2AcceptMaxIterations: 600000
 
 dn: cn=PBKDF2-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
@@ -304,6 +308,7 @@ nsslapd-pluginId: PBKDF2-SHA512
 nsslapd-pluginVersion: none
 nsslapd-pluginVendor: 389 Project
 nsslapd-pluginDescription: PBKDF2-SHA512
+nsslapd-pwdPBKDF2AcceptMaxIterations: 600000
 
 dn: cn=AES,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
@@ -984,7 +989,6 @@ cn: config
 nsslapd-mode: 600
 nsslapd-directory: %db_dir%
 nsslapd-db-home-directory: %db_home_dir%
-nsslapd-subtree-rename-switch: on
 nsslapd-backend-implement: %db_lib%
 
 dn: cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
@@ -1069,12 +1073,13 @@ cn: memberOf
 nssystemindex: false
 nsindextype: eq
 
-dn: cn=memberuid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+dn: cn=memberUid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
 cn: memberuid
 nssystemindex: false
 nsindextype: eq
+nsindextype: pres
 
 dn: cn=nsUniqueId,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
@@ -1134,6 +1139,14 @@ nssystemindex: false
 nsindextype: pres
 nsindextype: eq
 nsindextype: sub
+
+dn: cn=sudoHost,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: sudoHost
+nssystemindex: false
+nsindextype: eq
+nsindextype: pres
 
 dn: cn=telephoneNumber,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top

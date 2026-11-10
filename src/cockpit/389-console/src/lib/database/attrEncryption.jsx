@@ -7,13 +7,9 @@ import {
 	Grid,
 	GridItem
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -25,7 +21,6 @@ export class AttrEncryption extends React.Component {
             showConfirmAttrDelete: false,
             addAttr: "",
             delAttr: "",
-            isSelectOpen: false,
             modalSpinning: false,
             modalChecked: false,
             saving: false,
@@ -39,7 +34,6 @@ export class AttrEncryption extends React.Component {
         this.onHandleModalChange = this.onHandleModalChange.bind(this);
         // Select Typeahead
         this.handleSelect = this.handleSelect.bind(this);
-        this.handleSelectToggle = this.handleSelectToggle.bind(this);
         this.handleSelectClear = this.handleSelectClear.bind(this);
     }
 
@@ -69,21 +63,13 @@ export class AttrEncryption extends React.Component {
 
     handleSelect = (event, selection) => {
         this.setState({
-            addAttr: selection,
-            isSelectOpen: false
-        });
-    };
-
-    handleSelectToggle = isSelectOpen => {
-        this.setState({
-            isSelectOpen
+            addAttr: selection
         });
     };
 
     handleSelectClear = () => {
         this.setState({
-            addAttr: "",
-            isSelectOpen: false
+            addAttr: ""
         });
     };
 
@@ -99,7 +85,7 @@ export class AttrEncryption extends React.Component {
         ];
         log_cmd("handleAddEncryptedAttr", "Delete suffix referral", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -112,11 +98,11 @@ export class AttrEncryption extends React.Component {
                     });
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failed to add encrypted attribute - $0"), errMsg.desc)
+                        cockpit.format(_("Failed to add encrypted attribute - $0"), errMsg)
                     );
                     this.setState({
                         saving: false,
@@ -135,7 +121,7 @@ export class AttrEncryption extends React.Component {
         ];
         log_cmd("delEncryptedAttr", "Delete encrypted attribute", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -145,11 +131,11 @@ export class AttrEncryption extends React.Component {
                     this.closeConfirmAttrDelete();
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Failure deleting encrypted attribute - $0"), errMsg.desc)
+                        cockpit.format(_("Failure deleting encrypted attribute - $0"), errMsg)
                     );
                     this.closeConfirmAttrDelete();
                 });
@@ -159,15 +145,15 @@ export class AttrEncryption extends React.Component {
         const {
             addAttr,
             saving,
-            isSelectOpen,
             modalSpinning,
         } = this.state;
 
         // Update the available list of attrs for the Typeahead
         const fullList = [];
         const attrs = [];
-        for (const attrProp of this.props.rows) {
-            fullList.push(attrProp.name);
+        // this.props.rows contains strings, not objects
+        for (const attrName of this.props.rows) {
+            fullList.push(attrName);
         }
         for (const attr of this.props.attrs) {
             if (fullList.indexOf(attr) === -1) {
@@ -183,7 +169,7 @@ export class AttrEncryption extends React.Component {
         }
 
         return (
-            <div className={saving || modalSpinning ? "ds-margin-top-lg ds-disabled" : "ds-margin-top-lg"}>
+            <div className={saving || modalSpinning ? "ds-margin-top-lg ds-left-margin ds-disabled" : "ds-margin-top-lg ds-left-margin"}>
                 <EncryptedAttrTable
                     key={this.props.rows}
                     rows={this.props.rows}
@@ -191,24 +177,16 @@ export class AttrEncryption extends React.Component {
                 />
                 <Grid className="ds-margin-top">
                     <GridItem span={6}>
-                        <Select
-                            variant={SelectVariant.typeahead}
-                            onToggle={(_event, isSelectOpen) => this.handleSelectToggle(isSelectOpen)}
+                        <TypeaheadSelect
+                            selected={addAttr}
                             onSelect={this.handleSelect}
                             onClear={this.handleSelectClear}
-                            selections={addAttr}
-                            isOpen={isSelectOpen}
-                            aria-labelledby="typeAhead-AttrEnc"
-                            placeholderText={_("Type attribute name to be encrypted")}
-                            noResultsFoundText={_("There are no matching entries")}
-                        >
-                            {attrs.map((attr, index) => (
-                                <SelectOption
-                                    key={index}
-                                    value={attr}
-                                />
-                            ))}
-                        </Select>
+                            options={attrs}
+                            placeholder={_("Type attribute name to be encrypted")}
+                            noResultsText={_("There are no matching entries")}
+                            ariaLabel="Type attribute name to be encrypted"
+                            openOnClick={false}
+                        />
                     </GridItem>
                     <GridItem span={3} className="ds-no-padding">
                         <Button

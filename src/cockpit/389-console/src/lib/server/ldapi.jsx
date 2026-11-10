@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, getApiErrorMessage } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -13,11 +13,7 @@ import {
 	TextContent,
 	TextVariants
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { SyncAltIcon } from "@patternfly/react-icons";
 import PropTypes from "prop-types";
 
@@ -98,7 +94,7 @@ export class ServerLDAPI extends React.Component {
         ];
         log_cmd("getAttributes", "Get attrs", attr_cmd);
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(attr_cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
                     const attrs = [];
@@ -176,7 +172,7 @@ export class ServerLDAPI extends React.Component {
         ];
         log_cmd("reloadConfig", "Reload server configuration", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
@@ -185,13 +181,13 @@ export class ServerLDAPI extends React.Component {
                     }, this.handleLoadConfig);
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loading: false
                     });
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error loading server configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error loading server configuration - $0"), errMsg)
                     );
                 });
     }
@@ -222,7 +218,7 @@ export class ServerLDAPI extends React.Component {
 
         log_cmd("handleSaveConfig", "Saving LDAPI settings", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+                .spawn(cmd, { superuser: "require", err: "message" })
                 .done(content => {
                     this.setState({
                         loading: false
@@ -233,13 +229,13 @@ export class ServerLDAPI extends React.Component {
                     );
                 })
                 .fail(err => {
-                    const errMsg = JSON.parse(err);
+                    const errMsg = getApiErrorMessage(err);
                     this.setState({
                         loading: false
                     }, this.reloadConfig);
                     this.props.addNotification(
                         "error",
-                        cockpit.format(_("Error updating LDAPI configuration - $0"), errMsg.desc)
+                        cockpit.format(_("Error updating LDAPI configuration - $0"), errMsg)
                     );
                 });
     }
@@ -254,11 +250,8 @@ export class ServerLDAPI extends React.Component {
         }
 
         if (this.state['nsslapd-ldapimaptoentries']) {
-            const attributes = this.state.attributes.map((option, index) => (
-                <SelectOption key={index} value={option} />
-            ));
             mapUserAttrs = (
-                <div className="ds-margin-left">
+                <div>
                     <Grid
                         className="ds-margin-top"
                         title={_("The Directory Server attribute to map system UIDs to user entries (nsslapd-ldapiuidnumbertype).")}
@@ -266,18 +259,15 @@ export class ServerLDAPI extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI UID Number Attribute")}
                         </GridItem>
-                        <GridItem span={9}>
-                            <Select
-                                variant={SelectVariant.single}
-                                aria-label="Select UID Input"
-                                onToggle={(event, isOpen) => this.handleUIDToggle(event, isOpen)}
+                        <GridItem span={5}>
+                            <TypeaheadSelect
+                                ariaLabel="Select UID Input"
+                                onToggle={this.handleUIDToggle}
                                 onSelect={this.handleUIDSelect}
-                                selections={this.state['nsslapd-ldapiuidnumbertype']}
+                                selected={this.state['nsslapd-ldapiuidnumbertype']}
                                 isOpen={this.state.isUIDOpen}
-                                aria-labelledby="UID"
-                            >
-                                {attributes}
-                            </Select>
+                                options={this.state.attributes}
+                            />
                         </GridItem>
                     </Grid>
                     <Grid
@@ -287,18 +277,15 @@ export class ServerLDAPI extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI GID Number Attribute")}
                         </GridItem>
-                        <GridItem span={9}>
-                            <Select
-                                variant={SelectVariant.single}
-                                aria-label="Select GID Input"
-                                onToggle={(event, isOpen) => this.handleGIDToggle(event, isOpen)}
+                        <GridItem span={5}>
+                            <TypeaheadSelect
+                                ariaLabel="Select GID Input"
+                                onToggle={this.handleGIDToggle}
                                 onSelect={this.handleGIDSelect}
-                                selections={this.state['nsslapd-ldapigidnumbertype']}
+                                selected={this.state['nsslapd-ldapigidnumbertype']}
                                 isOpen={this.state.isGIDOpen}
-                                aria-labelledby="GID"
-                            >
-                                {attributes}
-                            </Select>
+                                options={this.state.attributes}
+                            />
                         </GridItem>
                     </Grid>
                     <Grid
@@ -308,7 +295,7 @@ export class ServerLDAPI extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI Entry Search Base")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={5}>
                             <TextInput
                                 value={this.state['nsslapd-ldapientrysearchbase']}
                                 type="text"
@@ -326,12 +313,12 @@ export class ServerLDAPI extends React.Component {
 
         let body = (
             <div>
-                <Form className="ds-margin-top-xlg ds-left-margin" autoComplete="off" isHorizontal>
+                <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
                     <Grid title={_("The Unix socket file (nsslapd-ldapifilepath).  The UI requires this exact path so it is a read-only setting.")}>
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI Socket File Path")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={5}>
                             <TextInput
                                 value={this.state['nsslapd-ldapifilepath']}
                                 type="text"
@@ -345,7 +332,7 @@ export class ServerLDAPI extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("LDAPI Map To Root DN")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={5}>
                             <TextInput
                                 value={this.state['nsslapd-ldapimaprootdn']}
                                 type="text"
@@ -376,7 +363,7 @@ export class ServerLDAPI extends React.Component {
                 <Button
                     isDisabled={this.state.saveDisabled || this.state.loading}
                     variant="primary"
-                    className="ds-margin-top-xlg"
+                    className="ds-margin-top-xlg ds-margin-left"
                     onClick={this.handleSaveConfig}
                     isLoading={this.state.loading}
                     spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
@@ -405,7 +392,7 @@ export class ServerLDAPI extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("LDAPI & AutoBind Settings")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh LDAPI settings")}
                                     onClick={this.handleLoadConfig}

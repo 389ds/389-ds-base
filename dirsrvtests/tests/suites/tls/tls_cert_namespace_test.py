@@ -12,7 +12,7 @@ import pytest
 
 import glob
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from lib389.paths import Paths
 
 pytestmark = pytest.mark.tier1

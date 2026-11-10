@@ -15,7 +15,7 @@ from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.pwpolicy import PwPolicyManager
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from .. import setup_page, check_frame_assignment, setup_login
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
@@ -52,7 +52,7 @@ def test_global_database_configuration_availability(topology_st, page, browser_n
         :id: d0efda45-4e8e-4703-b9c0-ab53249dafc3
         :setup: Standalone instance
         :steps:
-             1. Click on Database tab and check if ID List Scan Limit label is visible.
+             1. Click on Database tab, click on Limits tab and check if ID List Scan Limit label is visible.
              2. Click on Database Cache tab and check if Automatic Cache Tuning checkbox is visible.
              3. Click on Import Cache tab and check if Automatic Import Cache Tuning checkbox is visible.
              4. Click on NDN Cache tab and check if Normalized DN Cache Max Size label is visible.
@@ -69,31 +69,52 @@ def test_global_database_configuration_availability(topology_st, page, browser_n
     setup_login(page)
     time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
+    instance = topology_st.standalone
 
-    log.info('Check if element on Limits tab is loaded.')
-    frame.get_by_role('tab', name='Database', exact=True).click()
-    frame.get_by_text('ID List Scan Limit', exact=True).wait_for()
-    assert frame.get_by_text('ID List Scan Limit', exact=True).is_visible()
+    if instance.get_db_lib() == 'mdb':
+        log.info('Check if element on Limits tab is loaded.')
+        frame.get_by_role('tab', name='Database', exact=True).click()
 
-    log.info('Click on Database Cache tab and check if element is loaded')
-    frame.get_by_role('tab', name='Database Cache', exact=True).click()
-    assert frame.locator('#db_cache_auto').is_visible()
+        frame.get_by_role('tab', name='Database Size', exact=True).click()
+        frame.get_by_text('Database Maximum Size', exact=True).wait_for()
+        assert frame.get_by_text('Database Maximum Size', exact=True).is_visible()
 
-    log.info('Click on Import Cache tab and check if element is loaded')
-    frame.get_by_role('tab', name='Import Cache', exact=True).click()
-    assert frame.locator('#import_cache_auto').is_visible()
+        frame.get_by_role('tab', name='Limits', exact=True).click()
+        frame.get_by_text('ID List Scan Limit', exact=True).wait_for()
+        assert frame.get_by_text('ID List Scan Limit', exact=True).is_visible()
 
-    log.info('Click on NDN Cache tab and check if element is loaded')
-    frame.get_by_role('tab', name='NDN Cache', exact=True).click()
-    assert frame.get_by_text('Normalized DN Cache Max Size').is_visible()
+        log.info('Click on NDN Cache tab and check if element is loaded')
+        frame.get_by_role('tab', name='NDN Cache', exact=True).click()
+        assert frame.get_by_text('Normalized DN Cache Max Size').is_visible()
 
-    log.info('Click on Database Locks tab and check if element is loaded')
-    frame.get_by_role('tab', name='Database Locks', exact=True).click()
-    assert frame.locator('#dblocksMonitoring').is_visible()
+        log.info('Click on Advanced Settings tab and check if element is loaded')
+        frame.get_by_role('tab', name='Advanced Settings', exact=True).click()
+        assert frame.locator('#dbhomedir').is_visible()
+    elif instance.get_db_lib() == 'bdb':
+        log.info('Check if element on Limits tab is loaded.')
+        frame.get_by_role('tab', name='Database', exact=True).click()
+        frame.get_by_text('ID List Scan Limit', exact=True).wait_for()
+        assert frame.get_by_text('ID List Scan Limit', exact=True).is_visible()
 
-    log.info('Click on Advanced Settings tab and check if element is loaded')
-    frame.get_by_role('tab', name='Advanced Settings', exact=True).click()
-    assert frame.locator('#txnlogdir').is_visible()
+        log.info('Click on Database Cache tab and check if element is loaded')
+        frame.get_by_role('tab', name='Database Cache', exact=True).click()
+        assert frame.locator('#db_cache_auto').is_visible()
+
+        log.info('Click on Import Cache tab and check if element is loaded')
+        frame.get_by_role('tab', name='Import Cache', exact=True).click()
+        assert frame.locator('#import_cache_auto').is_visible()
+
+        log.info('Click on NDN Cache tab and check if element is loaded')
+        frame.get_by_role('tab', name='NDN Cache', exact=True).click()
+        assert frame.get_by_text('Normalized DN Cache Max Size').is_visible()
+
+        log.info('Click on Database Locks tab and check if element is loaded')
+        frame.get_by_role('tab', name='Database Locks', exact=True).click()
+        assert frame.locator('#dblocksMonitoring').is_visible()
+
+        log.info('Click on Advanced Settings tab and check if element is loaded')
+        frame.get_by_role('tab', name='Advanced Settings', exact=True).click()
+        assert frame.locator('#txnlogdir').is_visible()
 
 
 def test_chaining_configuration_availability(topology_st, page, browser_name):
@@ -117,6 +138,7 @@ def test_chaining_configuration_availability(topology_st, page, browser_name):
     log.info('Click on Chaining Configuration and check if element is loaded.')
     frame.get_by_role('tab', name='Database', exact=True).click()
     frame.locator('#chaining-config').click()
+    frame.locator('#chaining-page').wait_for()
     frame.locator('#defSizeLimit').wait_for()
     assert frame.locator('#defSizeLimit').is_visible()
 
@@ -216,9 +238,9 @@ def test_local_policy_availability(topology_st, page, browser_name):
         :setup: Standalone instance
         :steps:
              1. Click on Database tab, click on Local Policies button on side panel.
-             2. Check if Local Password Policies columnheader is visible.
-             3. Click on Edit Policy tab and check if Please choose a policy from the Local Policy Table heading is visible.
-             4. Click on Create A Policy tab and check if Target DN input field is visible.
+             2. Check if Local Password Policies table is visible.
+             3. Click on Create New Local Policy button and check if Target DN input field is visible.
+             4. If a policy exists, click Edit Policy row action and check if edit modal is visible.
         :expectedresults:
              1. Success
              2. Element is visible
@@ -232,16 +254,32 @@ def test_local_policy_availability(topology_st, page, browser_name):
     log.info('Click on Local Policies button and check if element is loaded.')
     frame.get_by_role('tab', name='Database', exact=True).click()
     frame.locator('#localpwpolicy').click()
-    frame.get_by_role('columnheader', name='Local Password Policies').wait_for()
-    assert frame.get_by_role('columnheader', name='Local Password Policies').is_visible()
+    pwp_table = frame.locator('[aria-label="pwp table"]')
+    pwp_table.wait_for()
+    assert pwp_table.is_visible()
+    no_policies = frame.get_by_text('No Local Policies', exact=True)
+    unknown_policy_type = frame.get_by_text('Unknown policy type', exact=True)
 
-    log.info('Click on Edit Policy tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Edit Policy').click()
-    assert frame.get_by_role('heading', name='Please choose a policy from the Local Policy Table.').is_visible()
+    if no_policies.count() > 0:
+        assert frame.get_by_role('columnheader', name='Local Password Policies').is_visible()
+        assert no_policies.is_visible()
+    else:
+        assert frame.get_by_role('columnheader', name='Target DN').is_visible()
+        assert frame.get_by_role('columnheader', name='Policy Type').is_visible()
+        assert frame.get_by_role('columnheader', name='Database Suffix').is_visible()
 
-    log.info('Click on Create A Policy tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Create A Policy').click()
+    log.info('Click on Create New Local Policy button and check if element is loaded.')
+    frame.get_by_role('button', name='Create New Local Policy').click()
+    frame.locator('#policyDN').wait_for()
     assert frame.locator('#policyDN').is_visible()
+    frame.get_by_role('button', name='Cancel').click()
+
+    if no_policies.count() == 0 and unknown_policy_type.count() == 0:
+        log.info('Click on Edit Policy row action and check if edit modal is loaded.')
+        pwp_table.get_by_role('button', name='Kebab toggle').first.click()
+        frame.get_by_role('menuitem', name='Edit Policy').click()
+        frame.locator('#passwordminage').wait_for()
+        assert frame.locator('#passwordminage').is_visible()
 
 
 def test_suffixes_policy_availability(topology_st, page, browser_name):
@@ -270,7 +308,7 @@ def test_suffixes_policy_availability(topology_st, page, browser_name):
 
     log.info('Click on Suffixes and check if element is loaded.')
     frame.get_by_role('tab', name='Database', exact=True).click()
-    frame.locator('#dc\=example\,dc\=com').click()
+    frame.locator(r'#dc\=example\,dc\=com').click()
     frame.locator('#cachememsize').wait_for()
     assert frame.locator('#cachememsize').is_visible()
 
@@ -334,7 +372,7 @@ def test_dictionary_check_checkbox(topology_st, page, browser_name):
     log.info('Disable dictionary check, reload tab and check that Dictionary Check checkbox is unchecked.')
     ppm.set_global_policy({"passworddictcheck": "off"})
     ppm.set_global_policy({"passwordchecksyntax": "on"})
-    frame.get_by_role('img', name="Refresh global password policy settings").click()
+    frame.get_by_role('button', name="Refresh global password policy settings").click()
     assert not frame.get_by_text('Dictionary Check').is_checked()
 
 

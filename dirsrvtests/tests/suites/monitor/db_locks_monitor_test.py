@@ -26,7 +26,7 @@ from lib389.index import Indexes
 from lib389.plugins import AttributeUniquenessPlugin
 from lib389.config import BDB_LDBMConfig
 from lib389.monitor import MonitorLDBM
-from lib389.topologies import create_topology, _remove_ssca_db
+from test389.topologies import create_topology, _remove_ssca_db
 
 pytestmark = pytest.mark.tier2
 db_locks_monitoring_ack = pytest.mark.skipif(not os.environ.get('DB_LOCKS_MONITORING_ACK', False),

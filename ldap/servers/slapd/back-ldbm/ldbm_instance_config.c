@@ -73,21 +73,21 @@ ldbm_instance_config_cachesize_set(void *arg,
     long val = (long)value;
 
     /* Do whatever we can to make sure the data is ok. */
+    if (CONFIG_PHASE_RUNNING == phase) {
+        if (val > 0 && inst->inst_li->li_cache_autosize) {
+            /* We are auto-tuning the cache, so this change would be overwritten - return an error */
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "Error: \"nsslapd-cachesize\" can not be updated while \"nsslapd-cache-autosize\" is set "
+                                  "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".");
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachesize_set",
+                          "\"nsslapd-cachesize\" can not be set while \"nsslapd-cache-autosize\" is set "
+                          "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".\n");
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
 
     if (apply) {
-        if (CONFIG_PHASE_RUNNING == phase) {
-            if (val > 0 && inst->inst_li->li_cache_autosize) {
-                /* We are auto-tuning the cache, so this change would be overwritten - return an error */
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                                      "Error: \"nsslapd-cachesize\" can not be updated while \"nsslapd-cache-autosize\" is set "
-                                      "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".");
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachesize_set",
-                              "\"nsslapd-cachesize\" can not be set while \"nsslapd-cache-autosize\" is set "
-                              "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".\n");
-                return LDAP_UNWILLING_TO_PERFORM;
-            }
-        }
-        cache_set_max_entries(&(inst->inst_cache), val);
+        cache_set_max_entries(&(inst->inst_cache), val, false /* not autotuned */);
     }
 
     return retval;
@@ -138,8 +138,9 @@ ldbm_instance_config_cachememsize_set(void *arg,
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
-        if (val > inst->inst_cache.c_maxsize) {
-            delta = val - inst->inst_cache.c_maxsize;
+
+        if (val > inst->inst_cache.c_stats.maxsize) {
+            delta = val - inst->inst_cache.c_stats.maxsize;
             delta_original = delta;
 
             util_cachesize_result sane;
@@ -165,13 +166,13 @@ ldbm_instance_config_cachememsize_set(void *arg,
                 val = val - (delta_original - delta);
             }
         }
-        if (inst->inst_cache.c_maxsize < MINCACHESIZE || val < MINCACHESIZE) {
+        if (inst->inst_cache.c_stats.maxsize < MINCACHESIZE || val < MINCACHESIZE) {
             slapi_log_err(SLAPI_LOG_INFO, "ldbm_instance_config_cachememsize_set",
                           "force a minimal value %" PRIu64 "\n", MINCACHESIZE);
             /* This value will trigger an autotune next start up, but it should increase only */
             val = MINCACHESIZE;
         }
-        cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY);
+        cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY, false /* not autotuned */);
     }
 
     return retval;
@@ -209,8 +210,8 @@ ldbm_instance_config_dncachememsize_set(void *arg,
      */
 
     if (apply) {
-        if (val > inst->inst_dncache.c_maxsize) {
-            delta = val - inst->inst_dncache.c_maxsize;
+        if (val > inst->inst_dncache.c_stats.maxsize) {
+            delta = val - inst->inst_dncache.c_stats.maxsize;
 
             util_cachesize_result sane;
             slapi_pal_meminfo *mi = spal_meminfo_get();
@@ -225,7 +226,7 @@ ldbm_instance_config_dncachememsize_set(void *arg,
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
-        cache_set_max_size(&(inst->inst_dncache), val, CACHE_TYPE_DN);
+        cache_set_max_size(&(inst->inst_dncache), val, CACHE_TYPE_DN, false /* not autotuned */);
     }
 
     return retval;
@@ -325,6 +326,97 @@ ldbm_instance_config_require_internalop_index_set(void *arg,
     return LDAP_SUCCESS;
 }
 
+static void *
+ldbm_config_cache_pinned_entries_get(void *arg)
+{
+    struct ldbm_instance *inst = (struct ldbm_instance *)arg;
+
+    return (void *)((uintptr_t)(inst->cache_pinned_entries));
+
+}
+
+static int
+ldbm_config_cache_pinned_entries_set(void *arg,
+                               void *value,
+                               char *errorbuf,
+                               int phase __attribute__((unused)),
+                               int apply)
+{
+    struct ldbm_instance *inst = (struct ldbm_instance *)arg;
+
+    int64_t val = (int64_t)((uintptr_t)value);
+    if (val < 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: Invalid value for %s (%ld). The value must not be negative\n",
+                              CONFIG_INSTANCE_CACHE_PINNED_ENTRIES, val);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_cache_weight_threshold_set",
+                      "Invalid value for %s (%ld). The value must not be negative\n",
+                      CONFIG_INSTANCE_CACHE_PINNED_ENTRIES, val);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+    if (apply) {
+        inst->cache_pinned_entries = val;
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+ldbm_config_cache_debug_pattern_get(void *arg)
+{
+    struct ldbm_instance *inst = (struct ldbm_instance *)arg;
+    const char *val = inst->cache_debug_pattern;
+
+    if (val == NULL) {
+        return slapi_ch_strdup("");
+    }
+    return slapi_ch_strdup(val);
+}
+
+static int
+ldbm_config_cache_debug_pattern_set(void *arg,
+                               void *value,
+                               char *errorbuf,
+                               int phase __attribute__((unused)),
+                               int apply)
+{
+    struct ldbm_instance *inst = (struct ldbm_instance *)arg;
+    Slapi_Regex *re = NULL;
+
+    char *val = value;
+    if (val == NULL || *val == 0) {
+        val = NULL;
+    } else {
+        char *error = NULL;
+        re = slapi_re_comp(val, &error);
+        if (!re) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "Error: Invalid value for %s (%s). The value must be"
+                                  " a valid regular expression. Error is: %s\n",
+                                  CONFIG_INSTANCE_CACHE_DEBUG_PATTERN, val,
+                                  error ? error: "None");
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_cache_weight_threshold_set",
+                          "Invalid value for %s (%s). The value must be"
+                          " a valid regular expression. Error is: %s\n",
+                          CONFIG_INSTANCE_CACHE_DEBUG_PATTERN, val,
+                          error ? error: "None");
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
+    if (apply) {
+        if (val) {
+            val = slapi_ch_strdup(val);
+        }
+        slapi_ch_free_string(&inst->cache_debug_pattern);
+        slapi_re_free(inst->cache_debug_re);
+        inst->cache_debug_pattern = val;
+        inst->cache_debug_re = re;
+    } else {
+        slapi_re_free(re);
+    }
+    return LDAP_SUCCESS;
+}
+
+
 /*------------------------------------------------------------------------
  * ldbm instance configuration array
  *----------------------------------------------------------------------*/
@@ -335,6 +427,8 @@ static config_info ldbm_instance_config[] = {
     {CONFIG_INSTANCE_REQUIRE_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_index_get, &ldbm_instance_config_require_index_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_REQUIRE_INTERNALOP_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_internalop_index_get, &ldbm_instance_config_require_internalop_index_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_DNCACHEMEMSIZE, CONFIG_TYPE_UINT64, DEFAULT_DNCACHE_SIZE_STR, &ldbm_instance_config_dncachememsize_get, &ldbm_instance_config_dncachememsize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_INSTANCE_CACHE_PINNED_ENTRIES, CONFIG_TYPE_INT, DEFAULT_CACHE_PINNED_ENTRIES_STR, &ldbm_config_cache_pinned_entries_get, &ldbm_config_cache_pinned_entries_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_INSTANCE_CACHE_DEBUG_PATTERN, CONFIG_TYPE_STRING, NULL, &ldbm_config_cache_debug_pattern_get, &ldbm_config_cache_debug_pattern_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void
@@ -554,8 +648,6 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
     read_instance_index_entries(inst);
     /* Read the attribute encryption entries */
     read_instance_attrcrypt_entries(inst);
-
-
 
     return 0;
 }
@@ -1159,9 +1251,8 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__
                   "Removing '%s'.\n", instance_name);
 
     cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) { /* subtree-rename: on */
-        cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
-    }
+    cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
+
     /* call the backend implementation specific callbacks */
     priv = (dblayer_private *)li->li_dblayer_private;
     priv->instance_postdel_config_fn(li, inst);

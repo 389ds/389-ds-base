@@ -13,7 +13,7 @@ from lib389.utils import ensure_bytes, ds_supports_new_changelog
 from lib389.replica import ReplicationManager
 from lib389.dseldif import DSEldif
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
-from lib389.topologies import topology_m2
+from test389.topologies import topology_m2
 from lib389._constants import *
 
 pytestmark = pytest.mark.tier1

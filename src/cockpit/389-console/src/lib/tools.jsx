@@ -1,5 +1,20 @@
 import cockpit from "cockpit";
 
+const _ = cockpit.gettext;
+
+export function replaceFileContent(filePath, content, options = { superuser: "require" }) {
+    const fileHandle = cockpit.file(filePath, options);
+    return fileHandle
+            .replace(content)
+            .always(() => {
+                try {
+                    fileHandle.close();
+                } catch (err) {
+                    console.error("Error closing file handle:", err);
+                }
+            });
+}
+
 export function searchFilter(searchFilterValue, columnsToSearch, rows) {
     if (searchFilterValue && rows && rows.length) {
         const filteredRows = [];
@@ -185,6 +200,59 @@ export function isValidIpAddress (ipAddress) {
     return result !== null;
 }
 
+export function isValidIpAddressOrCIDR (ipAddressOrCIDR) {
+    if (typeof ipAddressOrCIDR !== 'string') {
+        return false;
+    }
+
+    // Check if this is CIDR notation
+    if (ipAddressOrCIDR.includes('/')) {
+        const parts = ipAddressOrCIDR.split('/');
+        if (parts.length !== 2) {
+            return false;
+        }
+
+        const ipPart = parts[0];
+        const prefixPart = parts[1];
+
+        // For CIDR notation, don't allow wildcards - use stricter validation
+        // IPv4 CIDR regex (no wildcards)
+        const regexIPv4CIDR = /^(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/;
+        // IPv6 CIDR regex (same as regular IPv6, no wildcards)
+        const regexIPv6CIDR = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+
+        // Validate the IP part (stricter - no wildcards for CIDR)
+        let ipValid = false;
+        if (ipPart.includes(':')) {
+            ipValid = regexIPv6CIDR.test(ipPart);
+        } else {
+            ipValid = regexIPv4CIDR.test(ipPart);
+        }
+
+        if (!ipValid) {
+            return false;
+        }
+
+        // Validate the prefix length
+        const prefix = parseInt(prefixPart, 10);
+        if (isNaN(prefix)) {
+            return false;
+        }
+
+        // Check prefix length based on IP type
+        if (ipPart.includes(':')) {
+            // IPv6: prefix must be 0-128
+            return prefix >= 0 && prefix <= 128;
+        } else {
+            // IPv4: prefix must be 0-32
+            return prefix >= 0 && prefix <= 32;
+        }
+    }
+
+    // Not CIDR notation - validate as regular IP (allows wildcards)
+    return isValidIpAddress(ipAddressOrCIDR);
+}
+
 export function isValidHostname (hostname) {
     if (typeof hostname !== 'string') {
         return false;
@@ -221,11 +289,11 @@ export function is_port_in_use(port) {
             return;
         }
 
-        let cmd = ['bash', '-c', `sudo lsof -i :${port} || echo "free"`];
+        let cmd = ['bash', '-c', `ss -ntplu | grep -w :${port} || echo "free"`];
         log_cmd("is_port_in_use", cmd);
 
         cockpit
-            .spawn(cmd, { superuser: true, err: "message" })
+            .spawn(cmd, { superuser: "require", err: "message" })
             .done((result) => {
                 const isPortInUse = result.trim() !== "free";
                 // Resolve the promise with a result
@@ -240,12 +308,51 @@ export function is_port_in_use(port) {
 
 export function valid_dn(dn) {
     // Validate value is a valid DN (sanity validation)
-    if (dn === "" || dn.endsWith(",")) {
+    if (dn === undefined || dn === null || dn === "" || dn.endsWith(",")) {
         return false;
     }
-    const dn_regex = /^([A-Za-z])+=\S.*/;
-    const result = dn_regex.test(dn);
-    return result;
+
+    // For validation purposes we can simply replace any escaped sequences with
+    // generic characters
+    if (dn.includes("\\,")) {
+        dn = dn.replace("\\,","ZZ");
+    }
+    if (dn.includes("\\<")) {
+        dn = dn.replace("\\<","ZZ");
+    }
+    if (dn.includes("\\>")) {
+        dn = dn.replace("\\>","ZZ");
+    }
+    if (dn.includes('\\"')) {
+        dn = dn.replace('\\"',"ZZ");
+    }
+    if (dn.includes("\\;")) {
+        dn = dn.replace("\\;","ZZ");
+    }
+    if (dn.includes("\\=")) {
+        dn = dn.replace("\\=","ZZ");
+    }
+    if (dn.includes("\\+")) {
+        dn = dn.replace("\\+","ZZ");
+    }
+    const dn_regex = /^([A-Za-z])+=([A-Za-z0-9 _\-$^*!~.])+$/;
+    const parts = dn.split(",");
+    for (const part of parts) {
+        if (!dn_regex.test(part)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+export function valid_db_name(name) {
+    // Validate name is a valid backend name
+    if (name === "") {
+        return false;
+    }
+
+    const name_regex = /^[A-Za-z][A-Za-z_\-0-9]+$/;
+    return name_regex.test(name);
 }
 
 export function valid_filter(filter) {
@@ -258,14 +365,18 @@ export function valid_filter(filter) {
 
 export function numToCommas(num) {
     //  Convert a number to have human friendly commas
+    if (num === undefined || num === "") {
+        return num;
+    }
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 export function displayBytes(bytes) {
     // Convert bytes into a more human readable value/unit
-    if (bytes === 0 || isNaN(bytes)) {
+    if (bytes === 0 || bytes === "0" || isNaN(bytes)) {
         return '0 Bytes';
     }
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -319,7 +430,7 @@ export function callCmdStreamPassword(config) {
     }
     let buffer = "";
 
-    const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+    const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: "require", err: "message" });
     proc
             .done(data => {
                 config.addNotification("success", config.success_msg);
@@ -345,4 +456,64 @@ export function callCmdStreamPassword(config) {
                 buffer += data;
                 proc.input(config.passwd + "\n", true);
             });
+}
+
+export function parentExists(params) {
+    if (!params || !params.configDN || !params.serverId) {
+        console.error("parentExists: Missing required parameters");
+        return Promise.resolve(false);
+    }
+
+    let parentDN = params.configDN
+    const idx = params.configDN.indexOf(",");
+    if (idx !== -1) {
+        parentDN = params.configDN.substring(idx + 1);
+    }
+    const cmd = [
+        'ldapsearch',
+        '-LLL',
+        '-Y', 'EXTERNAL',
+        '-b', parentDN,
+        '-H', 'ldapi://%2fvar%2frun%2fslapd-' + params.serverId + '.socket',
+        '-s', 'base',
+        '1.1'
+    ];
+    log_cmd("parentExists", "Checking parent DN exists", cmd);
+
+    return new Promise((resolve) => {
+        cockpit
+            .spawn(cmd, { superuser: "require", err: 'message' })
+            .done(data => {
+                resolve(data && data.includes("dn:"));
+            })
+            .fail(err => {
+                console.log(`parentExists: Parent DN:${parentDN} Error:${err.exit_status}`)
+                resolve(false);
+            })
+    });
+}
+
+// Parse a cockpit spawn API error message it can be a string or a JSON object
+export function getApiErrorMessage(err) {
+    const fallback = _("Unknown error");
+    if (err === null || err === undefined) {
+        return fallback;
+    }
+
+    // cockpit.spawn with err:"message" can return either JSON or plain text.
+    const raw = typeof err === "string" ? err : err.toString();
+    try {
+        const errObj = JSON.parse(raw);
+        if (errObj && typeof errObj === "object") {
+            let msg = errObj.desc || errObj.message || raw;
+            if ("info" in errObj && errObj.info) {
+                msg = `${msg} - ${errObj.info}`;
+            }
+            return msg;
+        }
+    } catch (e) {
+        // JSON errors fall through and are returned as plain text.
+    }
+
+    return raw || fallback;
 }

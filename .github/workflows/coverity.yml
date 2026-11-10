@@ -6,17 +6,17 @@ on:
 
 jobs:
   coverity:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
 
     container:
       image: quay.io/389ds/ci-images:fedora
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Checkout and configure
         run: autoreconf -fvi && ./configure
 
-      - uses: vapier/coverity-scan-action@v1
+      - uses: vapier/coverity-scan-action@8fe7b0af23cbbd4eced5f63dcd2384640eaa5d49 # v1
         with:
           project: '389ds/389-ds-base'
           command: make

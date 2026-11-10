@@ -12,12 +12,14 @@ import time
 import logging
 import ldif
 import ldap
+import pprint
 import pytest
 import subprocess
 import time
 import random
 import string
 from shutil import rmtree
+from lib389.backend import DatabaseConfig
 from lib389.dbgen import dbgen_users
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccount, UserAccounts
 from lib389.pwpolicy import PwPolicyManager
@@ -29,12 +31,15 @@ from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.services import ServiceAccounts, ServiceAccount
-from lib389.replica import Replicas, ReplicationManager, ReplicaRole, BootstrapReplicationManager
+from lib389.replica import (
+    Replicas, ReplicationManager, ReplicationMonitor, ReplicaRole,
+    BootstrapReplicationManager, NormalizedRidDict
+)
 from lib389.agreement import Agreements
 from lib389 import pid_from_file
 from lib389.dseldif import *
 from lib389.tasks import Tasks
-from lib389.topologies import topology_m2 as topo_m2, TopologyMain, create_topology, _remove_ssca_db
+from test389.topologies import topology_m2 as topo_m2, TopologyMain, create_topology, _remove_ssca_db
 
 
 pytestmark = pytest.mark.tier1
@@ -603,7 +608,7 @@ def test_fetch_bindDnGroup(topo_m2):
 
     # If you need any test suite initialization,
     # please, write additional fixture for that (including finalizer).
-    # Topology for suites are predefined in lib389/topologies.py.
+    # Topology for suites are predefined in test389/topologies.py.
 
     # If you need host, port or any other data about instance,
     # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
@@ -987,6 +992,7 @@ def test_change_repl_passwd(topo_m2, request, bind_cn):
        Testing when agmt bind group are used.
 
     :id: a305913a-cc76-11ec-b324-482ae39447e5
+    :parametrized: yes
     :setup: 2 Supplier Instances
     :steps:
         1. Insure agmt from supplier1 to supplier2 is properly set to use bind group
@@ -1142,6 +1148,277 @@ def test_bulk_import(preserve_topo_m2):
     users_s2 =  s2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)", escapehatch='i am sure')
     log.info(f"{len(users_s2)} user entries found on supplier2")
     assert len(users_s1) == len(users_s2)
+
+
+def check_monitoring_status(inst):
+    creds = { 'binddn': DN_DM, 'bindpw': PW_DM }
+    repl_monitor = ReplicationMonitor(inst)
+    report_dict = repl_monitor.generate_report(lambda h,p: creds, use_json=True)
+    log.debug(f'(Monitoring status: {pprint.pformat(report_dict)}')
+
+    agmts_status = {}
+    for inst_status in report_dict.values():
+        for replica_status in inst_status:
+            suffix = replica_status['replica_root']
+            rid = replica_status['replica_id']
+            for agmt_status in replica_status['agmts_status']:
+                rag_status = agmt_status['replication-status'][0]
+                if 'Unavailable' in rag_status:
+                    aname = agmt_status['agmt-name'][0]
+                    url = f'{agmt_status["replica"][0]}/{suffix}'
+                    assert False, f"'Unavailable' found in agreement {aname} of replica {url} : {rag_status}"
+
+    assert 'Unavailable' not in str(report_dict)
+
+
+def reinit_replica(S1, S2):
+    # Reinit replication
+    agmt = Agreements(S1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(S1, S2)
+    repl.wait_for_replication(S2, S1)
+
+
+def test_rid_starting_with_0(topo_m2, request):
+    """Check that replication monitoring works if replica
+       id starts with 0
+
+    :id: ed0176e6-0bf7-11f0-9846-482ae39447e5
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Initialize replication to ensure that init status is set
+        2. Check that monitoring status does not contains 'Unavailable'
+        3. Change replica ids to 001 and 002
+        4. Initialize replication to ensure that init status is set
+        5. Check that monitoring status does not contains 'Unavailable'
+        6. Restore the replica ids to 1 and 2
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    S1 = topo_m2.ms["supplier1"]
+    S2 = topo_m2.ms["supplier2"]
+    replicas = [ Replicas(inst).get(DEFAULT_SUFFIX) for inst in topo_m2 ]
+
+    # Reinit replication (to ensure that init status is set)
+    reinit_replica(S1, S2)
+
+    # Get replication monitoring results
+    check_monitoring_status(S1)
+
+    # Change replica id
+    for replica,rid in zip(replicas, ['010', '020']):
+        replica.replace('nsDS5ReplicaId', rid)
+
+    # Restart required - replica IDs are loaded at startup and cached in memory
+    S1.restart()
+    S2.restart()
+
+    # Restore replica id in finalizer
+    def fin():
+        for replica,rid in zip(replicas, ['1', '2']):
+            replica.replace('nsDS5ReplicaId', rid)
+        reinit_replica(S1, S2)
+
+    request.addfinalizer(fin)
+    # Reinit replication
+    reinit_replica(S1, S2)
+
+    # Get replication monitoring results
+    check_monitoring_status(S1)
+
+
+def test_normalized_rid_dict():
+    """Check that lib389.replica NormalizedRidDict class behaves as expected
+
+    :id: 0f88a29c-0fcd-11f0-b5df-482ae39447e5
+    :setup: None
+    :steps:
+        1. Initialize a NormalizedRidDict
+        2. Check that normalization do something
+        3. Check that key stored in NormalizedRidDict are normalized
+        4. Check that normalized and non normalized keys have the same value
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    sd = { '1': 'v1', '020': 'v2' }
+    nsd = { NormalizedRidDict.normalize_rid(key): val for key,val in sd.items() }
+    nkeys = list(nsd.keys())
+
+    # Initialize a NormalizedRidDict
+    nrd = NormalizedRidDict()
+    for key,val in sd.items():
+        nrd[key] = val
+
+    # Check that normalization do something
+    assert nkeys != list(sd.keys())
+
+    # Check that key stored in NormalizedRidDict are normalized
+    for key in nrd.keys():
+        assert key in nkeys
+
+    # Check that normalized and non normalized keys have the same value
+    for key,val in sd.items():
+        nkey = NormalizedRidDict.normalize_rid(key)
+        assert nrd[key] == val
+        assert nrd[nkey] == val
+
+
+def test_get_with_normalized_rid_dict():
+    """Check lib389.replica NormalizedRidDict.get() function
+
+    :id: 4422e1be-1619-11f0-a37a-482ae39447e5
+    :setup: None
+    :steps:
+        1. Initialize a NormalizedRidDict
+        2. Check that normalization do something
+        3. Check that get() returns the expected value
+        4. Check get() with wrong key
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Should return the default value if it is provided
+           otherwise it should return None
+    """
+
+    sd = { '1': 'v1', '020': 'v2' }
+    nsd = { NormalizedRidDict.normalize_rid(key): val for key,val in sd.items() }
+    nkeys = list(nsd.keys())
+
+    # Initialize a NormalizedRidDict
+    nrd = NormalizedRidDict()
+    for key,val in sd.items():
+        nrd[key] = val
+
+    # Check that get() returns the expected value
+    for key,val in sd.items():
+        nkey = NormalizedRidDict.normalize_rid(key)
+        assert nrd.get(key) == val
+        assert nrd.get(nkey) == val
+        assert nrd.get(key, 'foo') == val
+        assert nrd.get(nkey, 'foo') == val
+
+    # Check get() with wrong key
+    assert nrd.get('99', 'foo2') == 'foo2'
+    assert nrd.get('099', 'foo2') == 'foo2'
+    assert nrd.get('99') is None
+    assert nrd.get('099') is None
+
+
+def test_online_init_no_duplicate_suffix(topo_m2, request):
+    """Total init must preserve tree order without sending the suffix twice
+
+    :id: f0ccfb02-6c9d-48dd-9482-8a2c0763d485
+    :setup: Two suppliers replication setup
+    :steps:
+        1. Add a parent with more direct children than the ID list scan limit
+        2. Move the subtree below a newer top-level ancestor
+        3. Lower the ID list scan limit on supplier1
+        4. Perform online initialization from supplier1 to supplier2
+        5. Search supplier2 for entries with the suffix DN
+        6. Compare the number of entries on both suppliers
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Exactly one entry has the suffix DN
+        6. Both suppliers have the same number of entries
+    """
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
+
+    scan_limit = 100
+    parent_rdn = 'ou=total-init-scanlimit'
+    ancestor_rdn = 'ou=total-init-ancestor'
+    original_parent_dn = f'{parent_rdn},{DEFAULT_SUFFIX}'
+    ancestor_dn = f'{ancestor_rdn},{DEFAULT_SUFFIX}'
+    moved_parent_dn = f'{parent_rdn},{ancestor_dn}'
+    db_config = DatabaseConfig(m1)
+    original_scan_limit = db_config.get_attr_vals_utf8('nsslapd-idlistscanlimit')
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    def delete_test_subtrees(supplier):
+        deleted = False
+        for dn in (moved_parent_dn, original_parent_dn, ancestor_dn):
+            try:
+                supplier.delete_branch_s(dn, ldap.SCOPE_SUBTREE)
+                deleted = True
+            except ldap.NO_SUCH_OBJECT:
+                pass
+        return deleted
+
+    def fin():
+        for supplier in (m1, m2):
+            if not supplier.status():
+                supplier.start()
+        db_config.set([('nsslapd-idlistscanlimit', original_scan_limit)])
+        try:
+            if delete_test_subtrees(m1):
+                repl.wait_for_replication(m1, m2)
+            else:
+                delete_test_subtrees(m2)
+        except Exception as err:
+            log.warning("Replication cleanup failed, deleting supplier2 entries directly: %s", err)
+            delete_test_subtrees(m2)
+
+    request.addfinalizer(fin)
+
+    test_parent = OrganizationalUnits(m1, DEFAULT_SUFFIX).create(
+        properties={'ou': 'total-init-scanlimit'}
+    )
+    # Force the parentid index lookup for this parent past the ALLIDS threshold.
+    test_children = OrganizationalUnits(m1, test_parent.dn)
+    for idx in range(scan_limit + 1):
+        last_child = test_children.create(properties={'ou': f'child{idx}'})
+
+    test_ancestor = OrganizationalUnits(m1, DEFAULT_SUFFIX).create(
+        properties={'ou': 'total-init-ancestor'}
+    )
+    assert int(test_ancestor.get_attr_val_utf8('entryid')) > int(
+        last_child.get_attr_val_utf8('entryid')
+    )
+    test_parent.rename(parent_rdn, newsuperior=test_ancestor.dn)
+    assert test_parent.dn.lower() == moved_parent_dn.lower()
+    assert repl.wait_for_replication(m1, m2)
+
+    db_config.set([('nsslapd-idlistscanlimit', str(scan_limit))])
+    assert db_config.get_attr_val_utf8('nsslapd-idlistscanlimit') == str(scan_limit)
+
+    agmt = Agreements(m1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+
+    # The consumer used to store the suffix entry twice: the supplier sent
+    # it explicitly and again as part of the bulk import candidate list
+    filter_all = '(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))'
+    m2entries = m2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, filter_all,
+                            escapehatch='i am sure')
+    suffix_entries = [e for e in m2entries if e.dn.lower() == DEFAULT_SUFFIX.lower()]
+    log.info("%d entries with the suffix DN found on supplier2", len(suffix_entries))
+    assert len(suffix_entries) == 1
+
+    m1entries = m1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, filter_all,
+                            escapehatch='i am sure')
+    log.info("supplier1 has %d entries, supplier2 has %d entries",
+             len(m1entries), len(m2entries))
+    assert len(m1entries) == len(m2entries)
 
 
 def test_online_reinit_may_hang(topo_with_sigkill):

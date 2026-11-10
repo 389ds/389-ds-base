@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import json
 from lib389.idm.group import UniqueGroup, UniqueGroups, MUST_ATTRIBUTES
 from lib389.cli_base import populate_attr_arguments, _generic_modify, CustomHelpFormatter
 from lib389.cli_idm import (
@@ -70,14 +71,22 @@ def members(inst, basedn, log, args):
     # Display members?
     member_list = group.list_members()
     if len(member_list) == 0:
-        log.info('No members to display')
+        if args is not None and args.json:
+            json_result = {"type": "list", "members": []}
+            log.info(json.dumps(json_result, indent=4))
+        else:
+            log.info('No members to display')
     else:
-        for m in member_list:
-            log.info('dn: %s' % m)
+        if args is not None and args.json:
+            json_result = {"type": "list", "members": member_list}
+            log.info(json.dumps(json_result, indent=4))
+        else:
+            for m in member_list:
+                log.info('dn: %s' % m)
 
 
 def add_member(inst, basedn, log, args):
-    cn = _get_arg( args.cn, msg="Enter %s of group to add member too" % RDN)
+    cn = _get_arg( args.cn, msg="Enter %s of group to add member to" % RDN)
     dn = _get_arg( args.dn, msg="Enter dn to add as member")
     groups = MANY(inst, basedn)
     group = groups.get(cn)
@@ -104,6 +113,8 @@ def create_parser(subparsers):
 
     list_parser = subcommands.add_parser('list', help='list', formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=list)
+    list_parser.add_argument('--full-dn', action='store_true',
+                             help="Return the full DN of the entry instead of the RDN value")
 
     get_parser = subcommands.add_parser('get', help='get', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=get)

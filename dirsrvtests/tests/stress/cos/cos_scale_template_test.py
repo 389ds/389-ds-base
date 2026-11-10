@@ -9,7 +9,7 @@
 
 import pytest
 
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 
 from lib389.plugins import ClassOfServicePlugin
 from lib389.cos import CosIndirectDefinitions, CosTemplates, CosTemplate

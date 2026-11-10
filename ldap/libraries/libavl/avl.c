@@ -69,8 +69,8 @@ ravl_insert(
     Avlnode **iroot,
     caddr_t data,
     int *taller,
-    IFP fcmp, /* comparison function */
-    IFP fdup, /* function to call for duplicates */
+    int32_t (*fcmp)(caddr_t, caddr_t), /* comparison function */
+    int32_t (*fdup)(caddr_t, caddr_t), /* function to call for duplicates */
     int depth)
 {
     int rc, cmp, tallersub;
@@ -226,13 +226,13 @@ ravl_insert(
 int
 avl_insert(
     Avlnode **root,
-    void *data,
-    IFP fcmp,
-    IFP fdup)
+    caddr_t data,
+    int32_t (*fcmp)(caddr_t, caddr_t),
+    int32_t (*fdup)(caddr_t, caddr_t))
 {
     int taller;
 
-    return ravl_insert(root, (caddr_t)data, &taller, fcmp, fdup, 0);
+    return ravl_insert(root, data, &taller, fcmp, fdup, 0);
 }
 
 /*
@@ -374,7 +374,7 @@ static caddr_t
 ravl_delete(
     Avlnode **root,
     caddr_t data,
-    IFP fcmp,
+    int32_t (*fcmp)(caddr_t, caddr_t),
     int *shorter)
 {
     int shortersubtree = 0;
@@ -464,15 +464,15 @@ ravl_delete(
  */
 
 caddr_t
-avl_delete(Avlnode **root, void *data, IFP fcmp)
+avl_delete(Avlnode **root, caddr_t data, int32_t(*fcmp)(caddr_t, caddr_t))
 {
     int shorter;
 
-    return ravl_delete(root, (caddr_t)data, fcmp, &shorter);
+    return ravl_delete(root, data, fcmp, &shorter);
 }
 
 static int
-avl_inapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
+avl_inapply(Avlnode *root, int32_t(*fn)(caddr_t, caddr_t), caddr_t arg, int stopflag)
 {
     if (root == 0)
         return (AVL_NOMORE);
@@ -491,7 +491,7 @@ avl_inapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
 }
 
 static int
-avl_postapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
+avl_postapply(Avlnode *root, int32_t(*fn)(caddr_t, caddr_t), caddr_t arg, int stopflag)
 {
     if (root == 0)
         return (AVL_NOMORE);
@@ -508,7 +508,7 @@ avl_postapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
 }
 
 static int
-avl_preapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
+avl_preapply(Avlnode *root, int32_t(*fn)(caddr_t, caddr_t), caddr_t arg, int stopflag)
 {
     if (root == 0)
         return (AVL_NOMORE);
@@ -537,7 +537,7 @@ avl_preapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
 int
 avl_apply(
     Avlnode *root,
-    IFP fn,
+    int32_t (*fn)(caddr_t, caddr_t),
     void *arg,
     int stopflag,
     int type)
@@ -572,9 +572,9 @@ int
 avl_prefixapply(
     Avlnode *root,
     caddr_t data,
-    IFP fmatch,
+    int32_t (*fmatch)(caddr_t, caddr_t),
     caddr_t marg,
-    IFP fcmp,
+    int32_t (*fcmp)(caddr_t, caddr_t, caddr_t),
     caddr_t carg,
     int stopflag)
 {
@@ -619,7 +619,7 @@ avl_prefixapply(
  */
 
 int
-avl_free(Avlnode *root, IFP dfree)
+avl_free(Avlnode *root, int32_t (*dfree)(caddr_t))
 {
     int nleft, nright;
 
@@ -649,11 +649,11 @@ avl_free(Avlnode *root, IFP dfree)
  */
 
 caddr_t
-avl_find(Avlnode *root, void *data, IFP fcmp)
+avl_find(Avlnode *root, caddr_t data, int32_t (*fcmp)(caddr_t, caddr_t))
 {
     int cmp;
 
-    while (root != 0 && (cmp = (*fcmp)((caddr_t)data, root->avl_data)) != 0) {
+    while (root != 0 && (cmp = (*fcmp)(data, root->avl_data)) != 0) {
         if (cmp < 0)
             root = root->avl_left;
         else
@@ -671,7 +671,7 @@ avl_find(Avlnode *root, void *data, IFP fcmp)
  */
 
 caddr_t
-avl_find_lin(Avlnode *root, caddr_t data, IFP fcmp)
+avl_find_lin(Avlnode *root, caddr_t data, int32_t (*fcmp)(caddr_t, caddr_t))
 {
     caddr_t res;
 
@@ -699,7 +699,7 @@ static int avl_nextlist = 0;
 
 /* ARGSUSED */
 static int
-avl_buildlist(caddr_t data, int arg __attribute__((unused)))
+avl_buildlist(caddr_t data, caddr_t arg __attribute__((unused)))
 {
     static int slots = 0;
 
@@ -774,8 +774,10 @@ avl_getnext(void)
     return (avl_list[avl_nextlist++]);
 }
 
+/* This is always called from avl_insert, where the dup function expects two
+ * caddr_t paramters */
 int
-avl_dup_error(void)
+avl_dup_error(caddr_t a __attribute__((unused)),  caddr_t b __attribute__((unused)))
 {
     return (-1);
 }

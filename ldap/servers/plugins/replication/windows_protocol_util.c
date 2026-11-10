@@ -1365,6 +1365,13 @@ process_replay_rename(Private_Repl_Protocol *prp,
         /* newparent is NULL; set the original parent */
         /* slapi_dn_parent returns the dup'ed dn */
         norm_newparent = slapi_dn_parent(slapi_sdn_get_ndn(local_origsdn));
+        if (NULL == norm_newparent) {
+            slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+                          "process_replay_rename - original entry \"%s\" "
+                          "has no parent dn\n",
+                          slapi_sdn_get_dn(local_origsdn) ? slapi_sdn_get_dn(local_origsdn) : "empty");
+            goto bail;
+        }
     }
     p = NULL;
     if (subtree_pairs) {
@@ -1424,6 +1431,13 @@ process_replay_rename(Private_Repl_Protocol *prp,
     /* local parent normalized dn */
     local_pndn = /* strdup'ed */
         slapi_dn_parent((const char *)slapi_sdn_get_ndn(local_origsdn));
+    if (NULL == local_pndn) {
+        slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+                      "process_replay_rename - original entry \"%s\" "
+                      "has no parent dn\n",
+                      slapi_sdn_get_dn(local_origsdn) ? slapi_sdn_get_dn(local_origsdn) : "empty");
+        goto bail;
+    }
     if (subtree_pairs) {
         for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
             p = strstr(local_pndn, slapi_sdn_get_ndn(sp->DSsubtree));
@@ -3364,8 +3378,8 @@ static char *
 extract_guid_from_tombstone_dn(const char *dn)
 {
     char *guid = NULL;
-    char *colon_offset = NULL;
-    char *comma_offset = NULL;
+    const char *colon_offset = NULL;
+    const char *comma_offset = NULL;
 
     /* example DN of tombstone:
         "CN=WDel Userdb1\\\nDEL:551706bc-ecf2-4b38-9284-9a8554171d69,CN=Deleted Objects,DC=magpie,DC=com" */

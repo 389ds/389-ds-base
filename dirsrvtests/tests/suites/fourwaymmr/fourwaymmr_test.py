@@ -10,7 +10,7 @@
 import os, shutil, time, pytest, re, pwd, grp
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m4 as topo_m4
+from test389.topologies import topology_m4 as topo_m4
 from lib389.replica import *
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.agreement import *
@@ -225,7 +225,7 @@ def test_bad_replication_agreement(topo_m4):
     # Create the bad replication agreement and try to add it
     # Its a agreement as Missing replica host and port information makes for a bad agreement.
     properties = {
-        "basedn": "cn=Ze_bad_agreeemnt,cn=replica,cn=dc\=example\,dc\=com,cn=mapping tree,cn=config",
+        "basedn": r"cn=Ze_bad_agreeemnt,cn=replica,cn=dc\=example\,dc\=com,cn=mapping tree,cn=config",
         "objectclass": ["top", "nsds5replicationagreement"],
         "cn": "Ze_bad_agreement",
         "nsds5replicabinddn": "{},{}".format("cn=replication manager", "o=fr"),

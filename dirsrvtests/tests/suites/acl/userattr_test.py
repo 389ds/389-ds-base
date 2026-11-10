@@ -18,7 +18,7 @@ from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups
 from lib389.idm.role import ManagedRoles
-from lib389.topologies import topology_st as topo
+from test389.topologies import topology_st as topo
 
 import ldap
 
@@ -109,7 +109,7 @@ def _add_user(topo):
             'facsimiletelephonenumber': "+1 408 555 9751",
             'roomnumber': i[3],
             'Description': i[3],
-            'nsRoleDN': i[2]
+            'nsroledn': i[2]
         })
 
     for demo1 in [('ROLEDNACCESS', ROLE1),

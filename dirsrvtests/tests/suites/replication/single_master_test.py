@@ -16,8 +16,8 @@ from lib389.replica import ReplicationManager, Replicas
 from lib389.agreement import Agreements
 from lib389.backend import Backends
 
-from lib389.topologies import topology_m1c1 as topo_r # Replication
-from lib389.topologies import topology_i2 as topo_nr # No replication
+from test389.topologies import topology_m1c1 as topo_r # Replication
+from test389.topologies import topology_i2 as topo_nr # No replication
 from lib389.utils import ldap, os, ds_is_older, get_default_db_lib
 
 from lib389._constants import (ReplicaRole, DEFAULT_SUFFIX, REPLICAID_SUPPLIER_1,

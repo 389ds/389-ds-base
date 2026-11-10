@@ -98,6 +98,59 @@ upgrade_AES_reverpwd_plugin(void)
     return uresult;
 }
 
+/*
+ * Add the PBKDF2 configuration object class to existing C PBKDF2-SHA256
+ * password storage plugin entries.
+ */
+static upgrade_status
+upgrade_pbkdf2_sha256_config(void)
+{
+    struct slapi_pblock *search_pb = slapi_pblock_new();
+    Slapi_Entry *plugin_entry = NULL;
+    Slapi_DN *sdn = NULL;
+    const char *plugin_dn = "cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config";
+    char *plugin_attr = "objectClass";
+    char *config_oc = "pwdPBKDF2PluginConfig";
+
+    sdn = slapi_sdn_new_dn_byref(plugin_dn);
+    slapi_search_get_entry(&search_pb, sdn, NULL, &plugin_entry, NULL);
+    if (plugin_entry && !slapi_entry_attr_hasvalue(plugin_entry, plugin_attr, config_oc)) {
+        Slapi_PBlock *mod_pb = slapi_pblock_new();
+        LDAPMod mod_add;
+        LDAPMod *mods[2];
+        char *add_val[2];
+        int32_t result;
+
+        add_val[0] = config_oc;
+        add_val[1] = 0;
+        mod_add.mod_op = LDAP_MOD_ADD;
+        mod_add.mod_type = plugin_attr;
+        mod_add.mod_values = add_val;
+        mods[0] = &mod_add;
+        mods[1] = 0;
+
+        slapi_modify_internal_set_pb(mod_pb, plugin_dn,
+                mods, 0, 0, (void *)plugin_get_default_component_id(), 0);
+        slapi_modify_internal_pb(mod_pb);
+        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+        if (result != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, "upgrade_pbkdf2_sha256_config",
+                    "Failed to add %s to '%s', error %d; continuing because "
+                    "the object class is optional\n",
+                    config_oc, plugin_dn, result);
+        } else {
+            slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_pbkdf2_sha256_config",
+                    "Upgrade task: added %s to '%s'\n",
+                    config_oc, plugin_dn);
+        }
+        slapi_pblock_destroy(mod_pb);
+    }
+    slapi_search_get_entry_done(&search_pb);
+    slapi_sdn_free(&sdn);
+
+    return UPGRADE_SUCCESS;
+}
+
 static upgrade_status
 upgrade_143_entryuuid_exists(void)
 {
@@ -279,6 +332,519 @@ upgrade_205_fixup_repl_dep(void)
     return UPGRADE_SUCCESS;
 }
 
+/*
+ * "nsslapd-subtree-rename-switch" has been removed from the code
+ * so cleanup the ldbm config entry
+ */
+static upgrade_status
+upgrade_remove_subtree_rename(void)
+{
+    struct slapi_pblock *pb = slapi_pblock_new();
+    Slapi_Entry **entries = NULL;
+    const char *base_dn = "cn=config,cn=ldbm database,cn=plugins,cn=config";
+    const char *filter = "(nsslapd-subtree-rename-switch=*)";
+    char *attr = "nsslapd-subtree-rename-switch";
+
+    slapi_search_internal_set_pb(
+            pb, base_dn,
+            LDAP_SCOPE_BASE,
+            filter, NULL, 0, NULL, NULL,
+            plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+
+    if (entries && entries[0]) {
+        /*
+         * The attribute is present, remove it
+         */
+        Slapi_PBlock *mod_pb = slapi_pblock_new();
+        LDAPMod mod_delete;
+        LDAPMod *mods[2];
+        mod_delete.mod_op = LDAP_MOD_DELETE;
+        mod_delete.mod_type = attr;
+        mod_delete.mod_values = NULL;
+        mods[0] = &mod_delete;
+        mods[1] = 0;
+
+        /* Update ldbm config entry */
+        slapi_modify_internal_set_pb(mod_pb, base_dn, mods, 0, 0,
+                                     plugin_get_default_component_id(),
+                                     SLAPI_OP_FLAG_FIXUP);
+        slapi_modify_internal_pb(mod_pb);
+        slapi_pblock_destroy(mod_pb);
+
+        slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_remove_subtree_rename",
+                "Upgrade task: obsolete attribute '%s' removed from '%s'\n",
+                attr, base_dn);
+    }
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+
+    return UPGRADE_SUCCESS;
+}
+
+/*
+ * Remove nsIndexIDListScanLimit from parentid index configuration.
+ *
+ * This attribute was incorrectly added by a previous version and can
+ * cause issues with index configuration. Remove it if present.
+ */
+static upgrade_status
+upgrade_remove_index_scanlimit(void)
+{
+    struct slapi_pblock *pb = slapi_pblock_new();
+    Slapi_Entry **backends = NULL;
+    const char *be_base_dn = "cn=ldbm database,cn=plugins,cn=config";
+    const char *be_filter = "(objectclass=nsBackendInstance)";
+    const char *attrs_to_check[] = {"parentid", NULL};
+    upgrade_status uresult = UPGRADE_SUCCESS;
+
+    /* Search for all backend instances */
+    slapi_search_internal_set_pb(
+            pb, be_base_dn,
+            LDAP_SCOPE_ONELEVEL,
+            be_filter, NULL, 0, NULL, NULL,
+            plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &backends);
+
+    if (backends) {
+        for (size_t be_idx = 0; backends[be_idx] != NULL; be_idx++) {
+            const char *be_dn = slapi_entry_get_dn_const(backends[be_idx]);
+            const char *be_name = slapi_entry_attr_get_ref(backends[be_idx], "cn");
+            if (!be_dn || !be_name) {
+                continue;
+            }
+
+            for (size_t attr_idx = 0; attrs_to_check[attr_idx] != NULL; attr_idx++) {
+                const char *attr_name = attrs_to_check[attr_idx];
+                struct slapi_pblock *idx_pb = slapi_pblock_new();
+                Slapi_Entry **idx_entries = NULL;
+                char *idx_dn = slapi_create_dn_string("cn=%s,cn=index,%s",
+                                                       attr_name, be_dn);
+                char *idx_filter = "(objectclass=nsIndex)";
+
+                if (!idx_dn) {
+                    slapi_pblock_destroy(idx_pb);
+                    continue;
+                }
+
+                slapi_search_internal_set_pb(
+                        idx_pb, idx_dn,
+                        LDAP_SCOPE_BASE,
+                        idx_filter, NULL, 0, NULL, NULL,
+                        plugin_get_default_component_id(), 0);
+                slapi_search_internal_pb(idx_pb);
+                slapi_pblock_get(idx_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &idx_entries);
+
+                if (idx_entries && idx_entries[0]) {
+                    /* Check if nsIndexIDListScanLimit is present */
+                    if (slapi_entry_attr_get_ref(idx_entries[0], "nsIndexIDListScanLimit") != NULL) {
+                        /* Remove nsIndexIDListScanLimit */
+                        Slapi_PBlock *mod_pb = slapi_pblock_new();
+                        Slapi_Mods smods;
+                        int rc;
+
+                        slapi_mods_init(&smods, 1);
+                        slapi_mods_add(&smods, LDAP_MOD_DELETE, "nsIndexIDListScanLimit", 0, NULL);
+
+                        slapi_modify_internal_set_pb(
+                                mod_pb, idx_dn,
+                                slapi_mods_get_ldapmods_byref(&smods),
+                                NULL, NULL,
+                                plugin_get_default_component_id(), 0);
+                        slapi_modify_internal_pb(mod_pb);
+                        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+                        if (rc == LDAP_SUCCESS) {
+                            slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_remove_index_scanlimit",
+                                    "Removed 'nsIndexIDListScanLimit' from index '%s' in backend '%s'\n",
+                                    attr_name, be_name);
+                        } else if (rc != LDAP_NO_SUCH_ATTRIBUTE) {
+                            slapi_log_err(SLAPI_LOG_ERR, "upgrade_remove_index_scanlimit",
+                                    "Failed to remove 'nsIndexIDListScanLimit' from index '%s' in backend '%s': error %d\n",
+                                    attr_name, be_name, rc);
+                        }
+
+                        slapi_mods_done(&smods);
+                        slapi_pblock_destroy(mod_pb);
+                    }
+                }
+
+                slapi_ch_free_string(&idx_dn);
+                slapi_free_search_results_internal(idx_pb);
+                slapi_pblock_destroy(idx_pb);
+            }
+        }
+    }
+
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+
+    return uresult;
+}
+
+/*
+ * Remove ancestorid index configuration entry if present.
+ *
+ * The ancestorid index is special - it has no corresponding attribute type
+ * and should not have a DSE config entry. If an entry exists, remove it.
+ *
+ * This function removes:
+ * 1. The ancestorid entry from cn=default indexes (to prevent re-creation on startup)
+ * 2. The ancestorid entry from each backend's cn=index (if it exists)
+ */
+static upgrade_status
+upgrade_remove_ancestorid_index_config(void)
+{
+    struct slapi_pblock *pb = slapi_pblock_new();
+    Slapi_Entry **backends = NULL;
+    const char *be_base_dn = "cn=ldbm database,cn=plugins,cn=config";
+    const char *be_filter = "(objectclass=nsBackendInstance)";
+    upgrade_status uresult = UPGRADE_SUCCESS;
+    int rc;
+
+    /*
+     * First, remove ancestorid from cn=default indexes to prevent
+     * ldbm_instance_create_default_user_indexes() from re-creating it.
+     */
+    {
+        Slapi_PBlock *def_pb = slapi_pblock_new();
+        char *def_idx_dn = slapi_create_dn_string(
+                "cn=ancestorid,cn=default indexes,cn=config,%s", be_base_dn);
+
+        if (def_idx_dn) {
+            slapi_delete_internal_set_pb(
+                    def_pb, def_idx_dn, NULL, NULL,
+                    plugin_get_default_component_id(), 0);
+            slapi_delete_internal_pb(def_pb);
+            slapi_pblock_get(def_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+            if (rc == LDAP_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_remove_ancestorid_index_config",
+                        "Removed 'ancestorid' from default indexes.\n");
+            } else if (rc != LDAP_NO_SUCH_OBJECT) {
+                slapi_log_err(SLAPI_LOG_ERR, "upgrade_remove_ancestorid_index_config",
+                        "Failed to remove 'ancestorid' from default indexes: error %d\n", rc);
+            }
+
+            slapi_ch_free_string(&def_idx_dn);
+        }
+        slapi_pblock_destroy(def_pb);
+    }
+
+    /* Search for all backend instances */
+    slapi_search_internal_set_pb(
+            pb, be_base_dn,
+            LDAP_SCOPE_ONELEVEL,
+            be_filter, NULL, 0, NULL, NULL,
+            plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &backends);
+
+    if (backends) {
+        for (size_t be_idx = 0; backends[be_idx] != NULL; be_idx++) {
+            const char *be_dn = slapi_entry_get_dn_const(backends[be_idx]);
+            const char *be_name = slapi_entry_attr_get_ref(backends[be_idx], "cn");
+            if (!be_dn || !be_name) {
+                continue;
+            }
+
+            struct slapi_pblock *idx_pb = slapi_pblock_new();
+            Slapi_Entry **idx_entries = NULL;
+            char *idx_dn = slapi_create_dn_string("cn=ancestorid,cn=index,%s",
+                                                   be_dn);
+            char *idx_filter = "(objectclass=nsIndex)";
+
+            if (!idx_dn) {
+                slapi_pblock_destroy(idx_pb);
+                continue;
+            }
+
+            slapi_search_internal_set_pb(
+                    idx_pb, idx_dn,
+                    LDAP_SCOPE_BASE,
+                    idx_filter, NULL, 0, NULL, NULL,
+                    plugin_get_default_component_id(), 0);
+            slapi_search_internal_pb(idx_pb);
+            slapi_pblock_get(idx_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &idx_entries);
+
+            if (idx_entries && idx_entries[0]) {
+                /* ancestorid index entry exists - delete it */
+                Slapi_PBlock *del_pb = slapi_pblock_new();
+
+                slapi_delete_internal_set_pb(
+                        del_pb, idx_dn, NULL, NULL,
+                        plugin_get_default_component_id(), 0);
+                slapi_delete_internal_pb(del_pb);
+                slapi_pblock_get(del_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+                if (rc == LDAP_SUCCESS) {
+                    slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_remove_ancestorid_index_config",
+                            "Removed 'ancestorid' index config entry in backend '%s'.\n",
+                            be_name);
+                } else if (rc != LDAP_NO_SUCH_OBJECT) {
+                    slapi_log_err(SLAPI_LOG_ERR, "upgrade_remove_ancestorid_index_config",
+                            "Failed to remove 'ancestorid' index config entry in backend '%s': error %d\n",
+                            be_name, rc);
+                }
+
+                slapi_pblock_destroy(del_pb);
+            }
+
+            slapi_ch_free_string(&idx_dn);
+            slapi_free_search_results_internal(idx_pb);
+            slapi_pblock_destroy(idx_pb);
+        }
+    }
+
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+
+    return uresult;
+}
+
+
+/*
+ * Upgrade the base config of the PAM PTA plugin.
+ *
+ * Check the plugins base DN for any PTA configuration attributes. If any are found
+ * they are migrated to a child entry under the plugins base DN, and the original attrs
+ * are deleted from the base entry.
+ */
+static upgrade_status
+upgrade_pam_pta_default_config(void)
+{
+    const char *parent_dn_str = "cn=PAM Pass Through Auth,cn=plugins,cn=config";
+    char *child_cn_str = "default";
+    const char *pam_cfg_attrs[] = {
+        "pamMissingSuffix",
+        "pamExcludeSuffix",
+        "pamIDMapMethod",
+        "pamIDAttr",
+        "pamFallback",
+        "pamSecure",
+        "pamService",
+        NULL
+    };
+    Slapi_Attr **attrs = NULL;
+    Slapi_PBlock *add_pb = NULL;
+    Slapi_PBlock *mod_pb = NULL;
+    int num_attrs = 0;
+    int rc = 0;
+    int result = LDAP_SUCCESS;
+
+    /* Check base entry exists */
+    Slapi_Entry *base_entry = NULL;
+    Slapi_DN *parent_sdn = slapi_sdn_new_dn_byval(parent_dn_str);
+    rc = slapi_search_internal_get_entry(parent_sdn, NULL, &base_entry, plugin_get_default_component_id());
+    if (rc != LDAP_SUCCESS || !base_entry) {
+        slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                        "Base entry not found: %s\n", parent_dn_str);
+        slapi_sdn_free(&parent_sdn);
+        return UPGRADE_FAILURE;
+    }
+
+    /* Check for config attributes in base entry */
+    for (size_t i = 0; pam_cfg_attrs[i] != NULL; i++) {
+        Slapi_Attr *attr = NULL;
+        if (slapi_entry_attr_find(base_entry, pam_cfg_attrs[i], &attr) == 0) {
+            Slapi_Attr *attr_copy = slapi_attr_dup(attr);
+            if (attr_copy) {
+                attrs = (Slapi_Attr **)slapi_ch_realloc((void *)attrs, sizeof(Slapi_Attr *) * (num_attrs + 1));
+                attrs[num_attrs++] = attr_copy;
+            }
+        }
+    }
+
+    /* NULL terminate discovered attribute array */
+    if (attrs) {
+        attrs = (Slapi_Attr **)slapi_ch_realloc((void *)attrs, sizeof(Slapi_Attr *) * (num_attrs + 1));
+        attrs[num_attrs] = NULL;
+    }
+
+    if (!attrs || num_attrs == 0) {
+        slapi_log_error(SLAPI_LOG_PLUGIN, "upgrade_pam_pta_default_config",
+                        "No config attributes found, nothing to do.\n");
+
+        slapi_entry_free(base_entry);
+        slapi_sdn_free(&parent_sdn);
+        return UPGRADE_SUCCESS;
+    }
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, "upgrade_pam_pta_default_config",
+                    "Detected %d config attributes in %s.\n", num_attrs, parent_dn_str);
+
+    /* Construct child entry string from attr:values discovered in the base entry */
+    char *child_dn = slapi_ch_smprintf("cn=%s,%s", child_cn_str, parent_dn_str);
+    Slapi_Entry *child_entry = NULL;
+    char *entry_string = NULL;
+    if (child_dn) {
+        entry_string = slapi_ch_smprintf("dn: %s\n"
+                                         "cn: %s\n"
+                                         "objectClass: top\n"
+                                         "objectClass: extensibleObject\n"
+                                         "objectClass: pamConfig\n",
+                                         child_dn, child_cn_str);
+
+        if (entry_string) {
+            for (size_t i = 0; attrs[i] != NULL; i++) {
+                Slapi_Attr *attr = attrs[i];
+                Slapi_Value *sval;
+                struct berval *bval;
+                char *attr_type = NULL;
+
+                slapi_attr_get_type(attr, &attr_type);
+                if (slapi_attr_first_value(attr, &sval) == 0) {
+                    if (sval) {
+                        bval = (struct berval *)slapi_value_get_berval(sval);
+                        if (bval && bval->bv_val) {
+                            char *tmp = slapi_ch_smprintf("%s%s: %s\n", entry_string, attr_type, bval->bv_val);
+                            if (tmp) {
+                                slapi_ch_free_string(&entry_string);
+                                entry_string = tmp;
+                            } else {
+                                slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                                                "Failed to create child config entry string for %s.\n", child_dn);
+                            }
+                        }
+                    }
+                }
+            }
+
+            child_entry = slapi_str2entry(entry_string, 0);
+            slapi_ch_free_string(&entry_string);
+        }
+    }
+
+    /* Create child entry */
+    if (child_entry) {
+        add_pb = slapi_pblock_new();
+        slapi_add_entry_internal_set_pb(add_pb, child_entry, NULL, plugin_get_default_component_id(), 0);
+        slapi_add_internal_pb(add_pb);
+        slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+        if (result != LDAP_SUCCESS && result != LDAP_ALREADY_EXISTS) {
+            slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                            "Failed to create child entry %s: %s\n", child_dn, ldap_err2string(result));
+
+            slapi_entry_free(child_entry);
+            slapi_pblock_destroy(add_pb);
+            return UPGRADE_FAILURE;
+        }
+        slapi_pblock_destroy(add_pb);
+    } else {
+        slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                        "Failed to create child entry %s\n", child_dn);
+
+        slapi_ch_free_string(&child_dn);
+        return UPGRADE_FAILURE;
+    }
+
+    /* Construct mods for internal delete */
+    LDAPMod **mods = (LDAPMod **)slapi_ch_calloc(1, ((num_attrs + 1) * sizeof(LDAPMod *)));
+    for (size_t i = 0; attrs[i] != NULL; i++) {
+        LDAPMod *mod = (LDAPMod *)slapi_ch_malloc(sizeof(LDAPMod));
+        Slapi_Attr *attr = attrs[i];
+        char *attr_type = NULL;
+        slapi_attr_get_type(attr, &attr_type);
+        mod->mod_op = LDAP_MOD_DELETE;
+        mod->mod_type = slapi_ch_strdup(attr_type);
+        mod->mod_values = NULL;
+        mods[i] = mod;
+    }
+    mods[num_attrs] = NULL;
+
+    mod_pb = slapi_pblock_new();
+    slapi_modify_internal_set_pb(mod_pb, parent_dn_str, mods, NULL, NULL,
+                                plugin_get_default_component_id(), 0);
+    slapi_modify_internal_pb(mod_pb);
+    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+    if (result != LDAP_SUCCESS) {
+        slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                    "Failed to delete config attrs from:%s\n", parent_dn_str);
+    } else {
+        slapi_log_error(SLAPI_LOG_PLUGIN, "upgrade_pam_pta_default_config",
+                    "Deleted %d config attrs from: %s\n", num_attrs, parent_dn_str);
+    }
+
+    /* Clean up */
+    for (size_t i = 0; i < num_attrs; i++) {
+        slapi_attr_free(&attrs[i]);
+        if (mods[i]) {
+            if (mods[i]->mod_type)
+                slapi_ch_free_string(&mods[i]->mod_type);
+            slapi_ch_free((void **)&mods[i]);
+        }
+    }
+
+    slapi_ch_free((void **)&attrs);
+    slapi_entry_free(base_entry);
+    slapi_sdn_free(&parent_sdn);
+    slapi_ch_free_string(&child_dn);
+    slapi_ch_free((void **)&mods);
+    slapi_pblock_destroy(mod_pb);
+
+    return UPGRADE_SUCCESS;
+}
+
+/*
+ * Migrate the Content Synchronization plugin max concurrent persistent
+ * search setting from the legacy nsslapd-pluginarg0 attribute to
+ * syncrepl-max-concurrent.
+ */
+static upgrade_status
+upgrade_contentsync_max_concurrent_config(void)
+{
+    struct slapi_pblock *search_pb = slapi_pblock_new();
+    Slapi_Entry *plugin_entry = NULL;
+    Slapi_DN *sdn = NULL;
+    const char *plugin_dn = "cn=Content Synchronization,cn=plugins,cn=config";
+    const char *old_attr = "nsslapd-pluginarg0";
+    const char *new_attr = "syncrepl-max-concurrent";
+    upgrade_status uresult = UPGRADE_SUCCESS;
+
+    sdn = slapi_sdn_new_dn_byref(plugin_dn);
+    slapi_search_get_entry(&search_pb, sdn, NULL, &plugin_entry, NULL);
+    if (plugin_entry) {
+        const char *old_val = slapi_entry_attr_get_ref(plugin_entry, old_attr);
+
+        if (old_val != NULL) {
+            Slapi_PBlock *mod_pb = slapi_pblock_new();
+            Slapi_Mods smods;
+            int32_t result;
+
+            slapi_mods_init(&smods, 2);
+            slapi_mods_add(&smods, LDAP_MOD_DELETE, old_attr, 0, NULL);
+            if (slapi_entry_attr_get_ref(plugin_entry, new_attr) == NULL) {
+                slapi_mods_add_string(&smods, LDAP_MOD_ADD, new_attr, old_val);
+            }
+
+            slapi_modify_internal_set_pb(mod_pb, plugin_dn,
+                    slapi_mods_get_ldapmods_byref(&smods),
+                    0, 0, (void *)plugin_get_default_component_id(), 0);
+            slapi_modify_internal_pb(mod_pb);
+            slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+            if (result != LDAP_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_ERR, "upgrade_contentsync_max_concurrent_config",
+                        "Failed to migrate %s from %s to %s on '%s', error %d\n",
+                        old_val, old_attr, new_attr, plugin_dn, result);
+                uresult = UPGRADE_FAILURE;
+            } else {
+                slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_contentsync_max_concurrent_config",
+                        "Upgrade task: migrated %s (%s) to %s on '%s'\n",
+                        old_attr, old_val, new_attr, plugin_dn);
+            }
+            slapi_mods_done(&smods);
+            slapi_pblock_destroy(mod_pb);
+        }
+    }
+    slapi_search_get_entry_done(&search_pb);
+    slapi_sdn_free(&sdn);
+
+    return uresult;
+}
+
+
 upgrade_status
 upgrade_server(void)
 {
@@ -287,6 +853,10 @@ upgrade_server(void)
     }
 
     if (upgrade_AES_reverpwd_plugin() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_pbkdf2_sha256_config() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
 
@@ -303,6 +873,26 @@ upgrade_server(void)
     }
 
     if (upgrade_enable_security_logging() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_remove_subtree_rename() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_pam_pta_default_config() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_remove_index_scanlimit() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_remove_ancestorid_index_config() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_contentsync_max_concurrent_config() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
 

@@ -12,7 +12,7 @@ import pytest
 import os
 from lib389._constants import PW_DM, DEFAULT_SUFFIX
 from lib389.idm.organization import Organization
-from lib389.topologies import topology_m1c1 as topo
+from test389.topologies import topology_m1c1 as topo
 from lib389.idm.role import FilteredRoles, ManagedRoles
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
 from lib389.replica import ReplicationManager
@@ -142,7 +142,7 @@ def test_vattr_on_filtered_role_with_replication(topo, request):
     assert c.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
     c.stop()
-    assert c.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+    assert c.searchErrorsLog(r"roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to 'off'")
 
     def fin():
         s.restart()
@@ -200,7 +200,7 @@ def test_vattr_on_managed_role_replication(topo, request):
     assert c.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
     c.stop()
-    assert c.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+    assert c.searchErrorsLog(r"roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to 'off'")
 
     def fin():
         s.restart()

@@ -58,7 +58,7 @@ void connection_post_shutdown_cleanup(void);
  */
 void connection_abandon_operations(Connection *conn);
 int connection_activity(Connection *conn, int maxthreads);
-void init_op_threads(void);
+void init_op_threads(int32_t threadnumber);
 int connection_new_private(Connection *conn);
 void connection_remove_operation(Connection *conn, Operation *op);
 void connection_remove_operation_ext(Slapi_PBlock *pb, Connection *conn, Operation *op);
@@ -68,6 +68,8 @@ void connection_cleanup(Connection *conn);
 void connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen, int is_SSL);
 void connection_set_io_layer_cb(Connection *c, Conn_IO_Layer_cb push_cb, Conn_IO_Layer_cb pop_cb, void *cb_data);
 int connection_call_io_layer_callbacks(Connection *c);
+size_t connection_read_buffer_data_len(Connection *c);
+void connection_reset_read_buffer(Connection *c);
 
 /*
  * conntable.c
@@ -89,6 +91,9 @@ struct connection_table
     Connection **c_freelist;
     size_t conn_next_offset;
     struct POLL_STRUCT **fd;
+#ifdef ENABLE_EPOLL
+    int *epoll_fd;  /* epoll file descriptor for each connection table list */
+#endif /* ENABLE_EPOLL */
     PRLock *table_mutex;
 };
 typedef struct connection_table Connection_Table;
@@ -165,5 +170,13 @@ int sasl_map_init(void);
 int sasl_map_done(void);
 void sasl_map_read_lock(void);
 void sasl_map_read_unlock(void);
+
+/*
+ * operation.c
+ */
+void fgot_set(struct op *op, fgot_id_t fgot_id, struct timespec *t);
+void fgot_compute(struct op *op, fgot_id_t fgot_id, struct timespec *t1, struct timespec *t2);
+void fgot_start(struct op *op, fgot_id_t fgot_id);
+void fgot_end(struct op *op, fgot_id_t fgot_id);
 
 #endif

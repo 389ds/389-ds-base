@@ -5,29 +5,37 @@ import {
     Grid,
     GridItem,
     Pagination,
-    PaginationVariant,
     SearchInput,
     Text,
     TextContent,
     TextVariants,
+    EmptyState,
+    EmptyStateBody,
+    EmptyStateIcon,
+    Title,
 } from '@patternfly/react-core';
 import {
-	expandable,
-	TableVariant,
-	sortable,
-	SortByDirection,
-	Table,
-	Thead,
-	Tr,
-	Th,
-	Tbody,
-	Td,
-	ExpandableRowContent,
-    ActionsColumn
+    SortByDirection,
+    Table,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
+    ExpandableRowContent,
+    ActionsColumn,
+    sortable
 } from '@patternfly/react-table';
+import {
+    CheckIcon,
+    MinusIcon,
+    SearchIcon,
+} from '@patternfly/react-icons';
 import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 import PropTypes from "prop-types";
-import { get_date_string } from "../tools.jsx";
+import { get_date_string, numToCommas } from "../tools.jsx";
+import { LagReportModal } from "./monitorModals.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
 
@@ -72,9 +80,9 @@ class AbortCleanALLRUVTable extends React.Component {
     getLog(log) {
         return (
             <TextContent>
-                <Text 
+                <Text
                     component={TextVariants.pre}
-                    style={{ 
+                    style={{
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word'
                     }}
@@ -88,7 +96,7 @@ class AbortCleanALLRUVTable extends React.Component {
     createRows(tasks) {
         let rows = [];
         let columns = [...this.state.columns];
-        
+
         for (const task of tasks) {
             rows.push({
                 isOpen: false,
@@ -101,12 +109,12 @@ class AbortCleanALLRUVTable extends React.Component {
                 originalData: task
             });
         }
-        
+
         if (rows.length === 0) {
             rows = [{ cells: [_("No Tasks")] }];
             columns = [{ title: _("Abort CleanAllRUV Tasks") }];
         }
-        
+
         return { rows, columns };
     }
 
@@ -189,7 +197,7 @@ class AbortCleanALLRUVTable extends React.Component {
                         <Tr>
                             {!hasNoTasks && <Th screenReaderText="Row expansion" />}
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -207,7 +215,7 @@ class AbortCleanALLRUVTable extends React.Component {
                             <React.Fragment key={rowIndex}>
                                 <Tr>
                                     {!hasNoTasks && (
-                                        <Td 
+                                        <Td
                                             expand={{
                                                 rowIndex,
                                                 isExpanded: row.isOpen,
@@ -222,7 +230,7 @@ class AbortCleanALLRUVTable extends React.Component {
                                 {row.isOpen && row.originalData && (
                                     <Tr isExpanded={true}>
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -291,9 +299,9 @@ class CleanALLRUVTable extends React.Component {
     getLog(log) {
         return (
             <TextContent>
-                <Text 
+                <Text
                     component={TextVariants.pre}
-                    style={{ 
+                    style={{
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word'
                     }}
@@ -307,7 +315,7 @@ class CleanALLRUVTable extends React.Component {
     createRows(tasks) {
         let rows = [];
         let columns = [...this.state.columns];
-        
+
         for (const task of tasks) {
             rows.push({
                 isOpen: false,
@@ -320,12 +328,12 @@ class CleanALLRUVTable extends React.Component {
                 originalData: task
             });
         }
-        
+
         if (rows.length === 0) {
             rows = [{ cells: [_("No Tasks")] }];
             columns = [{ title: _("CleanAllRUV Tasks") }];
         }
-        
+
         return { rows, columns };
     }
 
@@ -408,7 +416,7 @@ class CleanALLRUVTable extends React.Component {
                         <Tr>
                             {!hasNoTasks && <Th screenReaderText="Row expansion" />}
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -426,7 +434,7 @@ class CleanALLRUVTable extends React.Component {
                             <React.Fragment key={rowIndex}>
                                 <Tr>
                                     {!hasNoTasks && (
-                                        <Td 
+                                        <Td
                                             expand={{
                                                 rowIndex,
                                                 isExpanded: row.isOpen,
@@ -441,7 +449,7 @@ class CleanALLRUVTable extends React.Component {
                                 {row.isOpen && row.originalData && (
                                     <Tr isExpanded={true}>
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -512,7 +520,7 @@ class WinsyncAgmtTable extends React.Component {
                     <GridItem span={3}>{_("Session In Progress:")}</GridItem>
                     <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
                     <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                    <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                    <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
                     <hr />
                     <GridItem span={3}>{_("Last Init Started:")}</GridItem>
                     <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
@@ -550,7 +558,7 @@ class WinsyncAgmtTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
-        
+
         for (const agmt of this.props.agmts) {
             rows.push({
                 isOpen: false,
@@ -564,12 +572,12 @@ class WinsyncAgmtTable extends React.Component {
             });
             count += 1;
         }
-        
+
         if (rows.length === 0) {
             rows = [{ cells: [_("No Agreements")] }];
             columns = [{ title: _("Winsync Agreements") }];
         }
-        
+
         this.setState({
             rows,
             columns
@@ -599,7 +607,7 @@ class WinsyncAgmtTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_agmts.reverse();
         }
-        
+
         for (let agmt of sorted_agmts) {
             agmt = agmt.agmt;
             rows.push({
@@ -613,7 +621,7 @@ class WinsyncAgmtTable extends React.Component {
                 originalData: agmt
             });
         }
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -640,7 +648,7 @@ class WinsyncAgmtTable extends React.Component {
                         <Tr>
                             {!hasNoAgreements && <Th screenReaderText="Row expansion" />}
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -658,7 +666,7 @@ class WinsyncAgmtTable extends React.Component {
                             <React.Fragment key={rowIndex}>
                                 <Tr>
                                     {!hasNoAgreements && (
-                                        <Td 
+                                        <Td
                                             expand={{
                                                 rowIndex,
                                                 isExpanded: row.isOpen,
@@ -673,7 +681,7 @@ class WinsyncAgmtTable extends React.Component {
                                 {row.isOpen && row.originalData && (
                                     <Tr isExpanded={true}>
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -742,9 +750,9 @@ class AgmtTable extends React.Component {
                     <GridItem span={3}>{_("Session In Progress:")}</GridItem>
                     <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
                     <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                    <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                    <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
                     <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
-                    <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
+                    <GridItem span={9}><b>{ numToCommas(agmt['number-changes-skipped'][0]) }</b></GridItem>
                     <GridItem span={3}>{_("Reap Active:")}</GridItem>
                     <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
                     <hr />
@@ -784,7 +792,7 @@ class AgmtTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
-        
+
         for (const agmt of this.props.agmts) {
             rows.push({
                 isOpen: false,
@@ -798,12 +806,12 @@ class AgmtTable extends React.Component {
             });
             count += 1;
         }
-        
+
         if (rows.length === 0) {
             rows = [{ cells: [_("No Agreements")] }];
             columns = [{ title: _("Replication Agreements") }];
         }
-        
+
         this.setState({
             rows,
             columns
@@ -833,7 +841,7 @@ class AgmtTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_agmts.reverse();
         }
-        
+
         for (let agmt of sorted_agmts) {
             agmt = agmt.agmt;
             rows.push({
@@ -847,7 +855,7 @@ class AgmtTable extends React.Component {
                 originalData: agmt
             });
         }
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -874,7 +882,7 @@ class AgmtTable extends React.Component {
                         <Tr>
                             {!hasNoAgreements && <Th screenReaderText="Row expansion" />}
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -893,7 +901,7 @@ class AgmtTable extends React.Component {
                             <React.Fragment key={rowIndex}>
                                 <Tr>
                                     {!hasNoAgreements && (
-                                        <Td 
+                                        <Td
                                             expand={{
                                                 rowIndex,
                                                 isExpanded: row.isOpen,
@@ -908,7 +916,7 @@ class AgmtTable extends React.Component {
                                 {row.isOpen && row.originalData && (
                                     <Tr isExpanded={true}>
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -983,7 +991,7 @@ class ConnectionTable extends React.Component {
 
     getExpandedRow(ip, conn_date, parts) {
         return (
-            <Grid className="ds-indent">
+            <Grid className="ds-indent ds-margin-top ds-margin-bottom">
                 <GridItem span={3}>{_("IP Address:")}</GridItem>
                 <GridItem span={4}><b>{ip}</b></GridItem>
                 <GridItem span={3}>{_("File Descriptor:")}</GridItem>
@@ -991,22 +999,21 @@ class ConnectionTable extends React.Component {
                 <GridItem span={3}>{_("Connection Opened:")}</GridItem>
                 <GridItem span={4}><b>{conn_date}</b></GridItem>
                 <GridItem span={3}>{_("Operations Started:")}</GridItem>
-                <GridItem span={2}><b>{parts[2]}</b></GridItem>
+                <GridItem span={2}><b>{numToCommas(parts[2])}</b></GridItem>
                 <GridItem span={3}>{_("Connection ID:")}</GridItem>
                 <GridItem span={4}><b>{parts[9]}</b></GridItem>
                 <GridItem span={3}>{_("Operations Finished:")}</GridItem>
-                <GridItem span={2}><b>{parts[3]}</b></GridItem>
+                <GridItem span={2}><b>{numToCommas(parts[3])}</b></GridItem>
                 <GridItem span={3}>{_("Bind DN:")}</GridItem>
                 <GridItem span={4}><b>{parts[5]}</b></GridItem>
                 <GridItem span={3}>{_("Read/write Blocked:")}</GridItem>
-                <GridItem span={2}><b>{parts[4]}</b></GridItem>
-                <hr />
-                <GridItem span={6}>{_("Connection Currently At Max Threads:")}</GridItem>
-                <GridItem span={6}><b>{parts[6] === "1" ? _("Yes") : _("No")}</b></GridItem>
-                <GridItem span={6}>{_("Number Of Times Connection Hit Max Threads:")}</GridItem>
-                <GridItem span={6}><b>{parts[7]}</b></GridItem>
-                <GridItem span={6}>{_("Number Of Operations Blocked By Max Threads:")}</GridItem>
-                <GridItem span={6}><b>{parts[8]}</b></GridItem>
+                <GridItem span={2}><b>{numToCommas(parts[4])}</b></GridItem>
+                <GridItem className="ds-margin-top-lg" span={5}>{_("Connection Currently At Max Threads:")}</GridItem>
+                <GridItem className="ds-margin-top-lg" span={7}><b>{parts[6] === "1" ? _("Yes") : _("No")}</b></GridItem>
+                <GridItem span={5}>{_("Number Of Times Connection Hit Max Threads:")}</GridItem>
+                <GridItem span={7}><b>{numToCommas(parts[7])}</b></GridItem>
+                <GridItem span={5}>{_("Number Of Operations Blocked By Max Threads:")}</GridItem>
+                <GridItem span={7}><b>{numToCommas(parts[8])}</b></GridItem>
             </Grid>
         );
     }
@@ -1185,7 +1192,7 @@ class ConnectionTable extends React.Component {
             <div className="ds-margin-top-xlg">
                 <TextContent>
                     <Text component={TextVariants.h4}>
-                        {_("Client Connections:")}<b className="ds-left-margin">{this.props.conns.length}</b>
+                        {_("Client Connections:")}<b className="ds-left-margin">{numToCommas(this.props.conns.length)}</b>
                     </Text>
                 </TextContent>
                 <SearchInput
@@ -1203,7 +1210,7 @@ class ConnectionTable extends React.Component {
                         <Tr>
                             <Th screenReaderText="Row expansion" />
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -1222,12 +1229,12 @@ class ConnectionTable extends React.Component {
                             if (row.parent !== undefined) {
                                 // This is an expanded row
                                 return (
-                                    <Tr 
+                                    <Tr
                                         key={rowIndex}
                                         isExpanded={tableRows[row.parent].isOpen}
                                     >
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -1242,7 +1249,7 @@ class ConnectionTable extends React.Component {
                             // This is a regular row
                             return (
                                 <Tr key={rowIndex}>
-                                    <Td 
+                                    <Td
                                         expand={{
                                             rowIndex,
                                             isExpanded: row.isOpen,
@@ -1321,7 +1328,7 @@ class GlueTable extends React.Component {
 
     handleSort(_event, index, direction) {
         const sortedGlues = [...this.state.rows];
-        
+
         sortedGlues.sort((a, b) => {
             const aValue = a[index];
             const bValue = b[index];
@@ -1358,7 +1365,7 @@ class GlueTable extends React.Component {
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
         const hasRows = this.props.glues.length > 0;
-        
+
         // Calculate pagination
         const startIdx = (perPage * page) - perPage;
         let tableRows = [...rows].splice(startIdx, perPage);
@@ -1401,7 +1408,7 @@ class GlueTable extends React.Component {
                                 ))}
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActions(row)}
                                         />
                                     </Td>
@@ -1496,7 +1503,7 @@ class ConflictTable extends React.Component {
 
     handleSort(_event, index, direction) {
         const sortedConflicts = [...this.state.rows];
-        
+
         sortedConflicts.sort((a, b) => {
             const aValue = a[index];
             const bValue = b[index];
@@ -1522,7 +1529,7 @@ class ConflictTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        
+
         // Calculate pagination
         const startIdx = (perPage * page) - perPage;
         const tableRows = [...rows].splice(startIdx, perPage);
@@ -1673,7 +1680,7 @@ class ReportAliasesTable extends React.Component {
         let columns = this.state.columns;
         let rows = JSON.parse(JSON.stringify(this.props.rows)); // Deep copy
         const hasRows = rows.length > 0;
-        
+
         if (!hasRows) {
             rows = [[_("No Aliases")]];
             columns = [{ title: _("Instance Aliases") }];
@@ -1710,7 +1717,7 @@ class ReportAliasesTable extends React.Component {
                     <Tbody>
                         {rows.map((row, rowIndex) => (
                             <Tr key={rowIndex}>
-                                {Array.isArray(row) ? 
+                                {Array.isArray(row) ?
                                     row.map((cell, cellIndex) => (
                                         <Td key={cellIndex}>{cell}</Td>
                                     ))
@@ -1719,7 +1726,7 @@ class ReportAliasesTable extends React.Component {
                                 }
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActions(row)}
                                         />
                                     </Td>
@@ -1771,9 +1778,9 @@ class ReportCredentialsTable extends React.Component {
         } else {
             tableRows = this.props.rows.map(row => {
                 const rowCopy = JSON.parse(JSON.stringify(row)); // Deep copy
-                const pwInteractive = rowCopy.pwInputInterractive;
+                const pwInteractive = rowCopy.pwInputInteractive;
                 let pwField = <i>{_("Interactive Input is set")}</i>;
-                
+
                 if (!pwInteractive) {
                     if (rowCopy.credsBindpw === "") {
                         pwField = <i>{_("Both Password or Interactive Input flag are not set")}</i>;
@@ -1824,7 +1831,7 @@ class ReportCredentialsTable extends React.Component {
                     <Tbody>
                         {tableRows.map((row, rowIndex) => (
                             <Tr key={rowIndex}>
-                                {Array.isArray(row) ? 
+                                {Array.isArray(row) ?
                                     row.map((cell, cellIndex) => (
                                         <Td key={cellIndex}>{cell}</Td>
                                     ))
@@ -1833,7 +1840,7 @@ class ReportCredentialsTable extends React.Component {
                                 }
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActions(row)}
                                         />
                                     </Td>
@@ -1856,8 +1863,8 @@ class ReportSingleTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { 
-                    title: _("Supplier"), 
+                {
+                    title: _("Supplier"),
                     sortable: true
                 },
                 { title: _("Agreement"), sortable: true },
@@ -1904,9 +1911,9 @@ class ReportSingleTable extends React.Component {
                 <GridItem span={3}>{_("Consumer:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replica[0] }</b></GridItem>
                 <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
                 <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-skipped'][0]) }</b></GridItem>
                 <GridItem span={3}>{_("Reap Active:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
                 <hr />
@@ -2066,7 +2073,7 @@ class ReportSingleTable extends React.Component {
                         <Tr>
                             <Th screenReaderText="Row expansion" />
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -2084,12 +2091,12 @@ class ReportSingleTable extends React.Component {
                             if (row.parent !== undefined) {
                                 // Expanded row
                                 return (
-                                    <Tr 
+                                    <Tr
                                         key={rowIndex}
                                         isExpanded={rows[row.parent].isOpen}
                                     >
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -2103,7 +2110,7 @@ class ReportSingleTable extends React.Component {
                             // Regular row
                             return (
                                 <Tr key={rowIndex}>
-                                    <Td 
+                                    <Td
                                         expand={{
                                             rowIndex,
                                             isExpanded: row.isOpen,
@@ -2177,9 +2184,9 @@ class ReportConsumersTable extends React.Component {
                 <GridItem span={3}>{_("Consumer:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replica[0] }</b></GridItem>
                 <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
                 <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-skipped'][0]) }</b></GridItem>
                 <GridItem span={3}>{_("Reap Active:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
                 <hr />
@@ -2336,7 +2343,7 @@ class ReportConsumersTable extends React.Component {
                         <Tr>
                             <Th screenReaderText="Row expansion" />
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -2353,12 +2360,12 @@ class ReportConsumersTable extends React.Component {
                         {rows.map((row, rowIndex) => {
                             if (row.parent !== undefined) {
                                 return (
-                                    <Tr 
+                                    <Tr
                                         key={rowIndex}
                                         isExpanded={rows[row.parent].isOpen}
                                     >
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -2371,7 +2378,7 @@ class ReportConsumersTable extends React.Component {
                             }
                             return (
                                 <Tr key={rowIndex}>
-                                    <Td 
+                                    <Td
                                         expand={{
                                             rowIndex,
                                             isExpanded: row.isOpen,
@@ -2460,7 +2467,7 @@ class ReplDSRCTable extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg">
-                <Table 
+                <Table
                     aria-label="Sortable DSRC Table"
                     variant="compact"
                 >
@@ -2552,7 +2559,7 @@ class ReplDSRCAliasTable extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg">
-                <Table 
+                <Table
                     aria-label="Sortable DSRC Table"
                     variant="compact"
                 >
@@ -2584,6 +2591,461 @@ class ReplDSRCAliasTable extends React.Component {
                     </Tbody>
                 </Table>
             </div>
+        );
+    }
+}
+
+class ExistingLagReportsTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            page: 1,
+            perPage: 10,
+            sortBy: {},
+            expandedRows: new Set(),
+            reports: this.props.reports || [],
+            showLagReportModal: false,
+            reportUrls: null,
+            selectedReport: null,
+            showConfirmReportDelete: false,
+            reportToDelete: null,
+            modalSpinning: false,
+            modalChecked: false
+        };
+
+        this.handleSetPage = (_evt, newPage) => {
+            this.setState({ page: newPage });
+        };
+
+        this.handlePerPageSelect = (_evt, newPerPage) => {
+            this.setState({ page: 1, perPage: newPerPage });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleViewReport = this.handleViewReport.bind(this);
+        this.closeLagReportModal = this.closeLagReportModal.bind(this);
+        this.showConfirmReportDelete = this.showConfirmReportDelete.bind(this);
+        this.closeConfirmReportDelete = this.closeConfirmReportDelete.bind(this);
+        this.deleteReport = this.deleteReport.bind(this);
+        this.onChange = this.onChange.bind(this);
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.reports !== this.props.reports) {
+            this.setState({ reports: this.props.reports || [] });
+        }
+    }
+
+    handleSort(_event, index, direction) {
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            }
+        });
+    }
+
+    handleViewReport(report) {
+        // Construct the report URLs based on the report data
+        const reportUrls = {
+            base: report.path,
+            json: report.hasJson ? `${report.path}/replication_analysis.json` : null,
+            summary: report.hasJson ? `${report.path}/replication_analysis_summary.json` : null,
+            html: report.hasHtml ? `${report.path}/replication_analysis.html` : null,
+            csv: report.hasCsv ? `${report.path}/replication_analysis.csv` : null,
+            png: report.hasPng ? `${report.path}/replication_analysis.png` : null
+        };
+
+        this.setState({
+            showLagReportModal: true,
+            reportUrls,
+            selectedReport: report
+        });
+
+        // If there's an onSelectReport prop function, call it too
+        if (this.props.onSelectReport) {
+            this.props.onSelectReport(report);
+        }
+    }
+
+    closeLagReportModal() {
+        this.setState({
+            showLagReportModal: false,
+            reportUrls: null,
+            selectedReport: null
+        });
+    }
+
+    onChange(e) {
+        // Basic handler for checkbox in confirmation modal
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value,
+        });
+    }
+
+    showConfirmReportDelete(report) {
+        this.setState({
+            showConfirmReportDelete: true,
+            reportToDelete: report,
+            modalSpinning: false,
+            modalChecked: false
+        });
+    }
+
+    closeConfirmReportDelete() {
+        this.setState({
+            showConfirmReportDelete: false,
+            modalSpinning: false,
+            modalChecked: false
+        });
+    }
+
+    deleteReport() {
+        const { reportToDelete } = this.state;
+        if (!reportToDelete || !reportToDelete.path) {
+            return;
+        }
+
+        this.setState({
+            modalSpinning: true
+        });
+
+        const reportPath = reportToDelete.path;
+        const reportName = reportToDelete.name;
+
+        // Safety check: Validate the path is within expected directories
+        // Don't allow deletion from system directories
+        const blockedPaths = [
+            '/etc/', '/bin/', '/sbin/', '/usr/', '/lib/', '/lib64/',
+            '/boot/', '/dev/', '/proc/', '/sys/', '/root/'
+        ];
+
+        const isBlockedPath = blockedPaths.some(prefix => reportPath.startsWith(prefix));
+
+        if (isBlockedPath) {
+            const errorMsg = cockpit.format(_("Cannot delete report from protected system path: $0"), reportPath);
+            console.error("Attempted to delete report from protected path:", reportPath);
+            this.setState({
+                modalSpinning: false,
+                showConfirmReportDelete: false,
+                reportToDelete: null
+            });
+            if (this.props.addNotification) {
+                this.props.addNotification("error", errorMsg);
+            }
+            return;
+        }
+
+        // Additional check: path must not be root or be too short (likely system directory)
+        if (reportPath === '/' || reportPath.split('/').filter(p => p).length < 2) {
+            const errorMsg = cockpit.format(_("Invalid report path: $0"), reportPath);
+            console.error("Attempted to delete report from invalid path:", reportPath);
+            this.setState({
+                modalSpinning: false,
+                showConfirmReportDelete: false,
+                reportToDelete: null
+            });
+            if (this.props.addNotification) {
+                this.props.addNotification("error", errorMsg);
+            }
+            return;
+        }
+
+        // List of expected report file extensions
+        const reportFilePatterns = [
+            'replication_analysis.json',
+            'replication_analysis_summary.json',
+            'replication_analysis.html',
+            'replication_analysis.csv',
+            'replication_analysis.png'
+        ];
+
+        // Track deleted files for rollback if needed
+        const deletedFiles = [];
+
+        // First, list all files in the directory to verify they're report files
+        cockpit.spawn(["ls", "-1A", reportPath], { superuser: "require", err: "message" })
+            .then(output => {
+                const files = output.trim().split('\n').filter(f => f);
+
+                // Verify all files match expected patterns
+                const allFilesValid = files.every(file =>
+                    reportFilePatterns.includes(file)
+                );
+
+                if (!allFilesValid) {
+                    const errorMsg = cockpit.format(
+                        _("Report directory '$0' contains unexpected files and cannot be safely deleted."),
+                        reportName
+                    );
+                    console.error("Directory contains unexpected files, refusing to delete:", reportPath);
+                    console.error("Files found:", files);
+                    this.setState({
+                        modalSpinning: false,
+                        showConfirmReportDelete: false,
+                        reportToDelete: null
+                    });
+                    if (this.props.addNotification) {
+                        this.props.addNotification("error", errorMsg);
+                    }
+                    return Promise.reject(new Error("Directory contains unexpected files"));
+                }
+
+                // Delete each file individually and track progress
+                const deletePromises = files.map(file => {
+                    const filePath = `${reportPath}/${file}`;
+                    return cockpit.spawn(["rm", "-f", filePath], { superuser: "require", err: "message" })
+                        .then(() => {
+                            deletedFiles.push(file);
+                            return Promise.resolve();
+                        })
+                        .catch(err => {
+                            console.error(`Failed to delete file ${file}:`, err);
+                            return Promise.reject({ file, error: err });
+                        });
+                });
+
+                return Promise.all(deletePromises);
+            })
+            .then(() => {
+                // After all files are deleted, remove the directory
+                return cockpit.spawn(["rmdir", reportPath], { superuser: "require", err: "message" });
+            })
+            .then(() => {
+                // Success! Remove the report from the list
+                this.setState(prevState => ({
+                    reports: prevState.reports.filter(r => r.path !== reportPath),
+                    modalSpinning: false,
+                    showConfirmReportDelete: false,
+                    reportToDelete: null
+                }));
+
+                // Show success notification
+                if (this.props.addNotification) {
+                    this.props.addNotification(
+                        "success",
+                        cockpit.format(_("Report '$0' successfully deleted"), reportName)
+                    );
+                }
+
+                // Notify parent component if callback provided
+                if (this.props.onReportDeleted) {
+                    this.props.onReportDeleted(reportToDelete);
+                }
+            })
+            .catch(err => {
+                console.error("Error deleting report:", err);
+
+                // Determine what went wrong and provide specific feedback
+                let errorMsg;
+                if (err && err.file) {
+                    // Specific file deletion failed
+                    errorMsg = cockpit.format(
+                        _("Failed to delete file '$0' from report '$1'. The report directory may be partially deleted."),
+                        err.file,
+                        reportName
+                    );
+                } else if (deletedFiles.length > 0) {
+                    // Some files were deleted, but directory removal failed
+                    errorMsg = cockpit.format(
+                        _("Deleted $0 files from report '$1', but failed to remove the directory. You may need to manually clean up: $2"),
+                        deletedFiles.length,
+                        reportName,
+                        reportPath
+                    );
+                } else {
+                    // General failure
+                    const errDetail = (err && err.message) ? err.message : err.toString();
+                    errorMsg = cockpit.format(
+                        _("Failed to delete report '$0': $1"),
+                        reportName,
+                        errDetail
+                    );
+                }
+
+                this.setState({
+                    modalSpinning: false,
+                    showConfirmReportDelete: false,
+                    reportToDelete: null
+                });
+
+                if (this.props.addNotification) {
+                    this.props.addNotification("error", errorMsg);
+                }
+
+                // Reload the report list to reflect actual state
+                if (this.props.onReloadReports) {
+                    this.props.onReloadReports();
+                }
+            });
+    }
+
+    render() {
+        const { page, perPage, sortBy, reports, showLagReportModal, reportUrls, showConfirmReportDelete, reportToDelete, modalSpinning, modalChecked } = this.state;
+        const { onSelectReport } = this.props;
+
+        // Sort reports
+        let sortedReports = [...reports];
+        if (sortBy.index !== undefined) {
+            sortedReports.sort((a, b) => {
+                // Sort by report name
+                if (sortBy.index === 0) {
+                    return sortBy.direction === 'asc' ?
+                        a.name.localeCompare(b.name) :
+                        b.name.localeCompare(a.name);
+                }
+
+                // Sort by creation time
+                if (sortBy.index === 1) {
+                    return sortBy.direction === 'asc' ?
+                        new Date(a.creationTime) - new Date(b.creationTime) :
+                        new Date(b.creationTime) - new Date(a.creationTime);
+                }
+
+                // Sort by JSON
+                if (sortBy.index === 2) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasJson - b.hasJson :
+                        b.hasJson - a.hasJson;
+                }
+
+                // Sort by HTML
+                if (sortBy.index === 3) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasHtml - b.hasHtml :
+                        b.hasHtml - a.hasHtml;
+                }
+
+                // Sort by CSV
+                if (sortBy.index === 4) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasCsv - b.hasCsv :
+                        b.hasCsv - a.hasCsv;
+                }
+
+                // Sort by PNG
+                if (sortBy.index === 5) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasPng - b.hasPng :
+                        b.hasPng - a.hasPng;
+                }
+                return 0;
+            });
+        }
+
+        const startIdx = (page - 1) * perPage;
+        const paginatedReports = sortedReports.slice(startIdx, startIdx + perPage);
+        const columns = [
+            { title: _("Report Name"), transforms: [sortable] },
+            { title: _("Creation Time"), transforms: [sortable] },
+            { title: _("JSON"), transforms: [] },
+            { title: _("HTML"), transforms: [] },
+            { title: _("CSV"), transforms: [] },
+            { title: _("PNG"), transforms: [] },
+            { title: _("Actions"), transforms: [] }
+        ];
+
+        return (
+            <>
+                <div className="ds-margin-top-lg">
+                    {reports.length > 0 ? (
+                        <>
+                            <Table
+                                aria-label={_("Existing Reports")}
+                                variant="compact"
+                            >
+                                <Thead>
+                                    <Tr>
+                                        {columns.map((column, columnIndex) => (
+                                            <Th
+                                                key={columnIndex}
+                                                sort={{
+                                                    columnIndex,
+                                                    sortBy,
+                                                    onSort: this.handleSort
+                                                }}
+                                            >
+                                                {column.title}
+                                            </Th>
+                                        ))}
+                                    </Tr>
+                                </Thead>
+                                <Tbody>
+                                                    {paginatedReports.map((report, rowIndex) => (
+                                                        <Tr key={rowIndex}>
+                                                            <Td>{report.name}</Td>
+                                                            <Td>{report.creationTime}</Td>
+                                                            <Td>{report.hasJson ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>{report.hasHtml ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>{report.hasCsv ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>{report.hasPng ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>
+                                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                                    <Button
+                                                                        variant="primary"
+                                                                        onClick={() => this.handleViewReport(report)}
+                                                                    >
+                                                                        {_("View")}
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="danger"
+                                                                        onClick={() => this.showConfirmReportDelete(report)}
+                                                                    >
+                                                                        {_("Delete")}
+                                                                    </Button>
+                                                                </div>
+                                                            </Td>
+                                                        </Tr>
+                                                    ))}
+                                </Tbody>
+                            </Table>
+                            <Pagination
+                                itemCount={reports.length}
+                                widgetId="pagination-options-menu-bottom"
+                                perPage={perPage}
+                                page={page}
+                                variant="bottom"
+                                onSetPage={this.handleSetPage}
+                                onPerPageSelect={this.handlePerPageSelect}
+                            />
+                        </>
+                    ) : (
+                        <EmptyState>
+                            <EmptyStateIcon icon={SearchIcon} />
+                            <Title headingLevel="h4" size="lg">
+                                {_("No reports found")}
+                            </Title>
+                            <EmptyStateBody>
+                                {_("No replication log analysis reports were found in the selected directory.")}
+                            </EmptyStateBody>
+                        </EmptyState>
+                    )}
+                </div>
+
+                {showLagReportModal && (
+                    <LagReportModal
+                        showModal={showLagReportModal}
+                        closeHandler={this.closeLagReportModal}
+                        reportUrls={reportUrls}
+                    />
+                )}
+
+                <DoubleConfirmModal
+                    showModal={showConfirmReportDelete}
+                    closeHandler={this.closeConfirmReportDelete}
+                    handleChange={this.onChange}
+                    actionHandler={this.deleteReport}
+                    spinning={modalSpinning}
+                    item={reportToDelete ? reportToDelete.name : ""}
+                    checked={modalChecked}
+                    mTitle={_("Delete Report")}
+                    mMsg={_("Are you sure you want to delete this report?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete Report")}
+                />
+            </>
         );
     }
 }
@@ -2710,6 +3172,22 @@ DiskTable.defaultProps = {
     rows: []
 };
 
+ExistingLagReportsTable.propTypes = {
+    reports: PropTypes.array,
+    onSelectReport: PropTypes.func,
+    addNotification: PropTypes.func,
+    onReportDeleted: PropTypes.func,
+    onReloadReports: PropTypes.func
+};
+
+ExistingLagReportsTable.defaultProps = {
+    reports: [],
+    onSelectReport: () => {},
+    addNotification: () => {},
+    onReportDeleted: () => {},
+    onReloadReports: () => {}
+};
+
 export {
     ConnectionTable,
     CleanALLRUVTable,
@@ -2725,4 +3203,5 @@ export {
     DiskTable,
     ReplDSRCTable,
     ReplDSRCAliasTable,
+    ExistingLagReportsTable
 };

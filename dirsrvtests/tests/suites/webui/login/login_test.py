@@ -14,7 +14,7 @@ import distro
 from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from test389.topologies import topology_st
 from .. import setup_page, remove_instance_through_lib, check_cockpit_version_is_higher, check_frame_assignment, \
     setup_login, check_cockpit_version_is_lower
 
@@ -65,7 +65,7 @@ def test_login_no_instance(topology_st, page, browser_name):
     page.click('#login-button')
     time.sleep(2)
 
-    if RHEL in distro.linux_distribution():
+    if RHEL in distro.name():
         page.wait_for_selector('text=Red Hat Directory Server')
         assert page.is_visible('text=Red Hat Directory Server')
         log.info('Let us go to RHDS side tab page')

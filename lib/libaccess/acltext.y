@@ -80,7 +80,7 @@ acl_free_args(char **args_list)
 
 	for (ii = 0; ii < MAX_LIST_SIZE; ii++) {
 		if ( args_list[ii] )
-			free(args_list[ii]);
+			PERM_FREE(args_list[ii]);
 		else
 			break;
 	}
@@ -240,7 +240,7 @@ acl_set_ip_dns(ACLExprHandle_t *expr, char **ip_dns)
 start:	| start_acl_v2
 	| ACL_VERSION_TOK ACL_VARIABLE_TOK 
 	{
-		free($<string>2);
+		PERM_FREE($<string>2);
 	}
 	';' start_acl_v3
 	;
@@ -267,7 +267,7 @@ acl_v2: ACL_ACL_TOK acl_name_v2
 acl_name_v2: ACL_VARIABLE_TOK
 	{
 		curr_acl = ACL_AclNew(NULL, $<string>1);
-		free($<string>1);
+		PERM_FREE($<string>1);
 		if ( ACL_ListAppend(NULL, curr_acl_list, curr_acl, 0) < 0 ) {
 			yyerror("Couldn't add ACL to list.");
 			return(-1);
@@ -289,7 +289,7 @@ acl_name_v2: ACL_VARIABLE_TOK
 	| ACL_QSTRING_TOK
 	{
 		curr_acl = ACL_AclNew(NULL, $<string>1);
-		free($<string>1);
+		PERM_FREE($<string>1);
 		if ( ACL_ListAppend(NULL, curr_acl_list, curr_acl, 0) < 0 ) {
 			yyerror("Couldn't add ACL to list.");
 			return(-1);
@@ -503,8 +503,8 @@ ip_spec_v2: ACL_VARIABLE_TOK ACL_VARIABLE_TOK
 		char tmp_str[255];
 
 		util_sprintf(tmp_str, "%s+%s", $<string>1, $<string>2);
-		free($<string>1);
-		free($<string>2);
+		PERM_FREE($<string>1);
+		PERM_FREE($<string>2);
 		acl_add_arg(curr_ip_dns_list, PERM_STRDUP(tmp_str));
 	}
 	;
@@ -538,26 +538,26 @@ method_v2: ACL_VARIABLE_TOK ACL_VARIABLE_TOK ';'
 	{
 		acl_string_lower($<string>1);
 		if (strcmp($<string>1, "database") == 0) {
-			free($<string>1);
-			free($<string>2);
+			PERM_FREE($<string>1);
+			PERM_FREE($<string>2);
 		} else {
 			if ( PListInitProp(curr_auth_info, 
 				   ACL_Attr2Index($<string>1), $<string>1, $<string>2, NULL) < 0 ) {
 			}
-			free($<string>1);
+			PERM_FREE($<string>1);
 		}
 	}
 	| ACL_VARIABLE_TOK ACL_QSTRING_TOK ';'
 	{
 		acl_string_lower($<string>1);
 		if (strcmp($<string>1, "database") == 0) {
-			free($<string>1);
-			free($<string>2);
+			PERM_FREE($<string>1);
+			PERM_FREE($<string>2);
 		} else {
 			if ( PListInitProp(curr_auth_info, 
 				   ACL_Attr2Index($<string>1), $<string>1, $<string>2, NULL) < 0 ) {
 			}
-			free($<string>1);
+			PERM_FREE($<string>1);
 		}
 	}
 	;
@@ -586,7 +586,7 @@ acl:	named_acl ';' body_list
 named_acl: ACL_ACL_TOK ACL_VARIABLE_TOK 
 	{
 		curr_acl = ACL_AclNew(NULL, $<string>2);
-		free($<string>2);
+		PERM_FREE($<string>2);
 		if ( ACL_ListAppend(NULL, curr_acl_list, curr_acl, 0) < 0 ) {
 			yyerror("Couldn't add ACL to list.");
 			return(-1);
@@ -595,7 +595,7 @@ named_acl: ACL_ACL_TOK ACL_VARIABLE_TOK
 	| ACL_ACL_TOK ACL_QSTRING_TOK 
 	{
 		curr_acl = ACL_AclNew(NULL, $<string>2);
-		free($<string>2);
+		PERM_FREE($<string>2);
 		if ( ACL_ListAppend(NULL, curr_acl_list, curr_acl, 0) < 0 ) {
 			yyerror("Couldn't add ACL to list.");
 			return(-1);
@@ -654,8 +654,8 @@ deny_common: ACL_VARIABLE_TOK ACL_EQ_TOK ACL_QSTRING_TOK
                         yyerror("ACL_ExprSetDenyWith() failed");
                         return(-1);
                 }
-                free($<string>1);
-                free($<string>3);
+                PERM_FREE($<string>1);
+                PERM_FREE($<string>3);
 	}
 	;
 
@@ -692,7 +692,7 @@ attribute: ACL_VARIABLE_TOK
 			yyerror("ACL_ExprAddArg() failed");
 			return(-1);
 		}
-		free($<string>1);
+		PERM_FREE($<string>1);
 	}
 	;
 
@@ -706,7 +706,7 @@ parameter: ACL_VARIABLE_TOK ACL_EQ_TOK ACL_QSTRING_TOK
 		if ( PListInitProp(curr_auth_info, 
                                    ACL_Attr2Index($<string>1), $<string>1, $<string>3, NULL) < 0 ) {
 		}
-		free($<string>1);
+		PERM_FREE($<string>1);
 	}
 	| ACL_VARIABLE_TOK ACL_EQ_TOK ACL_VARIABLE_TOK
 	{
@@ -714,7 +714,7 @@ parameter: ACL_VARIABLE_TOK ACL_EQ_TOK ACL_QSTRING_TOK
 		if ( PListInitProp(curr_auth_info, 
                                    ACL_Attr2Index($<string>1), $<string>1, $<string>3, NULL) < 0 ) {
 		}
-		free($<string>1);
+		PERM_FREE($<string>1);
 	}
 	;
 
@@ -896,12 +896,12 @@ base_expr: ACL_VARIABLE_TOK relop ACL_QSTRING_TOK
 		if ( ACL_ExprTerm(NULL, curr_expr,
 				$<string>1, (CmpOp_t) $<ival>2, $<string>3) < 0 ) {
 			yyerror("ACL_ExprTerm() failed");
-			free($<string>1);
-			free($<string>3);	
+			PERM_FREE($<string>1);
+			PERM_FREE($<string>3);
 			return(-1);
 		}
-		free($<string>1);
-		free($<string>3);	
+		PERM_FREE($<string>1);
+		PERM_FREE($<string>3);
 	}
 	| ACL_VARIABLE_TOK relop ACL_VARIABLE_TOK 
 	{
@@ -909,12 +909,12 @@ base_expr: ACL_VARIABLE_TOK relop ACL_QSTRING_TOK
 		if ( ACL_ExprTerm(NULL, curr_expr,
 				$<string>1, (CmpOp_t) $<ival>2, $<string>3) < 0 ) {
 			yyerror("ACL_ExprTerm() failed");
-			free($<string>1);
-			free($<string>3);	
+			PERM_FREE($<string>1);
+			PERM_FREE($<string>3);
 			return(-1);
 		}
-		free($<string>1);
-		free($<string>3);	
+		PERM_FREE($<string>1);
+		PERM_FREE($<string>3);
 	}
 	;
 

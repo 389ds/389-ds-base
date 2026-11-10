@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -14,6 +14,7 @@
 /* control.c - routines for dealing with LDAPMessage controls */
 
 #include <stdio.h>
+#include <plbase64.h>
 #include "slap.h"
 
 
@@ -166,6 +167,34 @@ slapi_get_supported_controls_copy(char ***ctrloidsp, unsigned long **ctrlopsp)
     return (0);
 }
 
+int
+create_sessiontracking_ctrl(const char *session_tracking_id, LDAPControl **session_tracking_ctrl)
+{
+    BerElement *ctrlber = NULL;
+    char *undefined_sid = "undefined sid";
+    const char *sid;
+    int rc = 0;
+    LDAPControl *ctrl = NULL;
+
+    if (session_tracking_id) {
+        sid = session_tracking_id;
+    } else {
+        sid = undefined_sid;
+    }
+    ctrlber = ber_alloc();
+    if ((rc = ber_printf( ctrlber, "{nnno}", sid, strlen(sid)) == LBER_ERROR)) {
+        goto done;
+    }
+    slapi_build_control(LDAP_CONTROL_X_SESSION_TRACKING, ctrlber, 0, &ctrl);
+    *session_tracking_ctrl = ctrl;
+
+done:
+    if (ctrlber) {
+        ber_free(ctrlber, 1);
+    }
+    return rc;
+}
+
 /* Parse the Session Tracking control
  * see https://datatracker.ietf.org/doc/html/draft-wahl-ldap-session-03
  *    LDAPString ::= OCTET STRING -- UTF-8 encoded
@@ -194,7 +223,6 @@ parse_sessiontracking_ctrl(struct berval *session_tracking_spec, char **session_
 #define SESSION_ID_STR_SZ 15
 #define NB_DOTS            3
     char buf_sid_orig[SESSION_ID_STR_SZ + 2] = {0};
-    int32_t sid_orig_sz; /* size of the original sid that we retain */
     const char *buf_sid_escaped;
     int32_t sid_escaped_sz; /* size of the escaped sid that we retain */
     char buf[BUFSIZ];
@@ -221,12 +249,10 @@ parse_sessiontracking_ctrl(struct berval *session_tracking_spec, char **session_
 
     /* Make sure the interesting part of the provided SID is escaped */
     if (sessionTrackingIdentifier.bv_len > SESSION_ID_STR_SZ) {
-        sid_orig_sz = SESSION_ID_STR_SZ + 1;
+        memcpy(buf_sid_orig, sessionTrackingIdentifier.bv_val, SESSION_ID_STR_SZ + 1);
     } else {
-        sid_orig_sz = sessionTrackingIdentifier.bv_len;
         memcpy(buf_sid_orig, sessionTrackingIdentifier.bv_val, sessionTrackingIdentifier.bv_len);
     }
-    memcpy(buf_sid_orig, sessionTrackingIdentifier.bv_val, sid_orig_sz);
     buf_sid_escaped = escape_string(buf_sid_orig, buf);
 
     /* Allocate the buffer that contains the heading portion
@@ -249,9 +275,12 @@ parse_sessiontracking_ctrl(struct berval *session_tracking_spec, char **session_
     sid[sid_escaped_sz] = '\0';
 
     *session_tracking_id = sid;
-    return rc;
 
 free_and_return:
+    if (ber != NULL) {
+        ber_free(ber, 1);
+        ber = NULL;
+    }
     slapi_ch_free_string(&sessionTrackingIdentifier.bv_val);
 
     return rc;
@@ -273,7 +302,7 @@ get_ldapmessage_controls_ext(
     ber_tag_t tag;
     /* ber_len_t is uint, cannot be -1 */
     ber_len_t len = LBER_ERROR;
-    int rc, maxcontrols, curcontrols;
+    int rc, maxcontrols, curcontrols, maxcontrols_per_op;
     char *last;
     int managedsait, pwpolicy_ctrl;
     Connection *pb_conn = NULL;
@@ -350,11 +379,21 @@ get_ldapmessage_controls_ext(
         return (LDAP_PROTOCOL_ERROR);
     }
 
+    maxcontrols_per_op = config_get_maxcontrolsperop();
     maxcontrols = curcontrols = 0;
     for (tag = ber_first_element(ber, &len, &last);
          tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
-         tag = ber_next_element(ber, &len, last)) {
+         tag = ber_next_element(ber, &len, last))
+    {
         len = -1; /* reset */
+        if (curcontrols >= maxcontrols_per_op) {
+            slapi_log_err(SLAPI_LOG_ERR, "get_ldapmessage_controls_ext",
+                          "Too many controls in LDAP request (max %d)\n",
+                          maxcontrols_per_op);
+            rc = LDAP_UNWILLING_TO_PERFORM;
+            goto free_and_return;
+        }
+
         if (curcontrols >= maxcontrols - 1) {
 #define CONTROL_GRABSIZE 6
             maxcontrols += CONTROL_GRABSIZE;
@@ -380,7 +419,8 @@ get_ldapmessage_controls_ext(
         }
         len = -1; /* reset */
         /* if we are ignoring criticality, treat as FALSE */
-        if (ignore_criticality) {
+        if (ignore_criticality ||
+            config_is_control_criticality_ignored(new->ldctl_oid)) {
             new->ldctl_iscritical = 0;
         }
 
@@ -477,14 +517,16 @@ get_ldapmessage_controls_ext(
                 slapi_log_err(SLAPI_LOG_WARNING, "get_ldapmessage_controls_ext", "Warning: conn=%" PRIu64 " op=%d failed to parse SessionTracking control (%d)\n",
                               pb_conn ? pb_conn->c_connid : -1, pb_op ? pb_op->o_opid : -1, parse_rc);
                 slapi_ch_free_string(&session_tracking_id);
+                slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, NULL);
             } else {
                 /* now replace the sid (if any) in the pblock */
                 slapi_pblock_get(pb, SLAPI_SESSION_TRACKING, &old_sid);
                 slapi_ch_free_string(&old_sid);
                 slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, session_tracking_id);
             }
+        } else {
+            slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, NULL);
         }
-        slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, session_tracking_id);
         pwpolicy_ctrl = slapi_control_present(ctrls,
                                               LDAP_X_CONTROL_PWPOLICY_REQUEST, NULL, NULL);
         slapi_pblock_set(pb, SLAPI_PWPOLICY, &pwpolicy_ctrl);
@@ -517,6 +559,7 @@ get_ldapmessage_controls_ext(
 
 free_and_return:;
     ldap_controls_free(ctrls);
+    slapi_pblock_set(pb, SLAPI_REQCONTROLS, NULL); /* make sure controls are removed from the pblock */
     slapi_log_err(SLAPI_LOG_TRACE, "get_ldapmessage_controls_ext",
                   "<= %i\n", rc);
     return (rc);
@@ -774,11 +817,14 @@ slapi_build_control_from_berval(char *oid, struct berval *bvp, char iscritical, 
 
 /*
  * Parse an LDAP control into its parts
+ * The caller must free "value"
  */
 void
-slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, PRBool *isCritical)
+slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, bool *isCritical)
 {
     *isCritical = ctrl->ldctl_iscritical;
-    *value = ctrl->ldctl_value.bv_val;
+    if (ctrl->ldctl_value.bv_len > 0) {
+        *value = PL_Base64Encode(ctrl->ldctl_value.bv_val, ctrl->ldctl_value.bv_len, NULL);
+    }
     *oid = ctrl->ldctl_oid;
 }

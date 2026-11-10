@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2023 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -169,11 +169,19 @@ delete_haproxy_trusted_ip(struct berval **ipaddress)
     }
 }
 
+/*
+ * Set the haproxy trusted IP list.
+ *
+ * NOTE: This function must be called with CFG_LOCK_WRITE held by the caller.
+ * It directly modifies slapdFrontendConfig fields without acquiring locks.
+ */
 void
 g_set_haproxy_trusted_ip(struct berval **ipaddress)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     struct berval **haproxy_trusted_ip = NULL;
+    haproxy_trusted_entry_t *parsed_entries = NULL;
+    size_t parsed_count = 0;
     int nTrustedIPs = 0;
 
     /* check to see if we want to delete all values */
@@ -181,6 +189,10 @@ g_set_haproxy_trusted_ip(struct berval **ipaddress)
         PL_strncasecmp((char *)ipaddress[0]->bv_val, HAPROXY_TRUSTED_IP_REMOVE_CMD, ipaddress[0]->bv_len) == 0) {
         delete_haproxy_trusted_ip(slapdFrontendConfig->haproxy_trusted_ip);
         slapdFrontendConfig->haproxy_trusted_ip = NULL;
+
+        /* Free parsed binary entries */
+        slapi_ch_free((void **)&slapdFrontendConfig->haproxy_trusted_ip_parsed);
+        slapdFrontendConfig->haproxy_trusted_ip_parsed_count = 0;
         return;
     }
 
@@ -199,15 +211,72 @@ g_set_haproxy_trusted_ip(struct berval **ipaddress)
         nTrustedIPs--;
     }
 
+    /* Parse IP addresses into binary format for runtime matching */
+    parsed_entries = haproxy_parse_trusted_ips(ipaddress, &parsed_count, NULL);
+
+    /*
+     * Parsing must succeed. If it fails, this indicates validation in config_set_haproxy_trusted_ip
+     * didn't catch an issue, or there's a logic error. This should never happen in production.
+     */
+    if (parsed_entries == NULL && parsed_count == 0 && ipaddress && ipaddress[0]) {
+        slapi_log_err(SLAPI_LOG_ERR, "g_set_haproxy_trusted_ip",
+                     "CRITICAL: Failed to parse trusted IPs into binary format. "
+                     "This should have been caught during validation.\n");
+        /* Free the temporary array and return without updating config */
+        for (size_t i = 0; haproxy_trusted_ip[i] != NULL; i++) {
+            ber_bvfree(haproxy_trusted_ip[i]);
+        }
+        slapi_ch_free((void **)&haproxy_trusted_ip);
+        return;
+    }
+
+    /* Free old parsed entries */
+    slapi_ch_free((void **)&slapdFrontendConfig->haproxy_trusted_ip_parsed);
+
+    /* Update configuration with new values */
     delete_haproxy_trusted_ip(slapdFrontendConfig->haproxy_trusted_ip);
     slapdFrontendConfig->haproxy_trusted_ip = haproxy_trusted_ip;
+    slapdFrontendConfig->haproxy_trusted_ip_parsed = parsed_entries;
+    slapdFrontendConfig->haproxy_trusted_ip_parsed_count = parsed_count;
 }
 
 struct berval **
 g_get_haproxy_trusted_ip()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapdFrontendConfig->haproxy_trusted_ip;
+    struct berval **retVal = NULL;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->haproxy_trusted_ip;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+/**
+ * Get parsed trusted IP entries in binary format.
+ *
+ * Returns the array of trusted IP entries that have been parsed from string
+ * format into binary network addresses and netmasks. These entries are used
+ * for efficient IP matching during connection validation.
+ *
+ * @param count_out: Optional output parameter for the number of entries
+ * @return: Array of parsed entries, or NULL if none configured
+ */
+haproxy_trusted_entry_t *
+g_get_haproxy_trusted_ip_parsed(size_t *count_out)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    haproxy_trusted_entry_t *retVal = NULL;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    if (count_out) {
+        *count_out = slapdFrontendConfig->haproxy_trusted_ip_parsed_count;
+    }
+    retVal = slapdFrontendConfig->haproxy_trusted_ip_parsed;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 /*
@@ -524,7 +593,7 @@ send_ldap_result_ext(
                 err = LDAP_CONSTRAINT_VIOLATION;
                 text = "Invalid credentials, you now have exceeded the password retry limit.";
                 slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
-                              "password retry limit exceeded.  Entry (%s) Policy (%s)\n",
+                              "Password retry limit exceeded: Entry (%s) Policy (%s)\n",
                               dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
             }
         }
@@ -1457,8 +1526,10 @@ send_specific_attrs(Slapi_Entry *e, char **attrs, Slapi_Operation *op, Slapi_PBl
             continue; /* Means this was a computed attr and we prcessed it OK. */
         }
         if (-1 != rc) {
-            /* Means that some error happened */
-            return rc;
+            /* Means that some error happened.  Go through the shared cleanup
+             * rather than returning here directly, otherwise attrs_ext and
+             * my_searchattrs (both built above with slapi_ch_array_add) leak. */
+            goto exit;
         } else {
             rc = 0; /* Means that we just didn't recognize this as a computed attr */
         }
@@ -1855,9 +1926,19 @@ flush_ber(
     } else {
         ber_get_option(ber, LBER_OPT_BYTES_TO_WRITE, &bytes);
 
+        fgot_start(op, FGOT_WRITE);
+        /* After publishing intent, this path must reach admission or resolve
+         * a reader's pending handoff before it can exit. */
+        slapi_atomic_incr_32(&conn->c_pdu_writers_waiting, __ATOMIC_ACQ_REL);
         PR_Lock(conn->c_pdumutex);
+        slapi_atomic_decr_32(&conn->c_pdu_writers_waiting, __ATOMIC_ACQ_REL);
+        if (conn->c_pdu_handoff_pending) {
+            conn->c_pdu_handoff_pending = PR_FALSE;
+            PR_NotifyCondVar(conn->c_pdu_writer_cv);
+        }
         rc = ber_flush(conn->c_sb, ber, 1);
         PR_Unlock(conn->c_pdumutex);
+        fgot_end(op, FGOT_WRITE);
 
         if (rc != 0) {
             int oserr = errno;
@@ -1946,9 +2027,26 @@ static struct slapi_note_map notemap[] = {
     {SLAPI_OP_NOTE_FULL_UNINDEXED, "A", "Fully Unindexed Filter"},
     {SLAPI_OP_NOTE_FILTER_INVALID, "F", "Filter Element Missing From Schema"},
     {SLAPI_OP_NOTE_MFA_AUTH, "M", "Multi-factor Authentication"},
+    {SLAPI_OP_NOTE_ASYNCH_OP, "N", "Not synchronous operation"},
+    {SLAPI_OP_NOTE_ASYNCH_BLOCKED, "B", "Blocked because too many operations"},
 };
 
 #define SLAPI_NOTEMAP_COUNT (sizeof(notemap) / sizeof(struct slapi_note_map))
+
+/* Used for JSON access logging */
+void
+get_notes_info(unsigned int notes, char **note, char **details)
+{
+    int32_t n = 0;
+
+    for (size_t i = 0; i < SLAPI_NOTEMAP_COUNT; i++) {
+        if (notemap[i].snp_noteid & notes) {
+            note[n] = notemap[i].snp_string;
+            details[n] = notemap[i].snp_detail;
+            n++;
+        }
+    }
+}
 
 /*
  * fill buf with a string representation of the bits present in notes.
@@ -2092,12 +2190,14 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
             if ((LDAP_STAT_READ_INDEX & config_get_statlog_level()) && op_stat->search_stat) {
                 struct component_keys_lookup *key_info;
 
-                logpb.log_format = log_format;
+                slapd_log_pblock_init(&logpb, log_format, pb);
                 logpb.conn_time = start_time;
                 logpb.conn_id = connid;
                 logpb.op_id = op_id;
 
                 for (key_info = op_stat->search_stat->keys_lookup; key_info; key_info = key_info->next) {
+                    slapi_timespec_diff(&key_info->key_lookup_end, &key_info->key_lookup_start, &duration);
+                    snprintf(stat_etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)duration.tv_sec, (int64_t)duration.tv_nsec);
                     if (internal_op) {
                         if (log_format != LOG_FORMAT_DEFAULT) {
                             /* JSON logging */
@@ -2110,11 +2210,11 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
                             slapd_log_access_stat(&logpb);
                         } else {
                             slapi_log_stat(LDAP_STAT_READ_INDEX,
-                                           connid == 0 ? STAT_LOG_CONN_OP_FMT_INT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d\n":
-                                                         STAT_LOG_CONN_OP_FMT_EXT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d\n",
+                                           connid == 0 ? STAT_LOG_CONN_OP_FMT_INT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d (duration %s)\n":
+                                                         STAT_LOG_CONN_OP_FMT_EXT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d (duration %s)\n",
                                            connid, op_id, op_internal_id, op_nested_count,
                                            key_info->attribute_type, key_info->index_type, key_info->key,
-                                           key_info->id_lookup_cnt);
+                                           key_info->id_lookup_cnt, stat_etime);
                         }
                     } else {
                         if (log_format != LOG_FORMAT_DEFAULT) {
@@ -2128,10 +2228,10 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
                             slapd_log_access_stat(&logpb);
                         } else {
                             slapi_log_stat(LDAP_STAT_READ_INDEX,
-                                           "conn=%" PRIu64 " op=%d STAT read index: attribute=%s key(%s)=%s --> count %d\n",
+                                           "conn=%" PRIu64 " op=%d STAT read index: attribute=%s key(%s)=%s --> count %d (duration %s)\n",
                                            connid, op_id,
                                            key_info->attribute_type, key_info->index_type, key_info->key,
-                                           key_info->id_lookup_cnt);
+                                           key_info->id_lookup_cnt, stat_etime);
                         }
                     }
                 }
@@ -2140,14 +2240,30 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
                 slapi_timespec_diff(&op_stat->search_stat->keys_lookup_end, &op_stat->search_stat->keys_lookup_start, &duration);
                 snprintf(stat_etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)duration.tv_sec, (int64_t)duration.tv_nsec);
                 if (internal_op) {
-                    slapi_log_stat(LDAP_STAT_READ_INDEX,
-                                   connid == 0 ? STAT_LOG_CONN_OP_FMT_INT_INT "STAT read index: duration %s\n":
-                                                 STAT_LOG_CONN_OP_FMT_EXT_INT "STAT read index: duration %s\n",
-                                   connid, op_id, op_internal_id, op_nested_count, stat_etime);
+                    if (log_format != LOG_FORMAT_DEFAULT) {
+                        /* JSON logging */
+                        logpb.op_internal_id = op_internal_id;
+                        logpb.op_nested_count = op_nested_count;
+                        logpb.stat_etime = stat_etime;
+                        slapd_log_access_stat(&logpb);
+                    } else {
+                        slapi_log_stat(LDAP_STAT_READ_INDEX,
+                                       connid == 0 ? STAT_LOG_CONN_OP_FMT_INT_INT "STAT read index: duration %s\n":
+                                                     STAT_LOG_CONN_OP_FMT_EXT_INT "STAT read index: duration %s\n",
+                                       connid, op_id, op_internal_id, op_nested_count, stat_etime);
+                    }
                 } else {
-                    slapi_log_stat(LDAP_STAT_READ_INDEX,
-                                   "conn=%" PRIu64 " op=%d STAT read index: duration %s\n",
-                                   op->o_connid, op->o_opid, stat_etime);
+                    if (log_format != LOG_FORMAT_DEFAULT) {
+                        /* JSON logging */
+                        logpb.op_internal_id = -1;
+                        logpb.op_nested_count = -1;
+                        logpb.stat_etime = stat_etime;
+                        slapd_log_access_stat(&logpb);
+                    } else {
+                        slapi_log_stat(LDAP_STAT_READ_INDEX,
+                                       "conn=%" PRIu64 " op=%d STAT read index: duration %s\n",
+                                       op->o_connid, op->o_opid, stat_etime);
+                    }
                 }
             }
             break;
@@ -2170,9 +2286,6 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
     int internal_op;
     CSN *operationcsn = NULL;
     char csn_str[CSN_STRSIZE + 5];
-    char etime[ETIME_BUFSIZ] = {0};
-    char wtime[ETIME_BUFSIZ] = {0};
-    char optime[ETIME_BUFSIZ] = {0};
     int pr_idx = -1;
     int pr_cookie = -1;
     uint32_t operation_notes;
@@ -2191,6 +2304,8 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
     time_t start_time;
     int32_t log_format = config_get_accesslog_log_format();
     slapd_log_pblock logpb = {0};
+    char buff_fgot[FGOT_BUFSIZ] = "";
+    char buff_pool[80] = "";
 
     get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
     slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
@@ -2218,15 +2333,15 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
 
     /* total elapsed time */
     slapi_operation_time_elapsed(op, &o_hr_time_end);
-    snprintf(etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
+    fgot_set(op, FGOT_ETIME, &o_hr_time_end);
 
     /* wait time */
     slapi_operation_workq_time_elapsed(op, &o_hr_time_end);
-    snprintf(wtime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
+    fgot_set(op, FGOT_W, &o_hr_time_end);
 
     /* op time */
     slapi_operation_op_time_elapsed(op, &o_hr_time_end);
-    snprintf(optime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
+    fgot_set(op, FGOT_OP, &o_hr_time_end);
 
     operation_notes = slapi_pblock_get_operation_notes(pb);
     if (0 == operation_notes) {
@@ -2247,20 +2362,34 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 sprintf(csn_str, " csn=%s", csn_as_string(operationcsn, PR_FALSE, tmp_csn_str));
             }
         }
+        slapi_log_fgot_text(op, buff_fgot, FGOT_BUFSIZ);
+        /* Thread pool stats for text format */
+        if ((LDAP_STAT_THREAD_POOL & config_get_statlog_level()) &&
+            !internal_op && op->o_wbusy >= 0)
+        {
+            snprintf(buff_pool, sizeof(buff_pool),
+                     " wbusy=%" PRId32 "/%" PRId32 " wqdepth=%" PRId32,
+                     op->o_wbusy, op->o_wmax, op->o_wqdepth);
+        }
     } else {
         /* Start prepping the JSON result block */
         slapd_log_pblock_init(&logpb, log_format, pb);
         logpb.err = err;
         logpb.nentries = nentries;
-        logpb.wtime = wtime;
-        logpb.optime = optime;
-        logpb.etime = etime;
         logpb.notes = operation_notes;
         logpb.csn = operationcsn;
-        logpb.pr_idx = 0;
-        logpb.pr_cookie = 0;
         logpb.msg = NULL;
         logpb.sid = sessionTrackingId;
+        logpb.tag = tag;
+        slapi_log_fgot_json(op, &logpb, buff_fgot, FGOT_BUFSIZ);
+        /* Thread pool stats for JSON format */
+        if ((LDAP_STAT_THREAD_POOL & config_get_statlog_level()) &&
+            !internal_op && op->o_wbusy >= 0)
+        {
+            logpb.wbusy = op->o_wbusy;
+            logpb.wmax = op->o_wmax;
+            logpb.wqdepth = op->o_wqdepth;
+        }
     }
 
 #define LOG_CONN_OP_FMT_INT_INT "conn=Internal(%" PRIu64 ") op=%d(%d)(%d) RESULT err=%d"
@@ -2278,23 +2407,26 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
             } else {
                 slapi_log_access(LDAP_DEBUG_STATS,
                                  "conn=%" PRIu64 " op=%d RESULT err=%d"
-                                 " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s"
+                                 " tag=%" BERTAG_T " nentries=%d%s%s%s%s%s"
                                  ", SASL bind in progress\n",
                                  op->o_connid,
                                  op->o_opid,
-                                 err, tag, nentries,
-                                 wtime, optime, etime,
+                                 err, tag, nentries, buff_fgot, buff_pool,
                                  notes_str, csn_str, session_str);
             }
         } else {
             if (log_format != LOG_FORMAT_DEFAULT) {
                 /* fill in the remaining params*/
+                logpb.conn_time = start_time;
+                logpb.conn_id = connid;
+                logpb.op_id = op_id;
                 logpb.op_internal_id = op_internal_id;
                 logpb.op_nested_count = op_nested_count;
                 logpb.msg = "SASL bind in progress";
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_result(&logpb);
             } else {
-#define LOG_SASLMSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s, SASL bind in progress\n"
+#define LOG_SASLMSG_FMT " tag=%" BERTAG_T " nentries=%d%s%s%s%s%s, SASL bind in progress\n"
                 slapi_log_access(LDAP_DEBUG_ARGS,
                                  connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_SASLMSG_FMT :
                                            LOG_CONN_OP_FMT_EXT_INT LOG_SASLMSG_FMT,
@@ -2302,14 +2434,13 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                                  op_id,
                                  op_internal_id,
                                  op_nested_count,
-                                 err, tag, nentries,
-                                 wtime, optime, etime,
+                                 err, tag, nentries, buff_fgot, buff_pool,
                                  notes_str, csn_str, session_str);
             }
         }
     } else if (op->o_tag == LDAP_REQ_BIND && err == LDAP_SUCCESS) {
         char *dn = NULL;
-
+        slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
         /*
          * For methods other than simple, the dn in the bind request
          * may be irrelevant. Log the actual authenticated dn.
@@ -2318,43 +2449,44 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
             if (log_format != LOG_FORMAT_DEFAULT) {
                 /* fill in the remaining params*/
                 logpb.msg = "SASL bind in progress";
+                logpb.bind_dn = dn;
                 slapd_log_access_result(&logpb);
             } else {
-                slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
                 slapi_log_access(LDAP_DEBUG_STATS,
-                                "conn=%" PRIu64 " op=%d RESULT err=%d"
-                                " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s"
-                                " dn=\"%s\"\n",
-                                op->o_connid,
-                                op->o_opid,
-                                err, tag, nentries,
-                                wtime, optime, etime,
-                                notes_str, csn_str, session_str, dn ? dn : "");
-                slapi_ch_free_string(&dn);
+                                 "conn=%" PRIu64 " op=%d RESULT err=%d"
+                                 " tag=%" BERTAG_T " nentries=%d%s%s%s%s%s"
+                                 " dn=\"%s\"\n",
+                                 op->o_connid,
+                                 op->o_opid,
+                                 err, tag, nentries, buff_fgot, buff_pool,
+                                 notes_str, csn_str, session_str, dn ? dn : "");
             }
         } else {
             if (log_format != LOG_FORMAT_DEFAULT) {
                 /* fill in the remaining params*/
+                logpb.conn_time = start_time;
+                logpb.conn_id = connid;
+                logpb.op_id = op_id;
                 logpb.op_internal_id = op_internal_id;
                 logpb.op_nested_count = op_nested_count;
                 logpb.msg = "SASL bind in progress";
+                logpb.bind_dn = dn;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_result(&logpb);
             } else {
-                slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
-#define LOG_BINDMSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s dn=\"%s\"\n"
+#define LOG_BINDMSG_FMT " tag=%" BERTAG_T " nentries=%d%s%s%s%s%s dn=\"%s\"\n"
                 slapi_log_access(LDAP_DEBUG_ARGS,
-                                connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_BINDMSG_FMT :
-                                            LOG_CONN_OP_FMT_EXT_INT LOG_BINDMSG_FMT,
-                                connid,
-                                op_id,
-                                op_internal_id,
-                                op_nested_count,
-                                err, tag, nentries,
-                                wtime, optime, etime,
-                                notes_str, csn_str, session_str, dn ? dn : "");
-                slapi_ch_free_string(&dn);
+                                 connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_BINDMSG_FMT :
+                                               LOG_CONN_OP_FMT_EXT_INT LOG_BINDMSG_FMT,
+                                 connid,
+                                 op_id,
+                                 op_internal_id,
+                                 op_nested_count,
+                                 err, tag, nentries, buff_fgot, buff_pool,
+                                 notes_str, csn_str, session_str, dn ? dn : "");
             }
         }
+        slapi_ch_free_string(&dn);
     } else {
         if (pr_idx > -1) {
             if (!internal_op) {
@@ -2365,35 +2497,37 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                     slapd_log_access_result(&logpb);
                 } else {
                     slapi_log_access(LDAP_DEBUG_STATS,
-                                    "conn=%" PRIu64 " op=%d RESULT err=%d"
-                                    " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s"
-                                    " pr_idx=%d pr_cookie=%d\n",
-                                    op->o_connid,
-                                    op->o_opid,
-                                    err, tag, nentries,
-                                    wtime, optime, etime, session_str,
-                                    notes_str, csn_str, pr_idx, pr_cookie);
+                                     "conn=%" PRIu64 " op=%d RESULT err=%d"
+                                     " tag=%" BERTAG_T " nentries=%d%s%s%s%s%s"
+                                     " pr_idx=%d pr_cookie=%d\n",
+                                     op->o_connid,
+                                     op->o_opid,
+                                     err, tag, nentries, buff_fgot, buff_pool, session_str,
+                                     notes_str, csn_str, pr_idx, pr_cookie);
                 }
             } else {
                 if (log_format != LOG_FORMAT_DEFAULT) {
                     /* fill in the remaining params*/
+                    logpb.conn_time = start_time;
+                    logpb.conn_id = connid;
+                    logpb.op_id = op_id;
                     logpb.op_internal_id = op_internal_id;
                     logpb.op_nested_count = op_nested_count;
                     logpb.pr_idx = pr_idx;
                     logpb.pr_cookie = pr_cookie;
+                    logpb.level = LDAP_DEBUG_ARGS;
                     slapd_log_access_result(&logpb);
                 } else {
-#define LOG_PRMSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s pr_idx=%d pr_cookie=%d \n"
+#define LOG_PRMSG_FMT " tag=%" BERTAG_T " nentries=%d%s%s%s%s%s pr_idx=%d pr_cookie=%d \n"
                     slapi_log_access(LDAP_DEBUG_ARGS,
-                                    connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_PRMSG_FMT :
-                                                LOG_CONN_OP_FMT_EXT_INT LOG_PRMSG_FMT,
-                                    connid,
-                                    op_id,
-                                    op_internal_id,
-                                    op_nested_count,
-                                    err, tag, nentries,
-                                    wtime, optime, etime,
-                                    notes_str, csn_str, session_str, pr_idx, pr_cookie);
+                                     connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_PRMSG_FMT :
+                                                   LOG_CONN_OP_FMT_EXT_INT LOG_PRMSG_FMT,
+                                     connid,
+                                     op_id,
+                                     op_internal_id,
+                                     op_nested_count,
+                                     err, tag, nentries, buff_fgot, buff_pool,
+                                     notes_str, csn_str, session_str, pr_idx, pr_cookie);
                 }
             }
         } else if (!internal_op) {
@@ -2413,13 +2547,12 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 slapd_log_access_result(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_STATS,
-                                "conn=%" PRIu64 " op=%d RESULT err=%d"
-                                " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s%s\n",
-                                op->o_connid,
-                                op->o_opid,
-                                err, tag, nentries,
-                                wtime, optime, etime,
-                                notes_str, csn_str, ext_str, session_str);
+                                 "conn=%" PRIu64 " op=%d RESULT err=%d"
+                                 " tag=%" BERTAG_T " nentries=%d%s%s%s%s%s%s\n",
+                                 op->o_connid,
+                                 op->o_opid,
+                                 err, tag, nentries, buff_fgot, buff_pool,
+                                 notes_str, csn_str, ext_str, session_str);
             }
             if (pbtxt) {
                 /* if !pbtxt ==> ext_str == "".  Don't free ext_str. */
@@ -2431,21 +2564,24 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
 
             if (log_format != LOG_FORMAT_DEFAULT) {
                 /* fill in the remaining params*/
+                logpb.conn_time = start_time;
+                logpb.conn_id = connid;
+                logpb.op_id = op_id;
                 logpb.op_internal_id = op_internal_id;
                 logpb.op_nested_count = op_nested_count;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_result(&logpb);
             } else {
-#define LOG_MSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s\n"
+#define LOG_MSG_FMT " tag=%" BERTAG_T " nentries=%d%s%s%s%s%s\n"
                 slapi_log_access(LDAP_DEBUG_ARGS,
-                                connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_MSG_FMT :
-                                            LOG_CONN_OP_FMT_EXT_INT LOG_MSG_FMT,
-                                connid,
-                                op_id,
-                                op_internal_id,
-                                op_nested_count,
-                                err, tag, nentries,
-                                wtime, optime, etime,
-                                notes_str, csn_str, session_str);
+                                 connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_MSG_FMT :
+                                               LOG_CONN_OP_FMT_EXT_INT LOG_MSG_FMT,
+                                 connid,
+                                 op_id,
+                                 op_internal_id,
+                                 op_nested_count,
+                                 err, tag, nentries, buff_fgot, buff_pool,
+                                 notes_str, csn_str, session_str);
             }
             /*
              *  If this is an unindexed search we should log it in the error log if
@@ -2472,10 +2608,12 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                     slapi_pblock_get(pb, SLAPI_PLUGIN, &plugin);
                 }
                 plugin_dn = plugin_get_dn(plugin);
-
+                if (log_format != LOG_FORMAT_DEFAULT) {
+                    slapi_log_fgot_text(op, buff_fgot, FGOT_BUFSIZ);
+                }
                 slapi_log_err(SLAPI_LOG_ERR, "log_result", "Internal unindexed search: source (%s) "
-                                                           "search base=\"%s\" filter=\"%s\" etime=%s nentries=%d %s\n",
-                              plugin_dn, base_dn, filter_str, etime, nentries, notes_str);
+                                                           "search base=\"%s\" filter=\"%s\" nentries=%d%s%s\n",
+                              plugin_dn, base_dn, filter_str, nentries, buff_fgot, notes_str);
 
                 slapi_ch_free_string(&plugin_dn);
             }
@@ -2496,13 +2634,14 @@ log_entry(Operation *op, Slapi_Entry *e)
 
         if (log_format != LOG_FORMAT_DEFAULT) {
             slapd_log_pblock logpb = {0};
-
+            slapd_log_pblock_init(&logpb, log_format, NULL);
             logpb.conn_time = op->o_conn_starttime;
             logpb.conn_id = op->o_connid;
             logpb.op_id = op->o_opid;
             logpb.op_internal_id = -1;
             logpb.op_nested_count = -1;
             logpb.target_dn = slapi_entry_get_dn_const(e);
+            logpb.level = LDAP_DEBUG_STATS2;
             slapd_log_access_entry(&logpb);
         } else {
             slapi_log_access(LDAP_DEBUG_STATS2, "conn=%" PRIu64 " op=%d ENTRY dn=\"%s\"\n",
@@ -2520,7 +2659,8 @@ log_entry(Operation *op, Slapi_Entry *e)
             get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
             if (log_format != LOG_FORMAT_DEFAULT) {
                 slapd_log_pblock logpb = {0};
-
+                slapd_log_pblock_init(&logpb, log_format, NULL);
+                logpb.level = LDAP_DEBUG_ARGS;
                 logpb.conn_time = start_time;
                 logpb.conn_id = connid;
                 logpb.op_id = op_id;
@@ -2554,7 +2694,8 @@ log_referral(Operation *op)
     if (!internal_op) {
         if (log_format != LOG_FORMAT_DEFAULT) {
             slapd_log_pblock logpb = {0};
-
+            slapd_log_pblock_init(&logpb, log_format, NULL);
+            logpb.level = LDAP_DEBUG_STATS2;
             logpb.conn_time = op->o_conn_starttime;
             logpb.conn_id = op->o_connid;
             logpb.op_id = op->o_opid;
@@ -2576,12 +2717,13 @@ log_referral(Operation *op)
 
             if (log_format != LOG_FORMAT_DEFAULT) {
                 slapd_log_pblock logpb = {0};
-
+                slapd_log_pblock_init(&logpb, log_format, NULL);
                 logpb.conn_time = start_time;
                 logpb.conn_id = connid;
                 logpb.op_id = op_id;
                 logpb.op_internal_id = op_internal_id;
                 logpb.op_nested_count = op_nested_count;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_referral(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_ARGS,

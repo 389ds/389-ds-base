@@ -161,7 +161,7 @@ class Agreement(DSLdapObject):
         from lib389.replica import Replicas
         replicas = Replicas(self._instance)
         replica = replicas.get(suffix)
-        rid = replica.get_attr_val_utf8(REPL_ID)
+        rid = int(replica.get_attr_val_utf8(REPL_ID))
 
         # Open a connection to the consumer
         consumer = DirSrv(verbose=self._instance.verbose)
@@ -191,12 +191,15 @@ class Agreement(DSLdapObject):
             else:
                 elements = ensure_list_str(entry[0].getValues('nsds50ruv'))
                 for ruv in elements:
-                    if ('replica %s ' % rid) in ruv:
+                    if ('replica %d ' % rid) in ruv:
                         ruv_parts = ruv.split()
                         if len(ruv_parts) == 5:
                             result_msg = ruv_parts[4]
                         break
         except ldap.INVALID_CREDENTIALS as e:
+            self._log.debug('Failed to search for the suffix ' +
+                                     '({}) consumer ({}:{}) failed, error: {}'.format(
+                                         suffix, host, port, e))
             raise(e)
         except ldap.LDAPError as e:
             self._log.debug('Failed to search for the suffix ' +

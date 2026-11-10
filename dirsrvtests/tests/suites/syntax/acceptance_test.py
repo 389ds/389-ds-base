@@ -9,12 +9,13 @@
 import ldap
 import pytest
 import os
-from lib389.schema import Schema
+from lib389.schema import Schema, OBJECT_MODEL_PARAMS 
+from ldap.schema.models import AttributeType, ObjectClass
 from lib389.config import Config
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Group, Groups
-from lib389._constants import DEFAULT_SUFFIX
-from lib389.topologies import log, topology_st as topo
+from lib389._constants import DEFAULT_SUFFIX, PW_DM
+from test389.topologies import log, topology_st as topo
 
 pytestmark = pytest.mark.tier0
 
@@ -239,6 +240,139 @@ def test_boolean_case(topo):
     # Test some invalid syntax
     with pytest.raises(ldap.INVALID_SYNTAX):
         user.replace('pamsecure', 'blah')
+
+def test_escaped_space(topo, request):
+    """Test that we can bind with DN containing escaped space
+
+       :id: 480adf31-f6c0-48a1-ba5b-29e0324c5702
+       :customerscenario: True
+       :setup: Standalone Instance
+       :steps:
+           1. Create test user with RDN containing space
+           2. Authenticate with that user escaping the space
+           3. Do few searches
+       :expectedresults:
+           1. Success
+           2. Success
+           3. Success
+    """
+    inst = topo.standalone
+    users  = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_properties = {
+        'uid': 'my uid',
+        'cn': 'my uid',
+        'sn': 'user',
+        'userpassword': PW_DM,
+        'uidNumber': '111',
+        'gidNumber': '111',
+        'homeDirectory': '/home/testuser111'
+    }
+    # Step 1 the user RDN contains space
+    user = users.create(properties=user_properties)
+
+    # Step 2 authenticate escaping the space
+    escaped_dn = 'uid=my\\20uid,%s' % ','.join(user.dn.split(',')[1:])
+    ldc = ldap.initialize(f'ldap://{inst.host}:{inst.port}')
+    ldc.bind_s(escaped_dn, PW_DM)
+
+    # Step 3 few searches
+    assert len(ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "uid=my\\20uid")) == 1
+    assert len(ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "uid=my uid")) == 1
+
+    def fin():
+        try:
+            user.delete()
+        except ldap.LDAPError:
+            pass
+        try:
+            ldc.unbind()
+        except:
+            pass
+
+    request.addfinalizer(fin)
+
+
+def test_attrname_exceptions_dn_syntax(topo, request):
+    """Test that nsslapd-attribute-name-exceptions allows underscores in
+    attribute names used within DN-valued attributes during entry add and
+    import operations.
+
+    :id: 1a507c3e-31c9-489b-80b4-e3169edc5a5e
+    :customerscenario: True
+    :setup: Standalone Instance
+    :steps:
+        1. Enable nsslapd-attribute-name-exceptions and nsslapd-syntaxcheck
+        2. Add a custom attribute type with an underscore in its name
+        3. Add a custom objectclass using that attribute
+        4. Add an entry using the underscored attribute
+        5. Add a seeAlso value containing a DN with the underscored attribute type
+        6. Verify the entry and seeAlso value were accepted
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    inst = topo.standalone
+    config = Config(inst)
+
+    config.replace('nsslapd-attribute-name-exceptions', 'on')
+    config.replace('nsslapd-syntaxcheck', 'on')
+
+    schema = Schema(inst)
+
+    # Add new attribute with underscore
+    parameters = OBJECT_MODEL_PARAMS[AttributeType].copy()
+    parameters.update({
+        'names': ('test_underscore_attr',),
+        'oid': '9.9.9.9.1',
+        'desc': 'Test attribute with underscore',
+        'syntax': '1.3.6.1.4.1.1466.115.121.1.15',
+        'sup': (),
+        'x_origin': 'user defined',
+    })
+    schema.add_attributetype(parameters)
+
+    parameters = OBJECT_MODEL_PARAMS[ObjectClass].copy()
+    parameters.update({
+        'names': ('testUnderscoreOC',),
+        'oid': '9.9.9.9.2',
+        'desc': 'Test OC with underscore attr',
+        'sup': ('top',),
+        'kind': 1,
+        'may': ('test_underscore_attr',),
+        'x_origin': 'user defined',
+    })
+    schema.add_objectclass(parameters)
+
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create(properties={
+        'uid': 'underscore_test_user',
+        'cn': 'underscore_test_user',
+        'sn': 'user',
+        'uidNumber': '9901',
+        'gidNumber': '9901',
+        'homeDirectory': '/home/underscore_test_user',
+    })
+    user.add('objectclass', 'testUnderscoreOC')
+    user.add('test_underscore_attr', 'some value')
+
+    dn_with_underscore = 'test_underscore_attr=some value,%s' % DEFAULT_SUFFIX
+    user.add('seeAlso', dn_with_underscore)
+
+    entry = user.get_attr_vals_utf8('seeAlso')
+    assert dn_with_underscore in entry
+
+    def fin():
+        try:
+            user.delete()
+        except ldap.LDAPError:
+            pass
+        config.replace('nsslapd-attribute-name-exceptions', 'off')
+
+    request.addfinalizer(fin)
 
 
 if __name__ == '__main__':

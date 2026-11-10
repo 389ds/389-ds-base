@@ -30,6 +30,8 @@
 #define SYNC_BE_POSTOP_DESC "content-sync-be-post-subplugin"
 
 #define SYNC_ALLOW_OPENLDAP_COMPAT "syncrepl-allow-openldap"
+#define SYNC_CFG_MAX_CONCURRENT "syncrepl-max-concurrent"
+#define SYNC_CFG_QUEUE_MAX_SIZE "syncrepl-queue-max-size"
 
 #define OP_FLAG_SYNC_PERSIST 0x01
 
@@ -156,7 +158,7 @@ int sync_send_entry_from_changelog(Slapi_PBlock *pb, int chg_req, char *uniqueid
 void sync_send_deleted_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count, Sync_Cookie *session_cookie);
 void sync_send_modified_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count, Sync_Cookie *session_cookie);
 
-int sync_persist_initialize(int argc, char **argv);
+int sync_persist_initialize(int argc, char **argv, Slapi_Entry *config_entry);
 PRThread *sync_persist_add(Slapi_PBlock *pb);
 int sync_persist_startup(PRThread *tid, Sync_Cookie *session_cookie);
 int sync_persist_terminate_all(void);
@@ -203,6 +205,8 @@ typedef struct sync_request
     Sync_Cookie *req_cookie;
     SyncQueueNode *ps_eq_head;
     SyncQueueNode *ps_eq_tail;
+    int req_queue_count;    /* number of entries queued for this request */
+    int req_queue_max_size; /* max number of entries in this request's queue */
     int req_active;
     struct sync_request *req_next;
 } SyncRequest;
@@ -212,7 +216,8 @@ typedef struct sync_request
  *
  * will be initialized at plugin initialization
  */
-#define SYNC_MAX_CONCURRENT 10
+#define SYNC_DEFAULT_MAX_CONCURRENT 10
+#define SYNC_DEFAULT_QUEUE_MAX_SIZE 10000
 typedef struct sync_request_list
 {
     Slapi_RWLock *sync_req_rwlock; /* R/W lock struct to serialize access */
@@ -221,6 +226,7 @@ typedef struct sync_request_list
     pthread_cond_t sync_req_cvar;         /* ps threads sleep on this */
     int sync_req_max_persist;
     int sync_req_cur_persist;
+    int sync_req_queue_max_size;  /* default max queue size per persistent search */
 } SyncRequestList;
 
 #define SYNC_FLAG_ADD_STATE_CTRL    0x01
