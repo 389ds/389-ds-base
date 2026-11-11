@@ -766,12 +766,12 @@ allow_operation(Slapi_PBlock *pb)
     /* make sure that users of new API provide plugin identity */
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &cid);
     if (cid == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "allow_operation", "Component identity is NULL\n");
+        slapi_log_err(SLAPI_LOG_WARNING, "allow_operation", "Component identity is NULL\n");
         return PR_FALSE;
     }
     plugin = (struct slapdplugin *)cid->sci_plugin;
     if (plugin == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "allow_operation", "Plugin identity is NULL\n");
+        slapi_log_err(SLAPI_LOG_WARNING, "allow_operation", "Plugin identity is NULL\n");
         return PR_FALSE;
     }
 
