@@ -11,7 +11,7 @@ import datetime
 import json
 import os
 from lib389._constants import (DB_IMPL_BDB, DB_IMPL_MDB)
-from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP, MonitorDiskSpace)
+from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP, MonitorDiskSpace, MonitorMemberOf)
 from lib389.chaining import (ChainingLinks)
 from lib389.backend import Backends
 from lib389.utils import convert_bytes
@@ -321,6 +321,11 @@ def db_monitor(inst, basedn, log, args):
             log.info("")
 
 
+def memberof_monitor(inst, basedn, log, args):
+    memberof_monitor = MonitorMemberOf(inst)
+    _format_status(log, memberof_monitor, args.json)
+
+
 def create_parser(subparsers):
     monitor_parser = subparsers.add_parser('monitor', help="Monitor the state of the instance", formatter_class=CustomHelpFormatter)
     subcommands = monitor_parser.add_subparsers(help='action')
@@ -352,3 +357,6 @@ def create_parser(subparsers):
 
     disk_parser = subcommands.add_parser('disk', help="Displays the disk space statistics. All values are in bytes.", formatter_class=CustomHelpFormatter)
     disk_parser.set_defaults(func=disk_monitor)
+
+    deferred_mo_parser = subcommands.add_parser('memberof', help="Displays deferred memberof plugin stats.", formatter_class=CustomHelpFormatter)
+    deferred_mo_parser.set_defaults(func=memberof_monitor)
