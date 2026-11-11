@@ -196,7 +196,9 @@ INLINE_DIRECTIVE static void
 dse_call_cb(void (*cb)(struct dse*))
 {
     Slapi_Backend *be = slapi_be_select_by_instance_name("DSE");
-    if (be) {
+    /* A user backend can be named "dse" too: only the backends
+     * created by be_new_internal() hold a struct dse */
+    if (be && be->be_database->plg_cleanup == dse_deletedse) {
         struct dse *pdse = NULL;
         slapi_be_Rlock(be);
         pdse = be->be_database->plg_private;
