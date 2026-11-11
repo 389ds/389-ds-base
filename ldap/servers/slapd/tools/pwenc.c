@@ -229,6 +229,12 @@ main(int argc, char *argv[])
         usage(name);
     }
 
+    if (cmppwsp == NULL && pwsp == NULL) {
+        fprintf(stderr, "%s: unable to find the password storage scheme\n", name);
+        rc = 1;
+        goto out;
+    }
+
     if (cmppwsp == NULL && pwsp->pws_enc == NULL) {
         fprintf(stderr,
                 "The scheme \"%s\" does not support password encoding.\n",
