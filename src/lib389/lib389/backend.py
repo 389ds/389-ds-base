@@ -1350,10 +1350,19 @@ class Backends(DSLdapObjects):
         if chunk_size is not None:
             task_properties['nsImportChunkSize'] = chunk_size
         if gen_uniq_id is not None:
-            if gen_uniq_id in ("none", "empty") or gen_uniq_id.startswith("deterministic"):
-                raise ValueError("'gen_uniq_id should be none (no unique ID) |"
-                                 "empty (time-based ID) | deterministic namespace (name-based ID)")
-            task_properties['nsUniqueIdGenerator'] = gen_uniq_id
+            # The CLI passes the kind and (for the deterministic kind) the
+            # namespace as a single string, e.g. "deterministic <namespace>".
+            # The server reads the kind from nsUniqueIdGenerator and the
+            # namespace from the separate nsUniqueIdGeneratorNamespace, and it
+            # matches the kind exactly, so split the two apart here.
+            kind, _, namespace = gen_uniq_id.partition(" ")
+            if kind not in ("none", "empty", "deterministic"):
+                raise ValueError("gen_uniq_id should be none (no unique ID) | "
+                                 "empty (time-based ID) | "
+                                 "deterministic [namespace] (name-based ID)")
+            task_properties['nsUniqueIdGenerator'] = kind
+            if kind == "deterministic" and namespace.strip():
+                task_properties['nsUniqueIdGeneratorNamespace'] = namespace.strip()
 
         task.create(properties=task_properties)
 
