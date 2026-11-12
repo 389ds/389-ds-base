@@ -138,27 +138,8 @@ def _parse_result_code(protocol_op):
     return int.from_bytes(protocol_op[i:i + rlen], "big")
 
 
-def test_starttls_rejects_smuggled_bind(topo):
-    """StartTLS must not execute a second LDAP PDU from the same TCP read
-
-    :id: 8273e43a-0453-4518-892e-ae1fbc071f42
-    :setup: Standalone instance with TLS enabled
-    :steps:
-        1. Enable TLS on the instance
-        2. Open a plaintext LDAP socket and send StartTLS plus an anonymous
-           BindRequest in a single TCP write
-        3. Collect cleartext LDAP responses (if any) before the connection closes
-        4. Check the errors log for the StartTLS leftover-buffer rejection
-    :expectedresults:
-        1. TLS is enabled
-        2. The write completes
-        3. No successful BindResponse is returned for the smuggled bind msgid
-        4. The server logged rejection of unexpected data with StartTLS
-    """
-    inst = topo.standalone
-    log.info("Enabling TLS")
-    inst.enable_tls()
-
+def _smuggle_starttls_bind(inst):
+    """Co-send StartTLS + anonymous Bind; return (bind_success, responses)."""
     host = inst.host
     port = int(inst.port)
     smuggle_msgid = 2
@@ -184,7 +165,8 @@ def test_starttls_rejects_smuggled_bind(topo):
             responses.append((msgid, tag, rc))
             log.info("Cleartext response msgid=%d tag=0x%02x result=%d",
                      msgid, tag, rc)
-            if msgid == smuggle_msgid and tag == LDAP_TAG_BIND_RESPONSE and rc == LDAP_SUCCESS:
+            if (msgid == smuggle_msgid and tag == LDAP_TAG_BIND_RESPONSE and
+                    rc == LDAP_SUCCESS):
                 bind_success = True
                 break
     finally:
@@ -192,16 +174,151 @@ def test_starttls_rejects_smuggled_bind(topo):
             sock.close()
         except OSError:
             pass
+    return bind_success, responses
+
+
+def test_starttls_rejects_smuggled_bind(topo):
+    """StartTLS must not execute a second LDAP PDU from the same TCP read
+
+    :id: 8273e43a-0453-4518-892e-ae1fbc071f42
+    :setup: Standalone instance with TLS enabled
+    :steps:
+        1. Enable TLS on the instance
+        2. Open a plaintext LDAP socket and send StartTLS plus an anonymous
+           BindRequest in a single TCP write
+        3. Collect cleartext LDAP responses (if any) before the connection closes
+        4. Check the errors log for the StartTLS leftover-buffer rejection
+    :expectedresults:
+        1. TLS is enabled
+        2. The write completes
+        3. No successful BindResponse is returned for the smuggled bind msgid
+        4. The server logged rejection of unexpected data with StartTLS
+    """
+    inst = topo.standalone
+    log.info("Enabling TLS")
+    inst.enable_tls()
+
+    bind_success, responses = _smuggle_starttls_bind(inst)
 
     assert not bind_success, (
         "Smuggled BindResponse success was delivered; "
         "responses=%r" % (responses,)
     )
 
-    # Fixed servers reject StartTLS when leftover plaintext remains.
+    # Reject StartTLS when leftover plaintext remains in c_buffer.
     assert inst.ds_error_log.match(
         ".*Rejecting StartTLS.*unexpected data.*"
     ), "Expected StartTLS leftover-buffer rejection in the errors log"
+
+
+def test_starttls_rejects_smuggled_bind_buffer_off(topo):
+    """StartTLS must not allow a cleartext Bind when connection buffering is off
+
+    :id: e8542e81-8716-4c44-ac70-57101e49e5be
+    :setup: Standalone instance with TLS enabled and nsslapd-connection-buffer=0
+    :steps:
+        1. Enable TLS on the instance
+        2. Set nsslapd-connection-buffer to 0
+        3. Open a plaintext LDAP socket and send StartTLS plus an anonymous
+           BindRequest in a single TCP write
+        4. Collect cleartext LDAP responses (if any) before the connection closes
+    :expectedresults:
+        1. TLS is enabled
+        2. Connection buffering is disabled
+        3. The write completes
+        4. No successful BindResponse is returned for the smuggled bind msgid
+    """
+    inst = topo.standalone
+    log.info("Enabling TLS")
+    inst.enable_tls()
+
+    log.info("Setting nsslapd-connection-buffer=0")
+    inst.config.set("nsslapd-connection-buffer", "0")
+
+    bind_success, responses = _smuggle_starttls_bind(inst)
+
+    assert not bind_success, (
+        "Smuggled BindResponse success was delivered with "
+        "nsslapd-connection-buffer=0; responses=%r" % (responses,)
+    )
+
+
+def _starttls_only_result(inst):
+    """Send a lone StartTLS request and return the LDAP resultCode."""
+    host = inst.host
+    port = int(inst.port)
+    sock = socket.create_connection((host, port), timeout=10)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    sock.sendall(_start_tls_request(1))
+    try:
+        raw = _read_ber_element(sock, timeout=5.0)
+        msgid, tag, pop = _parse_ldap_message(raw)
+        return _parse_result_code(pop), msgid, tag
+    finally:
+        try:
+            sock.close()
+        except OSError:
+            pass
+
+
+def test_starttls_accepted_without_pipelined_data(topo):
+    """A clean StartTLS request must not be treated as leftover data
+
+    :id: be04cc14-2546-4256-b3e9-7153cf0a7be5
+    :setup: Standalone instance with TLS enabled
+    :steps:
+        1. Enable TLS on the instance
+        2. Open a plaintext LDAP socket and send only a StartTLS request
+        3. Read the extended response resultCode
+    :expectedresults:
+        1. TLS is enabled
+        2. The write completes
+        3. The server accepts StartTLS (resultCode success), not PROTOCOL_ERROR
+           from a false leftover-data check
+    """
+    inst = topo.standalone
+    log.info("Enabling TLS")
+    inst.enable_tls()
+
+    rc, msgid, tag = _starttls_only_result(inst)
+    log.info("StartTLS-only response msgid=%d tag=0x%02x result=%d",
+             msgid, tag, rc)
+    assert rc == LDAP_SUCCESS, (
+        "Clean StartTLS was rejected (resultCode=%d); leftover detection "
+        "must not treat Sockbuf ctrl errors as pending data" % rc
+    )
+
+
+def test_starttls_accepted_without_pipelined_data_buffer_off(topo):
+    """A clean StartTLS request succeeds with connection buffering off
+
+    :id: 5e6d4d0b-e84f-4651-a0bb-4cd99c473b73
+    :setup: Standalone instance with TLS enabled and nsslapd-connection-buffer=0
+    :steps:
+        1. Enable TLS on the instance
+        2. Set nsslapd-connection-buffer to 0
+        3. Open a plaintext LDAP socket and send only a StartTLS request
+        4. Read the extended response resultCode
+    :expectedresults:
+        1. TLS is enabled
+        2. Connection buffering is disabled
+        3. The write completes
+        4. The server accepts StartTLS (resultCode success)
+    """
+    inst = topo.standalone
+    log.info("Enabling TLS")
+    inst.enable_tls()
+
+    log.info("Setting nsslapd-connection-buffer=0")
+    inst.config.set("nsslapd-connection-buffer", "0")
+
+    rc, msgid, tag = _starttls_only_result(inst)
+    log.info("StartTLS-only (buffer off) msgid=%d tag=0x%02x result=%d",
+             msgid, tag, rc)
+    assert rc == LDAP_SUCCESS, (
+        "Clean StartTLS with nsslapd-connection-buffer=0 was rejected "
+        "(resultCode=%d)" % rc
+    )
 
 
 if __name__ == "__main__":

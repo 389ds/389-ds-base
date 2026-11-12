@@ -35,6 +35,7 @@ static void connection_free_private_buffer(Connection *conn);
 static void op_copy_identity(Connection *conn, Operation *op);
 static void connection_set_ssl_ssf(Connection *conn);
 static bool connection_is_start_tls(Operation *op);
+static void connection_apply_io_layers_or_disconnect(Connection *conn);
 static int is_ber_too_big(const Connection *conn, ber_len_t ber_len);
 static void log_ber_too_big_error(const Connection *conn,
                                   ber_len_t ber_len,
@@ -1412,7 +1413,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
             waits_done = 0; /* got some data: reset counter */
         }
     }
-    /* If there is remaining buffered data, set the flag to tell the caller */
+    /* If there is remaining buffered data, set the flag to tell the caller. */
     if (conn_buffered_data_avail_nolock(conn, &conn_closed)) {
         *remaining_data = 1;
     } else if (conn_closed) {
@@ -1636,6 +1637,7 @@ connection_threadmain(void *arg)
         int is_timedout = 0;
         time_t curtime = 0;
         bool read_handed_off = false;
+        bool starttls_operation = false;
 
         if (op_shutdown) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
@@ -1708,10 +1710,7 @@ connection_threadmain(void *arg)
                 /* must hold c_mutex so that it synchronizes the IO layer push
                  * with a potential pending sasl bind that is registering the IO layer
                  */
-                if (connection_call_io_layer_callbacks(pb_conn)) {
-                    slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
-                                  "Could not add/remove IO layers from connection\n");
-                }
+                connection_apply_io_layers_or_disconnect(pb_conn);
                 pthread_mutex_unlock(&(pb_conn->c_mutex));
                 break;
             default:
@@ -1727,10 +1726,7 @@ connection_threadmain(void *arg)
             pthread_mutex_lock(&(conn->c_mutex));
             /* Make our own pb in turbo mode */
             connection_make_new_pb(pb, conn);
-            if (connection_call_io_layer_callbacks(conn)) {
-                slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
-                              "Could not add/remove IO layers from connection\n");
-            }
+            connection_apply_io_layers_or_disconnect(conn);
             pthread_mutex_unlock(&(conn->c_mutex));
             if (!config_check_referral_mode()) {
                 slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpInitiated);
@@ -1843,7 +1839,22 @@ connection_threadmain(void *arg)
          * they are received off the wire.
          */
         replication_connection = conn->c_isreplication_session;
-        if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
+
+        /*
+         * For StartTLS, we exit turbo mode and do not make the connection
+         * readable until start_tls() has finished.
+         */
+        if (connection_is_start_tls(op)) {
+            starttls_operation = true;
+            thread_turbo_flag = 0;
+            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
+                          "conn %" PRIu64 " deferring readability for StartTLS"
+                          " (more_data=%d)\n",
+                          conn->c_connid, more_data);
+        }
+
+        if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection &&
+            !starttls_operation) {
             if (!more_data) {
                 conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
                 pthread_mutex_lock(&(conn->c_mutex));
@@ -1853,16 +1864,6 @@ connection_threadmain(void *arg)
                  * so need locking from here on */
                 signal_listner(conn->c_ct_list);
                 read_handed_off = true;
-            } else if (connection_is_start_tls(op)) {
-                /*
-                * The StartTLS PDU has already been read into op->o_ber, but there is more data
-                * in c_buffer. Previously we continued, but now we do not requeue this connection
-                * as another worker could read the extra data as a separate op while this thread
-                * continues into start_tls().
-                */
-                slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
-                              "conn %" PRIu64 " has buffered data following StartTLS request\n",
-                              conn->c_connid);
             } else { /* more data in conn - just put back on work_q - bypass poll */
                 bypasspollcnt++;
                 pthread_mutex_lock(&(conn->c_mutex));
@@ -1958,7 +1959,16 @@ connection_threadmain(void *arg)
         PR_AtomicIncrement(&conn->c_opscompleted);
         /* total number of ops for the server */
         slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpCompleted);
+<<<<<<< HEAD
         if (read_handed_off) {
+=======
+        tp_stats_worker_operation_done((uint32_t)*snmp_vars_idx);
+        /*
+         * Do not loop on buffered data after work has been queued or
+         * this worker handled StartTLS.
+         */
+        if (read_handed_off || starttls_operation) {
+>>>>>>> e3a7a9dbb (Issue 7950 - StartTLS: keep conn unreadable until upgrade decision (#8027))
             more_data = 0;
         }
         /* If this op isn't a persistent search, remove it */
@@ -1995,8 +2005,10 @@ connection_threadmain(void *arg)
                           conn->c_connid, more_data, thread_turbo_flag,
                           replication_connection, conn->c_isreplication_session);
             if (!read_handed_off) {
-                if (!replication_connection &&  conn->c_isreplication_session) {
-                    /* it a connection that was just flagged as replication connection */
+                if (starttls_operation ||
+                    (!replication_connection && conn->c_isreplication_session)) {
+                    /* Do not continue processing buffered data after StartTLS
+                     * or when the connection becomes a replication session. */
                     more_data = 0;
                 } else {
                     /* normal connection or already established replication connection */
@@ -2011,8 +2023,11 @@ connection_threadmain(void *arg)
                      * Don't release the connection now.
                      * But note down what to do.
                      */
-                    if (replication_connection || (1 == is_timedout)) {
-                        connection_make_readable_nolock(conn);
+                    if (replication_connection || (1 == is_timedout) ||
+                        starttls_operation) {
+                        if (!(conn->c_flags & CONN_FLAG_CLOSING)) {
+                            connection_make_readable_nolock(conn);
+                        }
                         need_wakeup = 1;
                     }
                     if (!need_wakeup) {
@@ -2517,22 +2532,44 @@ connection_abandon_operations(Connection *c)
 }
 
 /*
- * Return the number of bytes remaining in the read buffer.
+ * Return unread bytes in c_buffer or PR_Available on the socket
+ * when connection-buffer is off. If PR_Available fails we return
+ * 0 so its not treated as leftover data.
  * Must be called within c->c_mutex.
  */
 size_t
 connection_read_buffer_data_len(Connection *c)
 {
     int conn_closed = 0;
+    PRInt32 avail;
+    size_t n;
 
-    if (c == NULL || c->c_private == NULL) {
+    if (c == NULL) {
         return 0;
     }
-    return conn_buffered_data_avail_nolock(c, &conn_closed);
+    /* Connection buffer has data ? */
+    if (c->c_private != NULL) {
+        n = conn_buffered_data_avail_nolock(c, &conn_closed);
+        if (n > 0 || conn_closed) {
+            return n;
+        }
+    }
+    /* Socket has data ? */
+    if (c->c_prfd != NULL) {
+        avail = PR_Available(c->c_prfd);
+        if (avail < 0) {
+            slapi_log_err(SLAPI_LOG_CONNS, "connection_read_buffer_data_len",
+                          "PR_Available failed on conn %" PRIu64 " fd=%d: %s\n",
+                          c->c_connid, c->c_sd, slapd_pr_strerror(PR_GetError()));
+            return 0;
+        }
+        return (size_t)avail;
+    }
+    return 0;
 }
 
 /*
- * Clear any data left in c_buffer.
+ * Clear any data left in c_buffer and drain the socket buffer.
  * Must be called within c->c_mutex.
  */
 void
@@ -2543,6 +2580,9 @@ connection_reset_read_buffer(Connection *c)
     }
     c->c_private->c_buffer_bytes = 0;
     c->c_private->c_buffer_offset = 0;
+    if (c->c_sb) {
+        ber_sockbuf_ctrl(c->c_sb, LBER_SB_OPT_DRAIN, NULL);
+    }
 }
 
 /* must be called within c->c_mutex */
@@ -2570,6 +2610,23 @@ connection_call_io_layer_callbacks(Connection *c)
     c->c_io_layer_cb_data = NULL;
 
     return rv;
+}
+
+/*
+ * Install I/O layers or disconnect on failure so the worker
+ * cannot keep reading the connection in the clear.
+ * Must be called within c->c_mutex.
+ */
+static void
+connection_apply_io_layers_or_disconnect(Connection *conn)
+{
+    if (connection_call_io_layer_callbacks(conn) == 0) {
+        return;
+    }
+    slapi_log_err(SLAPI_LOG_ERR, "connection_apply_io_layers_or_disconnect",
+                  "Could not add/remove IO layers from conn %" PRIu64 "\n",
+                  conn->c_connid);
+    disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_ABORT, 0);
 }
 
 int32_t
