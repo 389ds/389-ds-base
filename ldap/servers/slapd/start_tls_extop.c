@@ -188,7 +188,8 @@ start_tls(Slapi_PBlock *pb)
     /*
      * RFC 4511 requires clients to wait for the StartTLS response before sending
      * additional PDUs. Any data remaining after the StartTLS request has been
-     * consumed is a protocol violation.
+     * consumed is a protocol violation, either in c_buffer when connection buffering
+     * is on, or in the socket buffer, when connection buffering is off.
      */
     if (connection_read_buffer_data_len(conn) > 0) {
         slapi_log_err(SLAPI_LOG_ERR, "start_tls",
