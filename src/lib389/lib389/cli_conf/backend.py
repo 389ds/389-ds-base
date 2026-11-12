@@ -842,7 +842,7 @@ def backend_create_vlv_index(inst, basedn, log, args):
     vlv_search = be.get_vlv_searches(vlv_name=args.parent_name)
     vlv_search.add_sort(args.index_name, args.sort)
     if args.index_it:
-        vlv_search.reindex(args.be_name, vlv_index=args.index_name)
+        vlv_search.reindex(be.get_suffix(), vlv_index=args.index_name)
     log.info("Successfully created new VLV index entry")
 
 
