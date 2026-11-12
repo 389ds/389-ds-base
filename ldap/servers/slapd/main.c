@@ -1048,6 +1048,9 @@ main(int argc, char **argv)
     }
 #endif
 
+    /* Plugin threads can perform password policy lookups during startup. */
+    pw_set_componentID(generate_componentid(NULL, COMPONENT_PWPOLICY));
+
     plugin_print_lists();
     plugin_startall(argc, argv, NULL /* specific plugin list */);
     compute_plugins_started();
