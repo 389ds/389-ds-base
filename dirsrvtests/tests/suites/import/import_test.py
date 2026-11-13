@@ -18,11 +18,12 @@ import re
 import logging
 import subprocess
 from datetime import datetime
+from ldif import LDIFRecordList
 from test389.topologies import topology_st as topo
 from test389.topologies import topology_m2 as topo_m2
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, TaskWarning
 from lib389.dbgen import dbgen_users
-from lib389.tasks import ImportTask
+from lib389.tasks import ImportTask, ExportTask
 from lib389.index import Indexes
 from lib389.monitor import Monitor
 from lib389.backend import Backends
@@ -274,6 +275,68 @@ def test_import_with_index(topo, _import_clean):
         assert glob.glob(f'{place}/userRoot/roomNumber.db*', recursive=True)
 
 
+@pytest.mark.parametrize('next_operation', ['search', 'export'])
+def test_online_import_completion_readiness(topo, _import_clean, request, next_operation):
+    """A completed online import leaves the backend ready for the next operation.
+
+    :id: b969266f-0aaa-4614-9054-e29cd6ca5734
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps:
+        1. Generate an LDIF containing 1000 users and start an online import
+        2. Poll for task completion with a short interval and require success
+        3. Immediately search the backend or start an export, without retrying
+        4. Compare the returned or exported users with the generated LDIF
+    :expectedresults:
+        1. The import task starts successfully
+        2. The import task reports a zero exit code
+        3. The search succeeds or the export task completes successfully
+        4. All generated users are present, including their exported attributes
+    """
+    inst = topo.standalone
+    import_ldif = os.path.join(inst.get_ldif_dir(), 'basic_import.ldif')
+    export_ldif = os.path.join(inst.get_ldif_dir(), 'completion_export.ldif')
+
+    def fin():
+        if os.path.exists(export_ldif):
+            os.remove(export_ldif)
+
+    request.addfinalizer(fin)
+    dbgen_users(inst, 1000, import_ldif, DEFAULT_SUFFIX, generic=True)
+    with open(import_ldif) as source:
+        parser = LDIFRecordList(source)
+        parser.parse()
+    expected_users = {
+        dn.lower(): {attr: entry[attr] for attr in ('uid', 'cn', 'sn')}
+        for dn, entry in parser.all_records if 'uid' in entry
+    }
+    assert len(expected_users) == 1000
+
+    accounts = Accounts(inst, DEFAULT_SUFFIX)
+    export_task = ExportTask(inst)
+    import_task = ImportTask(inst)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait(timeout=120, sleep_interval=0.01)
+    assert import_task.get_attr_val_utf8('nsTaskExitCode') == '0'
+
+    # Completion is the readiness boundary; do not add a grace period or retry.
+    if next_operation == 'search':
+        users = accounts.filter('(uid=*)')
+        assert {user.dn.lower() for user in users} == set(expected_users)
+    else:
+        export_task.export_suffix_to_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
+        export_task.wait(timeout=120, sleep_interval=0.01)
+        assert export_task.get_exit_code() == 0
+        with open(export_ldif) as exported:
+            parser = LDIFRecordList(exported)
+            parser.parse()
+        exported_users = {
+            dn.lower(): {attr: entry[attr] for attr in ('uid', 'cn', 'sn')}
+            for dn, entry in parser.all_records if 'uid' in entry
+        }
+        assert exported_users == expected_users
+
+
 def test_online_import_with_warning(topo, _import_clean):
     """
     Import an ldif file with syntax errors, verify skipped entry warning code
@@ -297,6 +360,7 @@ def test_online_import_with_warning(topo, _import_clean):
 
     # There is just  a single entry in this ldif
     import_task.wait(5)
+    assert import_task.get_exit_code() == 0
 
     # Check for the task nsTaskWarning attr, make sure its set to skipped entry code
     assert import_task.present('nstaskwarning')
