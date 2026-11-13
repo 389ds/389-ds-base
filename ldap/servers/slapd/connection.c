@@ -2219,7 +2219,6 @@ connection_threadmain(void *arg)
         PR_AtomicIncrement(&conn->c_opscompleted);
         /* total number of ops for the server */
         slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpCompleted);
-        tp_stats_worker_operation_done((uint32_t)*snmp_vars_idx);
         /*
          * Do not loop on buffered data after work has been queued or
          * this worker handled StartTLS.
