@@ -6,17 +6,25 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-from collections import Counter
+import logging
+import os
+import re
+import statistics
+import time
+
+import ldap
 
 import pytest
-from lib389.tasks import *
-from lib389.utils import *
 from test389.topologies import topology_m2
 
-from lib389._constants import SUFFIX, DEFAULT_SUFFIX, ErrorLog
+from lib389._constants import DEFAULT_SUFFIX, ErrorLog
 
 from lib389.agreement import Agreements
+from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389.replica import ReplicationManager
+
+from .async_result_gate import AsyncResultGate
 
 pytestmark = pytest.mark.tier1
 
@@ -25,14 +33,8 @@ log = logging.getLogger(__name__)
 
 installation1_prefix = None
 
-# Expected minimum and maximum number of async result in usual cases
-USUAL_MIN_AP = 2
-USUAL_MAX_AP = 11
-
-@pytest.fixture(params=[(None, (USUAL_MIN_AP, USUAL_MAX_AP)),
-                        ('2000', (0, 2)),
-                        ('0', (USUAL_MIN_AP, USUAL_MAX_AP)),
-                        ('-5', (USUAL_MIN_AP, USUAL_MAX_AP))])
+# agmt_set_WaitForAsyncResults() uses 100 ms for absent/nonpositive values.
+@pytest.fixture(params=[(None, 0.1), ('2000', 2.0), ('0', 0.1), ('-5', 0.1)])
 def waitfor_async_attr(topology_m2, request):
     """Sets attribute on all replicas"""
 
@@ -43,6 +45,9 @@ def waitfor_async_attr(topology_m2, request):
 
     for supplier in topology_m2.ms.values():
         agmt = Agreements(supplier).list()[0]
+        original = agmt.get_attr_vals_utf8('nsDS5ReplicaWaitForAsyncResults')
+        request.addfinalizer(lambda agmt=agmt, original=original:
+                             agmt.ensure_attr_state({'nsDS5ReplicaWaitForAsyncResults': original}))
 
         if attr_value:
             agmt.set_wait_for_async_results(attr_value)
@@ -56,32 +61,15 @@ def waitfor_async_attr(topology_m2, request):
     return (attr_value, expected_result)
 
 
-@pytest.fixture
-def entries(topology_m2, request):
-    """Adds entries to the supplier1"""
-
-    supplier1 = topology_m2.ms["supplier1"]
-
-    test_list = []
-
-    log.info("Add 100 nested entries under replicated suffix on %s" % supplier1.serverid)
-    ous = OrganizationalUnits(supplier1, DEFAULT_SUFFIX)
-    for i in range(100):
-        ou = ous.create(properties={
-            'ou' : 'test_ou_%s' % i,
-        })
-        test_list.append(ou)
-
-    log.info("Delete created entries")
-    for test_ou in test_list:
-        test_ou.delete()
-
-    def fin():
-        log.info("Clear the errors log in the end of the test case")
-        with open(supplier1.errlog, 'w') as errlog:
-            errlog.writelines("")
-
-    request.addfinalizer(fin)
+def _new_log_lines(errlog):
+    """Leave an incomplete write at EOF for the next read."""
+    while True:
+        position = errlog.tell()
+        line = errlog.readline()
+        if not line.endswith('\n'):
+            errlog.seek(position)
+            return
+        yield line
 
 
 def test_not_int_value(topology_m2):
@@ -146,9 +134,8 @@ def test_value_check(topology_m2, waitfor_async_attr):
         server_value = agmt.get_wait_for_async_results_utf8()
         assert server_value == attr_value
 
-def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
-    """Tests replication behavior with valid
-    nsDS5ReplicaWaitForAsyncResults attribute values
+def test_behavior_with_value(topology_m2, waitfor_async_attr, request):
+    """Check the configured delay while replication replies remain outstanding.
 
     :id: 117b6be2-cdab-422e-b0c7-3b88bbeec036
     :parametrized: yes
@@ -156,55 +143,111 @@ def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
         wait for async set on all suppliers, try:
         None, '2000', '0', '-5'
     :steps:
-        1. Set Replication Debugging loglevel for the errorlog
-        2. Gather all sync attempts,  group by timestamp
-        3. Take the most common timestamp and assert it has appeared
-           in the set range
+        1. Enable replication logging before adding an entry
+        2. Hold its replication AddResponse and observe four pending checks
+        3. Check the delay between checks in this wait invocation
+        4. Release the response and wait for replication to complete
     :expectedresults:
-        1. Replication Debugging loglevel should be set
-        2. Operation should be successful
-        3. Errors log should have all timestamp appear
+        1. Replication logging is enabled before the workload
+        2. The same wait remains pending while the reply is held
+        3. The typical delay is at least the effective configured interval
+        4. The wait completes and the entry is replicated
     """
-
     supplier1 = topology_m2.ms["supplier1"]
     supplier2 = topology_m2.ms["supplier2"]
+    interval = waitfor_async_attr[1]
+    agmt = Agreements(supplier1).list()[0]
+    reverse_agmt = Agreements(supplier2).list()[0]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(supplier1, supplier2)
+    repl.wait_for_replication(supplier2, supplier1)
 
-    log.info("Set Replication Debugging loglevel for the errorlog")
+    config_attrs = ('nsslapd-errorlog-level', 'nsslapd-errorlog-logbuffering')
+    original_config = {attr: supplier1.config.get_attr_vals_utf8(attr) for attr in config_attrs}
+    request.addfinalizer(lambda: supplier1.config.ensure_attr_state(original_config))
+    # Absence means enabled at creation, but deleting this attribute through a
+    # live modify is rejected. Restore the effective state in that case.
+    original_reverse = reverse_agmt.get_attr_val_utf8('nsDS5ReplicaEnabled') or 'on'
+    request.addfinalizer(lambda: reverse_agmt.replace('nsDS5ReplicaEnabled', original_reverse))
+    agmt_attrs = ('nsDS5ReplicaHost', 'nsDS5ReplicaPort', 'nsDS5ReplicaTimeout')
+    original_agmt = {attr: agmt.get_attr_vals_utf8(attr) for attr in agmt_attrs}
+    original_enabled = agmt.get_attr_val_utf8('nsDS5ReplicaEnabled') or 'on'
+
+    def restore_agreement():
+        agmt.pause()
+        agmt.ensure_attr_state(original_agmt)
+        agmt.replace('nsDS5ReplicaEnabled', original_enabled)
+
+    request.addfinalizer(restore_agreement)
+    # Stop existing protocol threads/connections before changing the endpoint.
+    reverse_agmt.pause()
+    agmt.pause()
     supplier1.config.loglevel((ErrorLog.REPLICA,))
-    supplier2.config.loglevel((ErrorLog.REPLICA,))
+    supplier1.config.replace('nsslapd-errorlog-logbuffering', 'off')
 
-    sync_dict = Counter()
-    min_ap = waitfor_async_attr[1][0]
-    max_ap = waitfor_async_attr[1][1]
+    # This topology uses SIMPLE/LDAP. Hold an actual operation response rather
+    # than assuming that a busy receiver will leave results outstanding.
+    assert agmt.get_attr_val_utf8_l('nsDS5ReplicaBindMethod') == 'simple'
+    assert agmt.get_attr_val_utf8_l('nsDS5ReplicaTransportInfo') == 'ldap'
+    gate = AsyncResultGate(supplier2.host, supplier2.port)
+    # Close the relay before restoring the agreement, including on failure.
+    request.addfinalizer(gate.close)
+    # The topology's usual five-second response timeout is shorter than three
+    # two-second sleeps. Keep it beyond the observation deadline.
+    agmt.replace_many(('nsDS5ReplicaHost', '127.0.0.1'),
+                      ('nsDS5ReplicaPort', str(gate.port)), ('nsDS5ReplicaTimeout', '60'))
+    ou = OrganizationalUnits(supplier1, DEFAULT_SUFFIX).create(properties={'ou': 'async_wait'})
+    request.addfinalizer(ou.delete)
 
-    time.sleep(20)
+    poll_re = re.compile(r'repl5_inc_waitfor_async_results - sid="([^"]+)" - (\d+) (\d+)\s*$')
+    error_log = DirsrvErrorLog(supplier1)
+    polls = []
+    with open(supplier1.errlog) as errlog:
+        # Keep diagnostics and earlier cases intact, but only observe new lines.
+        errlog.seek(0, os.SEEK_END)
+        agmt.resume()
+        deadline = time.monotonic() + 30
+        while (len(polls) < 4 or not gate.held.is_set()) and time.monotonic() < deadline:
+            assert gate.error is None, f"Response relay failed: {gate.error}"
+            for line in _new_log_lines(errlog):
+                match = poll_re.search(line)
+                if match:
+                    sid, received, sent = match.groups()
+                    received, sent = int(received), int(sent)
+                    if not polls and received >= sent:
+                        continue  # An already-completed wait need not sleep.
+                    assert received < sent, f"Wait completed while its response was held: {line}"
+                    if polls:
+                        assert (sid, sent) == polls[0][:2], f"Wait invocation changed: {line}"
+                    polls.append((sid, sent, error_log.parse_timestamp(line)))
+            time.sleep(0.02)
 
-    log.info("Gather all sync attempts within Counter dict, group by timestamp")
-    with open(supplier1.errlog, 'r') as errlog:
-        errlog_filtered = filter(lambda x: "waitfor_async_results" in x, errlog)
+        assert gate.held.is_set(), "No AddResponse reached the relay"
+        assert len(polls) >= 4, f"Expected four pending checks, observed {polls}"
+        gaps = [(after[2] - before[2]).total_seconds() for before, after in zip(polls, polls[1:])]
+        log.info("Pending check gaps for %r: %s", waitfor_async_attr[0], gaps)
+        # DS_Sleep may be interrupted by a signal. Use several observations and
+        # allow timer granularity; scheduling can lengthen any of these gaps.
+        # Ignoring 2000 (using 100 ms) or spinning without sleeping must fail.
+        assert statistics.median(gaps) >= interval * 0.9, (
+            f"Pending check gaps {gaps} are below the configured {interval}s delay")
 
-        # Watch only over unsuccessful sync attempts
-        for line in errlog_filtered:
-            if line.split()[3] != line.split()[4]:
-                # A timestamp looks like:
-                # [03/Jan/2018:14:35:15.806396035 +1000] LOGMESSAGE HERE
-                # We want to assert a range of "seconds", so we need to reduce
-                # this to a reasonable amount. IE:
-                #   [03/Jan/2018:14:35:15
-                # So to achieve this we split on ] and . IE.
-                # [03/Jan/2018:14:35:15.806396035 +1000] LOGMESSAGE HERE
-                #                                      ^ split here first
-                #                      ^ now split here
-                # [03/Jan/2018:14:35:15
-                # ^ final result
-                timestamp = line.split(']')[0].split('.')[0]
-                sync_dict[timestamp] += 1
+        gate.release.set()
+        deadline = time.monotonic() + 30
+        completed = False
+        while not completed and time.monotonic() < deadline:
+            assert gate.error is None, f"Response relay failed: {gate.error}"
+            for line in _new_log_lines(errlog):
+                match = poll_re.search(line)
+                if match:
+                    sid, received, sent = match.groups()
+                    if (sid, int(sent)) == polls[0][:2] and int(received) >= int(sent):
+                        completed = True
+            time.sleep(0.02)
+        assert completed, "The pending wait did not complete after releasing its response"
 
-    log.info("Take the most common timestamp and assert it has appeared " \
-             "in the range from %s to %s times" % (min_ap, max_ap))
-    most_common_val = sync_dict.most_common(1)[0][1]
-    log.debug("%s <= %s <= %s" % (min_ap, most_common_val, max_ap))
-    assert min_ap <= most_common_val <= max_ap
+    assert OrganizationalUnits(supplier2, DEFAULT_SUFFIX).get('async_wait').exists()
+    repl.wait_for_replication(supplier1, supplier2)
 
 
 if __name__ == '__main__':
