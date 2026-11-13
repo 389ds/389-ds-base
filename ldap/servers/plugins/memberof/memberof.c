@@ -4723,10 +4723,9 @@ memberof_reconcile_groups(Slapi_Entry *e, MemberOfConfig *config,
     }
 
     if (memberof_attr) {
-        rc = slapi_attr_get_valueset(memberof_attr, &current);
-        if (rc) {
-            goto done;
-        }
+        /* Preserve the sorted index; slapi_attr_get_valueset drops it. */
+        current = slapi_valueset_new();
+        slapi_valueset_set_valueset(current, &memberof_attr->a_present_values);
     }
 
     /* Both sets contain unique DNs: merge_ancestors deduplicates groups.
@@ -4735,8 +4734,8 @@ memberof_reconcile_groups(Slapi_Entry *e, MemberOfConfig *config,
     scan = difference >= 0 ? groups : current;
     lookup = difference >= 0 ? current : groups;
 
-    /* The copied current set has no sorted index. Build only the lookup
-     * set's index, once, so each comparison below is logarithmic. */
+    /* Reuse the lookup set's index when present. Otherwise build it once
+     * so each comparison below is logarithmic. */
     if (lookup && lookup->num > 1 && !lookup->sorted) {
         lookup->sorted = (size_t *)slapi_ch_malloc(lookup->max * sizeof(size_t));
         valueset_array_to_sorted(memberof_attr, lookup);
@@ -4749,6 +4748,7 @@ memberof_reconcile_groups(Slapi_Entry *e, MemberOfConfig *config,
                 goto done;
             }
             change = value;
+            /* Keep scanning: a second mismatch requires full replacement. */
         }
         hint = slapi_valueset_next_value(scan, hint, &value);
     }
