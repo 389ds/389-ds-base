@@ -710,6 +710,18 @@ def _get_shared_cfg_by_port(supplier, ou_ranges_dn, port):
     return None
 
 
+def _wait_for_local_shared_config(supplier, ou_ranges_dn):
+    """Wait for this supplier's delayed DNA publication before synchronizing."""
+    for _ in range(10):
+        entry = _get_shared_cfg_by_port(supplier, ou_ranges_dn, supplier.port)
+        if entry is not None:
+            return entry
+        time.sleep(5)
+
+    pytest.fail(f"{supplier}: DNA did not create its local shared config entry "
+                f"for port {supplier.port} under {ou_ranges_dn}")
+
+
 def _assert_shared_cfg_remote_bind(entry, bind_method=BIND_METHOD, conn_protocol=CONN_PROTOCOL):
     assert entry.get_attr_val_utf8('dnaRemoteBindMethod') == bind_method, (
         f"dnaRemoteBindMethod={entry.get_attr_val_utf8('dnaRemoteBindMethod')!r}, "
@@ -725,7 +737,8 @@ def _assert_shared_cfg_remote_bind(entry, bind_method=BIND_METHOD, conn_protocol
 def dna_exhausted_range_bind_setup(topo_m2, request):
     """Setup DNA on two suppliers; supplier2 has an exhausted range.
 
-    Shared config entries are created by the plugin (not pre-seeded).
+    Shared config entries are created by the plugin (not pre-seeded), then
+    synchronized in both directions before the attribute-preservation checks.
     """
 
     m1 = topo_m2.ms["supplier1"]
@@ -780,8 +793,6 @@ def dna_exhausted_range_bind_setup(topo_m2, request):
         dna_plugin.enable()
         supplier.restart()
 
-    repl.wait_for_replication(m1, suppliers[1])
-
     def fin():
         for supplier, config in created_objects['dna_configs']:
             try:
@@ -792,6 +803,15 @@ def dna_exhausted_range_bind_setup(topo_m2, request):
             supplier.restart()
           
     request.addfinalizer(fin)
+
+    for supplier in suppliers:
+        _wait_for_local_shared_config(supplier, ou_ranges.dn)
+
+    # DNA can notify replication before committing its outer transaction.
+    # Synchronize after local publication: these marker writes commit after
+    # DNA's updates and wake replication with the shared entries visible.
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m2, m1)
 
     return {
         'suppliers': suppliers,
