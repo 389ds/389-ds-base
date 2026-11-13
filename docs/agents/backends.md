@@ -99,6 +99,22 @@ Shared scaffolding is `import.c` + `import.h` (`ImportJob`, the worker structs, 
 
 The two import-thread files are different algorithms, not ports of each other: bdb runs producer/foreman/worker threads over a shared entry FIFO, while mdb adds a dedicated `WRITER` work type (`import.h (WRITER)`) with its own writer queue. Reindex is structurally different too (see the table). This is why the placement rule says evaluate, not mirror.
 
+For BDB online import, task completion is a readiness boundary. Keep
+`db-bdb/bdb_import.c (bdb_import_all_done)` limited to backend restoration and
+return its errors to `bdb_public_bdb_import_main`. Publish the task result only
+after restoration, cache autotuning, and the single busy-flag release. Keep the
+import thread's task reference until its final cleanup; `bdb_import_task_destroy`
+must wait for that reference before freeing the job. Task exit codes exclude the
+legacy warning bits added to the synchronous return value, and the offline
+wrapper must strip only a warning-only success, never mask an error.
+
+MDB has separate completion ownership: ordinary imports finish in the import
+thread, while reindex also has an outer `task.c (task_index_thread)` caller.
+Evaluate its busy release, NOSYNC restoration, normalized-DN cache accounting,
+and dirty-flag cleanup together before changing completion ordering; its
+`db-mdb/mdb_import.c (dbmdb_import_all_done)` is not a template for the BDB
+completion boundary.
+
 ## Landmines
 
 - `dbimpl.c (dblayer_op2str)` is off by one: the `dbi_op_t` enum (`dbimpl.h`) contains `DBI_OP_MOVE_TO_FIRST` but the string array skips it, so every op from `DBI_OP_MOVE_TO_FIRST` onward prints the NEXT member's name and `DBI_OP_CLOSE` prints "INVALID DBI_OP". Do not trust logs built from it, and do not "fix" it without a maintainer ruling — log consumers may depend on the shifted strings.
