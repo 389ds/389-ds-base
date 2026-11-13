@@ -12,6 +12,20 @@ pip3 install lib389==3.1.2
 
 **Important Note:** When you install `lib389`, ensure that its version matches the version of the 389 Directory Server you plan to connect to. Mismatched versions can lead to unexpected behavior or errors.
 
+## Building a distribution
+
+From `src/lib389`, validate the version and build with:
+
+```bash
+python3 validate_version.py
+python3 -m build
+```
+
+The Python packaging hooks automatically copy the topology fixtures from
+`dirsrvtests/lib/test389/topologies.py` into the package when building from the
+repository. The source distribution includes that copy, so rebuilding a wheel
+from the source distribution does not require the full repository.
+
 ## Sample Connection Code
 
 Here's an example of how to connect to a 389 Directory Server instance using `lib389`, with configuration from environment variables:
