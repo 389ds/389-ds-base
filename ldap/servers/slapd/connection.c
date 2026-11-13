@@ -1701,11 +1701,8 @@ connection_threadmain(void *arg)
     while (1) {
         int is_timedout = 0;
         time_t curtime = 0;
-<<<<<<< HEAD
-=======
         bool read_handed_off = false;
         bool starttls_operation = false;
->>>>>>> e3a7a9dbb (Issue 7950 - StartTLS: keep conn unreadable until upgrade decision (#8027))
 
         if (op_shutdown) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
@@ -1960,22 +1957,8 @@ connection_threadmain(void *arg)
                 pthread_mutex_unlock(&(conn->c_mutex));
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
-<<<<<<< HEAD
                 signal_listner();
-            } else if (connection_is_start_tls(op)) {
-                /*
-                * The StartTLS PDU has already been read into op->o_ber, but there is more data
-                * in c_buffer. Previously we continued, but now we do not requeue this connection
-                * as another worker could read the extra data as a separate op while this thread
-                * continues into start_tls().
-                */
-                slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
-                              "conn %" PRIu64 " has buffered data following StartTLS request\n",
-                              conn->c_connid);
-=======
-                signal_listner(conn->c_ct_list);
                 read_handed_off = true;
->>>>>>> e3a7a9dbb (Issue 7950 - StartTLS: keep conn unreadable until upgrade decision (#8027))
             } else { /* more data in conn - just put back on work_q - bypass poll */
                 bypasspollcnt++;
                 pthread_mutex_lock(&(conn->c_mutex));
@@ -1987,9 +1970,11 @@ connection_threadmain(void *arg)
                      * are bypassing both of those, we set idlesince here
                      */
                     conn->c_idlesince = curtime;
-                    connection_activity(conn, maxthreads);
-                    slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
-                                  conn->c_connid);
+                    if (connection_activity(conn, maxthreads) == 0) {
+					    read_handed_off = true;
+					    slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
+					                  conn->c_connid);
+					}
                 } else {
                     /* keep count of how many times maxthreads has blocked an operation */
                     conn->c_maxthreadsblocked++;
@@ -2072,9 +2057,6 @@ connection_threadmain(void *arg)
         PR_AtomicIncrement(&conn->c_opscompleted);
         /* total number of ops for the server */
         slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpCompleted);
-<<<<<<< HEAD
-=======
-        tp_stats_worker_operation_done((uint32_t)*snmp_vars_idx);
         /*
          * Do not loop on buffered data after work has been queued or
          * this worker handled StartTLS.
@@ -2082,7 +2064,6 @@ connection_threadmain(void *arg)
         if (read_handed_off || starttls_operation) {
             more_data = 0;
         }
->>>>>>> e3a7a9dbb (Issue 7950 - StartTLS: keep conn unreadable until upgrade decision (#8027))
         /* If this op isn't a persistent search, remove it */
         if (op->o_flags & OP_FLAG_PS) {
             /* Release the connection (i.e. decrease refcnt) at the condition
@@ -2116,14 +2097,6 @@ connection_threadmain(void *arg)
                           "repl_conn_bef %d, repl_conn_now %d\n",
                           conn->c_connid, more_data, thread_turbo_flag,
                           replication_connection, conn->c_isreplication_session);
-<<<<<<< HEAD
-            if (!replication_connection &&  conn->c_isreplication_session) {
-                /* it a connection that was just flagged as replication connection */
-                more_data = 0;
-            } else {
-                /* normal connection or already established replication connection */
-                more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
-=======
             if (!read_handed_off) {
                 if (starttls_operation ||
                     (!replication_connection && conn->c_isreplication_session)) {
@@ -2134,7 +2107,6 @@ connection_threadmain(void *arg)
                     /* normal connection or already established replication connection */
                     more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
                 }
->>>>>>> e3a7a9dbb (Issue 7950 - StartTLS: keep conn unreadable until upgrade decision (#8027))
             }
             if (!more_data) {
                 if (!thread_turbo_flag) {
