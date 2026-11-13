@@ -545,18 +545,18 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
 
 
 def test_replication_log_monitoring_filter_combinations(topo_m4):
-    """Test complex combinations of filtering options and interactions
+    """Test combined lag, full-replication, and time-window filters on live logs
 
     :id: 103fc0ac-f0b8-48f1-8cdf-1f6ff57f9672
     :setup: Four suppliers replication setup
     :steps:
-        1. Test multiple concurrent filters
-        2. Test filter interactions
-        3. Verify filter precedence
+        1. Pause replication while generating changes to create a backlog
+        2. Resume replication and apply lag, full-replication, and time filters
+        3. Verify the retained records
     :expectedresults:
-        1. Multiple filters should work together correctly
-        2. Filter interactions should be predictable
-        3. Results should respect all applied filters
+        1. Changes should have a measurable replication delay
+        2. The combined filters should retain replication data
+        3. Every retained CSN should satisfy all three filters
     """
     tmp_dir = tempfile.mkdtemp(prefix='repl_filter_test_')
     test_users = []
@@ -602,20 +602,20 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
 
         log_dirs = _get_log_dirs(suppliers)
 
-        # Test combined filters
+        # Backlog delay controls replication lag, not operation execution time.
+        # Cover etime together with these filters using fixed logs below.
         lag_threshold = 0.5
-        etime_threshold = 0.001
         repl_monitor = ReplicationLogAnalyzer(
             log_dirs=log_dirs,
             suffixes=[DEFAULT_SUFFIX],
             lag_time_lowest=lag_threshold,
-            etime_lowest=etime_threshold,
             only_fully_replicated=True,
             time_range={'start': start_time, 'end': end_time}
         )
 
         repl_monitor.parse_logs()
         results = repl_monitor.build_result()
+        assert results['lag'], "Expected fully replicated changes from the backlog"
 
         # Verify filter combinations
         for csn, server_map in results['lag'].items():
@@ -624,14 +624,12 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
                 for key, record in server_map.items()
                 if isinstance(record, dict) and key != '__hop_lags__'
             ]
-            if not t_list:
-                continue
+            assert len(t_list) == len(suppliers), "Not fully replicated"
 
             lag_time = max(t_list) - min(t_list)
 
             # Verify all filters were applied
-            assert lag_time >= lag_threshold, "Lag time filter not applied"
-            assert len(t_list) == len(suppliers), "Not fully replicated"
+            assert lag_time > lag_threshold, "Lag time filter not applied"
 
             # Verify time range
             for t in t_list:
@@ -640,6 +638,76 @@ def test_replication_log_monitoring_filter_combinations(topo_m4):
     finally:
         _resume_agreements(paused_agreements)
         _cleanup_test_data(test_users, tmp_dir)
+
+
+@pytest.mark.parametrize('offsets,etime,included', [
+    pytest.param((0.25, 0.5, 0.75, 1.0), '0.002', True, id='matching'),
+    pytest.param((0.25, 0.5, 0.75, 1.0), '0.0009', False, id='etime-below'),
+    pytest.param((0.25, 0.5, 0.75, 1.0), '0.001', False, id='etime-equal'),
+    pytest.param((0.25, 0.5, 0.75, 1.0), '0', False, id='etime-zero'),
+    pytest.param((0.25, 0.375, 0.5, 0.625), '0.002', False, id='lag-below'),
+    pytest.param((0.25, 0.375, 0.5, 0.75), '0.002', False, id='lag-equal'),
+    pytest.param((0.25, 0.5, 1.0), '0.002', False, id='missing-server'),
+    pytest.param((0.0, 0.25, 0.5, 1.0), '0.002', True, id='at-start'),
+    pytest.param((0.5, 0.75, 1.0, 2.0), '0.002', True, id='at-end'),
+    pytest.param((-0.25, 0.25, 0.5, 1.0), '0.002', False, id='before-start'),
+    pytest.param((0.0, 0.25, 0.75, 2.25), '0.002', False, id='after-end'),
+])
+def test_replication_log_monitoring_filter_boundaries(tmp_path, offsets, etime, included):
+    """Test all four filters together with deterministic access logs
+
+    :id: 217592b6-6f23-4d63-9f1b-0e78e7338a8d
+    :parametrized: yes
+    :setup: Access logs for four suppliers with controlled timestamps and etimes
+    :steps:
+        1. Write one CSN with the specified arrival times and one server's etime
+        2. Parse with lag, etime, full-replication, and time-window filters
+        3. Build the result
+    :expectedresults:
+        1. Logs should represent the selected threshold or time-window boundary
+        2. Only complete, in-window CSNs strictly above both thresholds remain
+        3. Matching data is returned, or empty data raises the documented error
+    """
+    start_time = datetime(2025, 1, 1, 0, 0, 10, tzinfo=timezone.utc)
+    csn = f'{int(start_time.timestamp()):08x}000000010000'
+    log_dirs = []
+
+    def log_timestamp(offset):
+        # Fixed English month and nine fractional digits match the access log format.
+        return f'[01/Jan/2025:00:00:{10 + offset:012.9f} +0000]'
+
+    for server in range(4):
+        log_dir = tmp_path / f'supplier{server + 1}'
+        log_dir.mkdir()
+        log_dirs.append(str(log_dir))
+        lines = ''
+        if server < len(offsets):
+            offset = offsets[server]
+            # One fast server must exclude the whole CSN, even if the others are slow.
+            server_etime = etime if server == 1 else '0.002'
+            lines = (
+                f'{log_timestamp(offset - 0.01)} conn=1 op=1 MOD dn="uid=filter,{DEFAULT_SUFFIX}"\n'
+                f'{log_timestamp(offset)} conn=1 op=1 RESULT err=0 tag=103 '
+                f'nentries=0 etime={server_etime} csn={csn}\n'
+            )
+        # An empty but accessible log still counts as a server for full replication.
+        (log_dir / 'access').write_text(lines, encoding='utf-8')
+
+    repl_monitor = ReplicationLogAnalyzer(
+        log_dirs=log_dirs,
+        suffixes=[DEFAULT_SUFFIX],
+        lag_time_lowest=0.5,
+        etime_lowest=0.001,
+        only_fully_replicated=True,
+        time_range={'start': start_time, 'end': start_time + timedelta(seconds=2)}
+    )
+    repl_monitor.parse_logs()
+    if included:
+        assert set(repl_monitor.build_result()['lag']) == {csn}
+    else:
+        assert not repl_monitor.csns, "Expected the combined filters to exclude the CSN"
+        with pytest.raises(ValueError, match=r'^No valid replication data collected\.$'):
+            repl_monitor.build_result()
 
 
 def test_replication_log_monitoring_csn_details_edge_cases(topo_m4):
