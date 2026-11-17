@@ -979,7 +979,11 @@ index_read_ext_allids(
     int is_and = 0;
     unsigned int ai_flags = 0;
 
-    *err = 0;
+    if (*err && *err != DBI_RC_NOTFOUND) {
+        slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "propagate Error %d\n", *err);
+        return idl_alloc(0);
+    }
+   *err = 0;
 
     if (strcmp(indextype, LDAP_MATCHING_RULE_IN_CHAIN_OID) == 0) {
         type = "nsuniqueid";
@@ -1034,6 +1038,7 @@ index_read_ext_allids(
             /* return an empty list */
             return idl_alloc(0);
         } else if (rc) { /* failure */
+            *err = rc;
             return idl_alloc(0);
         } else { /* success */
             rc = idl_append_extend(&idl, id);
@@ -1479,6 +1484,10 @@ index_range_read_ext(
         return NULL;
     }
 
+    if (*err && *err != DBI_RC_NOTFOUND) {
+        slapi_log_err(SLAPI_LOG_TRACE, "index_range_read_ext", "propagate Error %d\n", *err);
+        return NULL;
+    }
     *err = 0;
 
     prefix = index_index2prefix(indextype);
@@ -1632,16 +1641,17 @@ index_range_read_ext(
                 if (DBI_RC_NOTFOUND == *err) {
                     /* There are no keys in the index so we should return no candidates. */
                     *err = 0;
-                    idl = NULL;
-                    dblayer_value_free(be, &cur_key);
-                    dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
-                    goto error;
+                    idl = idl_alloc(0);
                 } else {
+                    idl = idl_allids(be);
                     ldbm_nasty("index_range_read_ext", errmsg, 1070, *err);
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "index_range_read_ext", "(%s,%s) seek to end of index file err %i\n",
                                   type, prefix, *err);
-                }
+                }     
+                dblayer_value_free(be, &cur_key);
+                dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
+                goto error;
             } else if (dbi_value_cmp(&upperkey, &cur_key, ai->ai_key_cmp_fn) > 0) {
                 dblayer_value_free(be, &upperkey); /* upper >= last :no need to check upper bound */
             }
@@ -1690,6 +1700,13 @@ index_range_read_ext(
     dblayer_value_init(be, &data);
     cur_key = lowerkey;
     dblayer_value_init(be, &lowerkey);   /* Clear lowerkey to avoid double free */
+    if (*err && *err != DBI_RC_NOTFOUND) {
+        slapi_log_err(SLAPI_LOG_TRACE, "index_range_read_ext", "Detection Error %d\n", *err);
+        if (!idl) {
+            idl = idl_allids(be);
+        }
+        goto error;
+    }
     *err = 0;
     if (coreop == SLAPI_OP_GREATER) {
         /* The seek rewrote cur_key with the landed key: rebuild the
@@ -1712,7 +1729,7 @@ index_range_read_ext(
             goto error;
         }
     }
-    if (operator&SLAPI_OP_RANGE_NO_ALLIDS) {
+    if (*err == 0 && (operator & SLAPI_OP_RANGE_NO_ALLIDS)) {
         *err = NEW_IDL_NO_ALLID;
     }
 
