@@ -1125,11 +1125,11 @@ dbmdb_import_entry_info_by_backentry(mdb_privdb_t *db, BulkQueueData_t *bqdata, 
     dnrc = dbmdb_import_entry_info_by_param(&param, wqelmt);
     slapi_ch_free(&bqdata->key.mv_data);
     bqdata->key.mv_size = 0;
+    slapi_ch_free(&bqdata->wait4key.mv_data);
+    bqdata->wait4key.mv_size = 0;
     if (dnrc == DNRC_WAIT) {
         dup_data(&bqdata->wait4key, &param.pkey);
     } else {
-        slapi_ch_free(&bqdata->wait4key.mv_data);
-        bqdata->wait4key.mv_size = 0;
         dup_data(&bqdata->key, &param.ekey);
     }
     entryinfoparam_cleanup(&param);
