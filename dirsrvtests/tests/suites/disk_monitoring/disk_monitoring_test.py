@@ -20,6 +20,8 @@ from lib389.backend import Backends
 from test389.topologies import topology_st as topo
 from lib389.paths import *
 from lib389.idm.user import UserAccounts
+from lib389.monitor import MonitorDiskSpace
+from lib389.utils import get_mount_point
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -86,7 +88,12 @@ def capture_config(inst):
         'nsslapd-accesslog-logrotationtimeunit',
         'nsslapd-accesslog-level',
         'nsslapd-external-libs-debug-enabled',
-        'nsslapd-errorlog-logging-enabled'
+        'nsslapd-errorlog-logging-enabled',
+        'nsslapd-securitylog',
+        'nsslapd-securitylog-logging-enabled',
+        'nsslapd-securitylog-maxlogsize',
+        'nsslapd-securitylog-logrotationtimeunit',
+        'nsslapd-securitylog-logbuffering',
     ]
 
     captured_config = {}
@@ -231,6 +238,52 @@ def generate_access_log_activity(inst, num_users=10, num_binds=100):
 
     log.info("Access log activity generation completed")
     return users
+
+
+def find_rotated_access_logs(log_dir):
+    """Return rotated access log basenames in log_dir."""
+    return re.findall(r'access\.\d+-\d+', str(os.listdir(log_dir)))
+
+
+def find_rotated_security_logs(log_dir):
+    """Return rotated security log basenames in log_dir."""
+    return re.findall(r'security\.\d+-\d+', str(os.listdir(log_dir)))
+
+
+def generate_security_log_activity(inst, num_attempts=200):
+    """Generate security log events through failed bind attempts."""
+
+    log.info("Generating security log activity with %d failed binds", num_attempts)
+    for i in range(num_attempts):
+        try:
+            inst.simple_bind_s(
+                'uid=diskmon-nobody%d,%s' % (i, DEFAULT_SUFFIX),
+                'wrong-password',
+            )
+        except ldap.LDAPError:
+            pass
+
+
+def mount_security_log_dir(inst):
+    """Mount a dedicated tmpfs for the security log (nested under log_dir)."""
+
+    sec_dir = os.path.join(inst.ds_paths.log_dir, 'sectmp')
+    os.makedirs(sec_dir, exist_ok=True)
+    subprocess.call(['mount', '-t', 'tmpfs', '-o', 'size=35M', 'tmpfs', sec_dir])
+    subprocess.call('chown %s: %s' % (DEFAULT_USER, sec_dir), shell=True)
+    subprocess.call('restorecon -FvvR %s' % sec_dir, shell=True)
+    return sec_dir
+
+
+def ds_disk_partitions(inst):
+    """Parse partition paths from cn=disk space,cn=monitor dsDisk values."""
+
+    partitions = []
+    for disk_str in MonitorDiskSpace(inst).get_disks():
+        for part in disk_str.split():
+            if part.startswith('partition="'):
+                partitions.append(part.split('=')[1].strip('"'))
+    return partitions
 
 
 @disk_monitoring_ack
@@ -402,6 +455,7 @@ def test_verify_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo
         log.info("Verifying access logging is disabled")
         wait_for_condition(inst, "inst.config.get_attr_val_utf8('nsslapd-accesslog-logging-enabled') != 'off'", 11)
         assert inst.config.get_attr_val_utf8('nsslapd-accesslog-logging-enabled') == 'off'
+        assert inst.config.get_attr_val_utf8('nsslapd-securitylog-logging-enabled') == 'on'
 
         log.info("Verifying expected disk monitoring messages")
         with open(inst.errlog, 'r') as err_log:
@@ -506,13 +560,17 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup
         2. Go below threshold to trigger disk monitoring
         3. Verify that verbose logging was set to default level
         4. Verify that logging is disabled
-        5. Verify that rotated logs were removed
+        5. Verify that rotated access logs were removed
+        6. Verify that security logging stays enabled
+        7. Verify that rotated security logs were not removed
     :expectedresults:
         1. Success
         2. Success
         3. Success
         4. Success
         5. Success
+        6. Success
+        7. Success
     """
     log.info("Starting test_operation_with_nsslapd_disk_monitoring_logging_critical_off")
     inst = topo.standalone
@@ -527,17 +585,36 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup
         inst.config.set('nsslapd-accesslog-maxlogsize', '1')
         inst.config.set('nsslapd-accesslog-logrotationtimeunit', 'minute')
         inst.config.set('nsslapd-accesslog-level', '772')
+        inst.config.set('nsslapd-securitylog-logbuffering', 'off')
+        inst.config.set('nsslapd-securitylog-maxlogsize', '1')
+        inst.config.set('nsslapd-securitylog-logrotationtimeunit', 'minute')
         inst.restart()
 
         log.info("Generating access log activity to create rotated logs")
         users = generate_access_log_activity(inst, num_users=10, num_binds=100)
+        generate_security_log_activity(inst)
 
         inst.bind_s(DN_DM, PW_DM)
 
-        log.info("Resetting access log settings")
+        log.info("Waiting for access and security log rotation")
+        rotated_access_logs = []
+        rotated_security_logs = []
+        for i in range(120):
+            time.sleep(1)
+            rotated_access_logs = find_rotated_access_logs(inst.ds_paths.log_dir)
+            rotated_security_logs = find_rotated_security_logs(inst.ds_paths.log_dir)
+            if rotated_access_logs and rotated_security_logs:
+                log.info("Log rotation detected after %d seconds", i + 1)
+                break
+        assert rotated_access_logs, "No rotated access logs found after waiting"
+        assert rotated_security_logs, "No rotated security logs found after waiting"
+
+        log.info("Resetting access and security log settings")
         inst.config.set('nsslapd-accesslog-maxlogsize', '100')
         inst.config.set('nsslapd-accesslog-logrotationtimeunit', 'day')
         inst.config.set('nsslapd-accesslog-level', '256')
+        inst.config.set('nsslapd-securitylog-maxlogsize', '100')
+        inst.config.set('nsslapd-securitylog-logrotationtimeunit', 'week')
         inst.restart()
 
         log.info(f"Filling disk to go below threshold ({THRESHOLD_BYTES} bytes)")
@@ -563,11 +640,16 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup
             content = err_log.read()
         assert 'disabling access and audit logging' in content
 
-        log.info("Verifying rotated logs are removed")
+        log.info("Verifying rotated access logs are removed and security logs preserved")
         wait_for_log_entry(inst, 'deleting rotated logs', 20)
 
-        rotated_logs = re.findall(r'access.\d+-\d+', str(os.listdir(inst.ds_paths.log_dir)))
-        assert not rotated_logs, f"Found unexpected rotated logs: {rotated_logs}"
+        assert not find_rotated_access_logs(inst.ds_paths.log_dir), (
+            "Rotated access logs should be removed during disk monitoring"
+        )
+        assert inst.config.get_attr_val_utf8('nsslapd-securitylog-logging-enabled') == 'on'
+        assert find_rotated_security_logs(inst.ds_paths.log_dir), (
+            "Rotated security logs must not be removed during disk monitoring"
+        )
 
         with open(inst.errlog, 'r') as err_log:
             content = err_log.read()
@@ -591,6 +673,44 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup
             os.remove(fill_file)
 
     log.info("Test completed successfully")
+
+
+@disk_monitoring_ack
+def test_disk_monitoring_monitor_includes_security_log_mount(topo, setup, reset_logs):
+    """Disk monitor lists the filesystem that holds nsslapd-securitylog.
+
+    :id: 8ef47a8e-4d66-47b9-aff4-40932d806661
+    :setup: Standalone
+    :steps:
+        1. Mount a dedicated tmpfs for the security log
+        2. Point nsslapd-securitylog at that mount
+        3. Read cn=disk space,cn=monitor dsDisk values
+    :expectedresults:
+        1. Success
+        2. Success
+        3. The security log mount appears among monitored partitions
+    """
+    log.info("Starting test_disk_monitoring_monitor_includes_security_log_mount")
+    inst = topo.standalone
+    sec_dir = None
+
+    try:
+        sec_dir = mount_security_log_dir(inst)
+        security_log = os.path.join(sec_dir, 'security')
+        inst.config.set('nsslapd-securitylog', security_log)
+        inst.config.set('nsslapd-disk-monitoring', 'on')
+        inst.restart()
+
+        expected_partition = get_mount_point(sec_dir)
+        partitions = ds_disk_partitions(inst)
+        log.info("Monitored partitions: %s", partitions)
+        assert expected_partition in partitions, (
+            "Security log mount %s not in dsDisk partitions %s"
+            % (expected_partition, partitions)
+        )
+    finally:
+        if sec_dir is not None and os.path.ismount(sec_dir):
+            subprocess.call(['umount', '-l', sec_dir])
 
 
 @disk_monitoring_ack
@@ -667,7 +787,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_
         log.info("Waiting for log rotation to occur")
         for i in range(61):
             time.sleep(1)
-            rotated_logs = re.findall(r'access.\d+-\d+', str(os.listdir(inst.ds_paths.log_dir)))
+            rotated_logs = find_rotated_access_logs(inst.ds_paths.log_dir)
             if rotated_logs:
                 log.info(f"Log rotation detected after {i+1} seconds")
                 break
@@ -750,6 +870,7 @@ def test_go_straight_below_half_of_the_threshold(topo, setup, reset_logs):
         log.info("Verifying expected disk monitoring messages")
         wait_for_log_entry(inst, 'disabling access and audit logging', 2)
         wait_for_log_entry(inst, 'deleting rotated logs', 11)
+        assert inst.config.get_attr_val_utf8('nsslapd-securitylog-logging-enabled') == 'on'
 
         with open(inst.errlog, 'r') as err_log:
             content = err_log.read()

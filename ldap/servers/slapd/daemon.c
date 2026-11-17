@@ -336,7 +336,7 @@ disk_mon_add_dir(char ***list, char *directory)
 }
 
 /*
- *  We gather all the log, txn log, config, and db directories
+ *  We gather all the log (including security), txn log, config, and db directories
  */
 void
 disk_mon_get_dirs(char ***list)
@@ -360,6 +360,7 @@ disk_mon_get_dirs(char ***list)
     disk_mon_add_dir(list, config->errorlog);
     disk_mon_add_dir(list, config->auditlog);
     disk_mon_add_dir(list, config->auditfaillog);
+    disk_mon_add_dir(list, config->securitylog);
     CFG_UNLOCK_READ(config);
 
     be = slapi_get_first_backend(&cookie);
@@ -456,7 +457,8 @@ disk_mon_check_diskspace(char **dirs, uint64_t threshold, uint64_t *disk_space)
  *
  *  If we get below the free disk space threshold, start taking measures
  *  to avoid additional disk space consumption by stopping verbose logging,
- *  access/audit logging, and deleting rotated logs.
+ *  access/audit logging, and deleting rotated logs (except the security log,
+ *  which stays enabled and retains its rotated files).
  *
  *  If this is not enough, then we need to shut slapd down to avoid
  *  possibly corrupting the db.

@@ -5618,6 +5618,9 @@ log__purge_rotated_logchain(LogFileInfo **logchain, unsigned int *numof_logs,
  *  When we get close to running out of disk space we delete the rotated logs
  *  as a last resort to help keep the server up and running. Each stream chain
  *  is updated under that stream's write lock; rotationinfo is rewritten.
+ *
+ *  Rotated security logs are intentionally not purged here; the disk monitoring
+ *  thread still monitors that volume but must not discard security audit data.
  */
 void
 log__delete_rotated_logs()
@@ -5628,13 +5631,6 @@ log__delete_rotated_logs()
                                 loginfo.log_access_file,
                                 SLAPD_ACCESS_LOG);
     PR_Unlock(loginfo.log_access_lock);
-
-    LOG_SECURITY_LOCK_WRITE();
-    log__purge_rotated_logchain(&loginfo.log_security_logchain,
-                                &loginfo.log_numof_security_logs,
-                                loginfo.log_security_file,
-                                SLAPD_SECURITY_LOG);
-    PR_Unlock(loginfo.log_security_buffer->lock);
 
     LOG_AUDIT_LOCK_WRITE();
     log__purge_rotated_logchain(&loginfo.log_audit_logchain,
