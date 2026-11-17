@@ -103,6 +103,9 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     int32_t parent_op = 0;
     int32_t betxn_callback_fails = 0; /* if a BETXN fails we need to revert entry cache */
     int32_t cache_mod_phase = 0; /* set when we reach the cache modification phase */
+    int32_t modrdn_txn_committed = 0;
+    int32_t modrdn_revert_cache = 0;
+    int ec_locked = 0;
     struct timespec parent_time;
     Slapi_Mods *smods_add_rdn = NULL;
 
@@ -233,6 +236,10 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
             Slapi_Entry *ent = NULL;
 
+            if (ec_locked) {
+                cache_unlock_entry(&inst->inst_cache, ec);
+                ec_locked = 0;
+            }
             /* don't release SERIAL LOCK */
             dblayer_txn_abort_ext(li, &txn, PR_FALSE);
             /* txn is no longer valid - reset slapi_txn to the parent */
@@ -1001,6 +1008,14 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
             goto error_return;
         }
+        if (cache_lock_entry(&inst->inst_cache, ec) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
+                          "cache_lock_entry %s failed\n",
+                          slapi_entry_get_dn(ec->ep_entry));
+            MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+            goto error_return;
+        }
+        ec_locked = 1;
 
         /*
          * add new name to index
@@ -1245,6 +1260,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
         goto error_return;
     }
+    modrdn_txn_committed = 1;
 
     if (children) {
         int i = 0;
@@ -1325,7 +1341,9 @@ error_return:
         retval = return_on_disk_full(li);
     } else {
         /* It is safer not to abort when the transaction is not started. */
-        if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
+        if (!modrdn_txn_committed && txn.back_txn_txn &&
+            (txn.back_txn_txn != parent_txn))
+        {
             /* make sure SLAPI_RESULT_CODE and SLAPI_PLUGIN_OPRETURN are set */
             int val = 0;
             slapi_pblock_get(pb, SLAPI_RESULT_CODE, &val);
@@ -1386,6 +1404,29 @@ common_return:
      */
     plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_MODRDN_FN);
 
+    /*
+     * After dblayer_txn_commit() the rename is durable; post-commit failures
+     * (e.g. modify_switch_entries on the RUV) must not put the old entry back
+     * in the entry cache.
+     */
+    modrdn_revert_cache = !not_an_error &&
+        (retval != 0 || ldap_result_code != LDAP_SUCCESS) && !modrdn_txn_committed;
+
+    if (inst && modrdn_revert_cache) {
+        if (ec && cache_backentry_staged(&inst->inst_cache, ec)) {
+            cache_remove_staging_backentry(&inst->inst_cache, ec);
+        }
+        if (e && (e->ep_state & ENTRY_STATE_DELETED) &&
+            !cache_is_in_cache(&inst->inst_cache, e))
+        {
+            if (cache_readd_deleted_backentry(&inst->inst_cache, e) < 0) {
+                slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
+                              "CACHE_ADD %s failed\n",
+                              slapi_entry_get_dn_const(e->ep_entry));
+            }
+        }
+    }
+
     /* Free up the resource we don't need any more */
     if (ec) {
         if (is_resurect_operation) {
@@ -1393,7 +1434,7 @@ common_return:
                           "Resurrecting an entry %s: result: %d, %d\n",
                           slapi_entry_get_dn(ec->ep_entry), ldap_result_code, retval);
         }
-        if (inst && (0 == retval)) {
+        if (inst && ec && !modrdn_revert_cache) {
             /* since the op was successful, add the addingentry's dn to the dn cache */
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, ec->ep_id);
             if (bdn) { /* already in the dncache */
@@ -1412,36 +1453,49 @@ common_return:
             }
         }
 
-        if (ec && retval) {
+        if (ec && modrdn_revert_cache) {
+            if (ec_locked) {
+                cache_unlock_entry(&inst->inst_cache, ec);
+                ec_locked = 0;
+            }
             /* if the operation failed, the destination entry does not exist
              * but it has been added in dncache during cache_add_tentative
              * we need to remove it. Else a retrieval from ep_id can give the wrong DN
              */
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, ec->ep_id);
             slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
-                                      "operation failed, the target entry is cleared from dncache (%s)\n", slapi_entry_get_dn(ec->ep_entry));
+                          "operation failed, the target entry is cleared from dncache (%s)\n",
+                          slapi_entry_get_dn(ec->ep_entry));
             CACHE_REMOVE(&inst->inst_dncache, bdn);
             CACHE_RETURN(&inst->inst_dncache, &bdn);
 
             /* Also remove ec from entry cache and free it since the operation failed */
-            if (inst && cache_is_in_cache(&inst->inst_cache, ec)) {
-                CACHE_REMOVE(&inst->inst_cache, ec);
+            if (inst && cache_backentry_staged(&inst->inst_cache, ec)) {
+                cache_remove_staging_backentry(&inst->inst_cache, ec);
+                CACHE_RETURN(&inst->inst_cache, &ec);
+            } else if (inst && (ec->ep_state & ENTRY_STATE_DELETED)) {
                 CACHE_RETURN(&inst->inst_cache, &ec);
             } else {
-                /* ec was not in cache, just free it */
                 backentry_free(&ec);
             }
             ec = NULL;
         }
 
         if (ec && inst) {
+            if (ec_locked || cache_is_in_cache(&inst->inst_cache, ec)) {
+                cache_unlock_entry(&inst->inst_cache, ec);
+                ec_locked = 0;
+            }
             CACHE_RETURN(&inst->inst_cache, &ec);
-            ec = NULL;
+        } else if (ec && (ec->ep_state & (ENTRY_STATE_NOTINCACHE | ENTRY_STATE_DELETED |
+                                          ENTRY_STATE_INVALID)))
+        {
+            backentry_free(&ec);
         }
     }
 
     if (inst) {
-        if (e && 0 == retval) {
+        if (e && !modrdn_revert_cache) {
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
             CACHE_REMOVE(&inst->inst_dncache, bdn);
             CACHE_RETURN(&inst->inst_dncache, &bdn);
