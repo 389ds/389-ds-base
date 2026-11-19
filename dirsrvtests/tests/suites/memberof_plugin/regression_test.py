@@ -215,7 +215,7 @@ def test_memberof_with_repl(topo):
     grp1_dn = test_groups[1].dn
 
     test_groups[0].add_member(member_dn)
-    repl.wait_while_replication_is_progressing(M1, C1)
+    repl.wait_for_replication(M1, C1)
 
     # Step 5
     for i in [M1, H1, C1]:
@@ -223,7 +223,7 @@ def test_memberof_with_repl(topo):
 
     # Step 6
     test_groups[1].add_member(test_groups[0].dn)
-    repl.wait_while_replication_is_progressing(M1, C1)
+    repl.wait_for_replication(M1, C1)
 
     # Step 7
     for i in [grp0_dn, grp1_dn]:
@@ -236,7 +236,7 @@ def test_memberof_with_repl(topo):
 
     # Step 9
     test_groups[1].remove_member(test_groups[0].dn)
-    time.sleep(2)
+    repl.wait_for_replication(M1, C1)
 
     # Step 10
     # For negative testcase, we are using assertionerror
@@ -247,7 +247,7 @@ def test_memberof_with_repl(topo):
 
     # Step 11
     test_groups[0].remove_member(member_dn)
-    time.sleep(2)
+    repl.wait_for_replication(M1, C1)
 
     # Step 12
     for inst in [M1, H1, C1]:
@@ -261,7 +261,7 @@ def test_memberof_with_repl(topo):
 
     # Step 14
     test_groups[0].add_member(member_dn)
-    repl.wait_while_replication_is_progressing(M1, C1)
+    repl.wait_for_replication(M1, C1)
 
     # Step 15
     for i in [M1, H1]:
