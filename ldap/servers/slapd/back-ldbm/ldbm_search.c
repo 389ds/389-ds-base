@@ -1672,6 +1672,10 @@ subtree_candidates(
 
     /* Fetch a candidate list for the original filter */
     candidates = filter_candidates_ext(pb, be, base, filter, NULL, 0, err, allidslimit);
+    if (err != 0 && err != DBI_RC_NOTFOUND) {
+        slapi_log_err(SLAPI_LOG_TRACE, "subtree_candidates", "filter_candidates_ext failed Error %d\n", err);
+        return candidates;
+    }
 
     /* set 'allids before scoping' flag */
     if (NULL != allids_before_scopingp) {
