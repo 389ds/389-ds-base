@@ -1135,17 +1135,17 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     if (rdn_av_count > 1) {
         sort_rdn_avs(rdn_avs, rdn_av_count, 0);
     }
-    if (rdn_av_count > 0) {
-        /* Code is ok because rdn_avs is freed only if it has grown */
-        /* coverity[incorrect_free] */
-        reset_rdn_avs(&rdn_avs, &rdn_av_count);
-    }
     /* Trim trailing spaces */
     while (d > *dest && ISBLANK(*(d - 1))) {
         --d; /* XXX 518524 */
     }
     *dest_len = d - *dest;
 bail:
+    if (rdn_av_count > 0) {
+        /* Code is ok because rdn_avs is freed only if it has grown */
+        /* coverity[incorrect_free] */
+        reset_rdn_avs(&rdn_avs, &rdn_av_count);
+    }
     if (rc < 0) {
         if (dest != NULL) {
             if (*dest != src) {
