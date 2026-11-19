@@ -1678,6 +1678,15 @@ subtree_candidates(
         *allids_before_scopingp = (NULL != candidates && ALLIDS(candidates));
     }
 
+    /*
+     * Preserve DBI_RC_RETRY from filter_candidates_ext. Do not scope with
+     * ancestorid/entryrdn (which would overwrite *err), and do not clear
+     * *err to LDAP_SUCCESS for a small/empty non-NULL IDL.
+     */
+    if (*err == DBI_RC_RETRY) {
+        return (candidates);
+    }
+
     has_tombstone_filter = (filter->f_flags & SLAPI_FILTER_TOMBSTONE);
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
     /* Check if it is for bulk import. */
