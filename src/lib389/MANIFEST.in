@@ -1,3 +1,4 @@
 include README.md
 include build_hooks.py
+include lib389/tests/topologies.py
 recursive-include cli *
