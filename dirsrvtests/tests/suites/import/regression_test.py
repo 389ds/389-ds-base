@@ -873,6 +873,63 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
         e.check_db()
 
 
+def test_import_gen_uniq_id(topo):
+    """Backend import handles all documented --gen-uniq-id values correctly
+
+    :id: 52f4e507-c115-43eb-9b89-19f513788345
+    :setup: Standalone Instance
+    :steps:
+        1. Generate a small LDIF with predictable entries
+        2. Import with gen_uniq_id "none" and "empty" (previously rejected)
+        3. Import twice with a deterministic namespace and read back nsUniqueId
+        4. Import with time-based generation and read back nsUniqueId
+        5. Import with an unsupported gen_uniq_id value
+    :expectedresults:
+        1. Success
+        2. Both imports are accepted and complete
+        3. The same namespace yields the same nsUniqueId (name-based)
+        4. Time-based generation yields a different nsUniqueId
+        5. ValueError is raised for the unsupported value
+    """
+    inst = topo.standalone
+    ldif_file = os.path.join(inst.get_ldif_dir(), 'gen_uniq_id.ldif')
+    dbgen_users(inst, 5, ldif_file, DEFAULT_SUFFIX, generic=True)
+
+    bes = Backends(inst)
+
+    def import_and_get_uniqueid(gen_uniq_id):
+        task = bes.import_ldif(DEFAULT_BENAME, [ldif_file], gen_uniq_id=gen_uniq_id)
+        task.wait(timeout=30)
+        assert task.get_exit_code() == 0
+        entry = inst.getEntry(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                              '(uid=user1)', ['nsuniqueid'])
+        return entry.getValue('nsuniqueid')
+
+    # "none" and "empty" were previously rejected by an inverted check;
+    # confirm they are now accepted.
+    for value in ('none', 'empty'):
+        log.info('Import with gen_uniq_id="{}"'.format(value))
+        task = bes.import_ldif(DEFAULT_BENAME, [ldif_file], gen_uniq_id=value)
+        task.wait(timeout=30)
+        assert task.get_exit_code() == 0
+
+    # A deterministic namespace must produce reproducible (name-based) IDs:
+    # the same namespace yields the same nsUniqueId across re-imports, while
+    # time-based generation yields a different one. This proves the namespace
+    # is actually honored instead of silently falling back to time-based.
+    namespace = 'deterministic 00-11111111-22222222-33333333-44444444'
+    det_id_1 = import_and_get_uniqueid(namespace)
+    det_id_2 = import_and_get_uniqueid(namespace)
+    time_id = import_and_get_uniqueid('empty')
+    assert det_id_1 == det_id_2
+    assert det_id_1 != time_id
+
+    # An unsupported value must still be rejected
+    log.info('Import with an unsupported gen_uniq_id value')
+    with pytest.raises(ValueError):
+        bes.import_ldif(DEFAULT_BENAME, [ldif_file], gen_uniq_id='bogus-value')
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
