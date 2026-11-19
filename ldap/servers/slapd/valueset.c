@@ -461,7 +461,33 @@ slapi_valueset_init(Slapi_ValueSet *vs)
         vs->sorted = NULL;
         vs->num = 0;
         vs->max = 0;
+        vs->options = 0;
     }
+}
+
+/*
+ * Set or clear a sticky valueset option.
+ * Returns 0 on success, -1 on failure.
+ * Enabling SLAPI_VALUESET_NOT_SORTED fails if the valueset is already sorted.
+ */
+int
+slapi_valueset_setoption(Slapi_ValueSet *vs, unsigned long option, bool on)
+{
+    if (vs == NULL) {
+        return -1;
+    }
+    if (option == SLAPI_VALUESET_NOT_SORTED) {
+        if (on) {
+            if (vs->sorted != NULL) {
+                return -1;
+            }
+            vs->options |= SLAPI_VALUESET_NOT_SORTED;
+        } else {
+            vs->options &= ~SLAPI_VALUESET_NOT_SORTED;
+        }
+        return 0;
+    }
+    return -1;
 }
 
 void
@@ -809,7 +835,8 @@ valueset_array_purge(const Slapi_Attr *a, Slapi_ValueSet *vs, const CSN *csn)
     }
 
     /* We still have values but not sorted array! rebuild it */
-    if(vs->num > VALUESET_ARRAY_SORT_THRESHOLD && vs->sorted == NULL) {
+    if (!(vs->options & SLAPI_VALUESET_NOT_SORTED) &&
+        vs->num > VALUESET_ARRAY_SORT_THRESHOLD && vs->sorted == NULL) {
         vs->sorted = (size_t *) slapi_ch_malloc( vs->max* sizeof(size_t));
         valueset_array_to_sorted(a, vs);
     }
@@ -1145,7 +1172,14 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, 
         vs->max = allocate;
     }
 
-    if ((vs->num + naddvals > VALUESET_ARRAY_SORT_THRESHOLD || dupcheck) && !vs->sorted && vs->max > 0) {
+    /* DUPCHECK needs sorted lookup; clear NOT_SORTED so we can build it */
+    if (dupcheck) {
+        slapi_valueset_setoption(vs, SLAPI_VALUESET_NOT_SORTED, false);
+    }
+
+    if (!(vs->options & SLAPI_VALUESET_NOT_SORTED) &&
+        (vs->num + naddvals > VALUESET_ARRAY_SORT_THRESHOLD || dupcheck) &&
+        !vs->sorted && vs->max > 0) {
         /* initialize sort array and do initial sort */
         vs->sorted = (size_t *)slapi_ch_malloc(vs->max * sizeof(size_t));
         valueset_array_to_sorted(a, vs);
@@ -1225,6 +1259,8 @@ valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
         int oldmax = vs1->max;
         /* pre-condition - vs1 empty - otherwise, existing data is overwritten */
         PR_ASSERT(vs1->num == 0);
+
+        vs1->options = vs2->options;
 
         if (vs2->va) {
             /* need to copy valuearray */
@@ -1365,6 +1401,7 @@ valueset_dup(const Slapi_ValueSet *dupee)
     Slapi_ValueSet *duped = slapi_valueset_new();
     if (NULL != duped) {
         valueset_set_valuearray_byval(duped, dupee->va);
+        duped->options = dupee->options;
     }
     return duped;
 }
