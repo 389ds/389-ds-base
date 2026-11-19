@@ -9,6 +9,7 @@
 #include "../../test_slapd.h"
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <nss.h>
 #include <hibp.h>
 
@@ -214,6 +215,125 @@ test_hibp_api_integration(void **state)
 
     /* Reset mock for other tests */
     hibp_set_mock_response(NULL);
+}
+
+/* Cache basic operations test */
+void
+test_hibp_cache_basic(void **state)
+{
+    size_t size;
+    char *result;
+
+    (void)state;
+
+    /* Init cache */
+    assert_int_equal(hibp_cache_init(10, 3600), 0);
+
+    /* Put and get */
+    hibp_cache_put("ABCDE", "response_data", 13);
+    result = hibp_cache_get("ABCDE", &size);
+    assert_non_null(result);
+    assert_string_equal(result, "response_data");
+    assert_int_equal(size, 13);
+    slapi_ch_free_string(&result);
+
+    /* Miss for unknown prefix */
+    result = hibp_cache_get("ZZZZZ", &size);
+    assert_null(result);
+
+    hibp_cache_destroy();
+}
+
+/* Cache LRU eviction test */
+void
+test_hibp_cache_eviction(void **state)
+{
+    char *result;
+
+    (void)state;
+
+    /* Small cache of 3 entries */
+    assert_int_equal(hibp_cache_init(3, 3600), 0);
+
+    /* Fill cache */
+    hibp_cache_put("AAA00", "data1", 5);
+    hibp_cache_put("BBB00", "data2", 5);
+    hibp_cache_put("CCC00", "data3", 5);
+
+    /* Add 4th - should evict AAA00 */
+    hibp_cache_put("DDD00", "data4", 5);
+
+    /* AAA00 should be evicted */
+    result = hibp_cache_get("AAA00", NULL);
+    assert_null(result);
+
+    /* Others should still exist */
+    result = hibp_cache_get("DDD00", NULL);
+    assert_non_null(result);
+    slapi_ch_free_string(&result);
+
+    hibp_cache_destroy();
+}
+
+/* Cache TTL expiration test */
+void
+test_hibp_cache_ttl(void **state)
+{
+    char *result;
+
+    (void)state;
+
+    /* Cache with 1 second TTL */
+    assert_int_equal(hibp_cache_init(10, 1), 0);
+
+    hibp_cache_put("ABCDE", "data", 4);
+
+    /* Should exist */
+    result = hibp_cache_get("ABCDE", NULL);
+    assert_non_null(result);
+    slapi_ch_free_string(&result);
+
+    /* Wait for TTL to expire */
+    sleep(2);
+
+    /* Should not exist now */
+    result = hibp_cache_get("ABCDE", NULL);
+    assert_null(result);
+
+    hibp_cache_destroy();
+}
+
+/* Cache LRU reordering on access test */
+void
+test_hibp_cache_lru_reorder(void **state)
+{
+    char *result;
+
+    (void)state;
+
+    assert_int_equal(hibp_cache_init(3, 3600), 0);
+
+    /* Fill cache: A, B, C */
+    hibp_cache_put("AAA00", "data1", 5);
+    hibp_cache_put("BBB00", "data2", 5);
+    hibp_cache_put("CCC00", "data3", 5);
+
+    /* Access A, moves it to front */
+    result = hibp_cache_get("AAA00", NULL);
+    slapi_ch_free_string(&result);
+
+    /* Add D, should evict B */
+    hibp_cache_put("DDD00", "data4", 5);
+
+    /* B should be evicted, A should remain */
+    result = hibp_cache_get("BBB00", NULL);
+    assert_null(result);
+
+    result = hibp_cache_get("AAA00", NULL);
+    assert_non_null(result);
+    slapi_ch_free_string(&result);
+
+    hibp_cache_destroy();
 }
 
 /* Thread worker for concurrent test */
