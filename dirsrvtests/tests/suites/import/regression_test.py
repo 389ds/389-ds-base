@@ -415,7 +415,7 @@ def test_del_suffix_import(topo, verify):
 
     log.info('Stopping the server and running offline import')
     topo.standalone.stop()
-    assert topo.standalone.ldif2db(TEST_BACKEND1, TEST_SUFFIX1, None, None, ldif_file)
+    assert topo.standalone.ldif2db(TEST_BACKEND1, [TEST_SUFFIX1], None, None, ldif_file)
     topo.standalone.start()
 
     log.info('Deleting suffix-{}'.format(TEST_SUFFIX2))
