@@ -149,10 +149,6 @@ read_root_dse(Slapi_PBlock *pb,
     val.bv_len = strlen(val.bv_val);
     attrlist_merge(&e->e_attrs, "namingcontexts", vals);
 
-    val.bv_val = DYNCERTS_SUFFIX; /* "cn=dynamiccertificates" */
-    val.bv_len = strlen(val.bv_val);
-    attrlist_merge(&e->e_attrs, "namingcontexts", vals);
-
     val.bv_val = config_get_default_naming_context();
     if (val.bv_val) {
         val.bv_len = strlen(val.bv_val);
