@@ -206,9 +206,8 @@ class SetupDs(object):
                         be[BACKEND_REQ_INDEX] = "on"
 
                     # Replication settings
-                    be[BACKEND_REPL_ENABLED] = False
-                    if config.get(section, BACKEND_REPL_ENABLED, fallback=False):
-                        be[BACKEND_REPL_ENABLED] = True
+                    be[BACKEND_REPL_ENABLED] = config.getboolean(section, BACKEND_REPL_ENABLED, fallback=False)
+                    if be[BACKEND_REPL_ENABLED]:
                         role = config.get(section, BACKEND_REPL_ROLE, fallback="supplier")
                         be[BACKEND_REPL_ROLE] = role
                         rid = config.get(section, BACKEND_REPL_ID, fallback="1")
