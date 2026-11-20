@@ -865,15 +865,18 @@ def backend_compact(inst, basedn, log, args):
     if args.only_changelog:
         task_properties = {'justChangelog': 'yes'}
     task.create(properties=task_properties)
+    log.info(f"Started database compaction task {task.dn}")
     task.wait(timeout=args.timeout)
     result = task.get_exit_code()
+    if result is None:
+        raise ValueError(
+            f"Database compaction task {task.dn} has an unknown outcome (exit code unavailable). "
+            "Check the server-side task status before retrying."
+        )
     if result != 0:
-        if result is None:
-            raise ValueError("Database Compaction Task has not completed")
-        else:
-            raise ValueError(f"Database Compaction Task failed, error: {result}")
+        raise ValueError(f"Database compaction task {task.dn} failed with exit code {result}")
 
-    log.info("Successfully started Database Compaction Task")
+    log.info(f"Database compaction task {task.dn} completed successfully")
 
 
 def create_parser(subparsers):
