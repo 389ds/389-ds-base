@@ -2168,6 +2168,9 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                 goto done;
             }
 
+            /* policy is local, store the DN of the policy for logging */
+            pwdpolicy->pw_local_dn = slapi_ch_strdup(slapi_entry_get_dn(pw_entry));
+
             /* Set the default values (from libglobs.c) */
             pwpolicy_init_defaults(pwdpolicy);
 
