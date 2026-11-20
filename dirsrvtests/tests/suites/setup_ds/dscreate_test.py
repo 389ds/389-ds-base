@@ -12,12 +12,17 @@ import logging
 import grp
 import pwd
 import re
+import configparser
+import ldap
 from tempfile import TemporaryDirectory
 from lib389 import DirSrv
 from lib389.cli_base import LogCapture
 from lib389.instance.setup import SetupDs
 from lib389.instance.remove import remove_ds_instance
 from lib389.instance.options import General2Base, Slapd2Base
+from lib389._mapped_object import DSLdapObject
+from lib389.backend import Backends
+from lib389.replica import Replicas
 from lib389._constants import *
 from lib389.utils import ds_is_older, selinux_label_file, ensure_list_str, ensure_str
 from shutil import rmtree
@@ -599,3 +604,103 @@ def test_dscreate_non_root_defaults(nru, request):
     assert ";systemd = False" in stdout
     assert not ";secure_port = 636" in stdout
     assert not ";port = 389" in stdout
+
+
+def test_setup_ds_inf_backend_boolean_options():
+    """Backend boolean options from an INF are parsed as booleans
+
+    :id: 388b0ef1-606f-4633-9252-1cd8d447b731
+    :setup: No instance
+    :steps:
+        1. Validate an INF file with create_suffix_entry and enable_replication disabled
+        2. Validate an INF file with create_suffix_entry and enable_replication enabled
+        3. Validate an INF file with replication enabled and only a bind password
+    :expectedresults:
+        1. Both options are the boolean False, not non-empty strings
+        2. Both options are the boolean True
+        3. An absent replica_binddn is None
+    """
+    def _inf(create_suffix_entry, enable_replication, extra=()):
+        config = configparser.ConfigParser()
+        config.read_string('\n'.join((
+            '[general]',
+            '[slapd]',
+            '[backend-userroot]',
+            'suffix = dc=example,dc=com',
+            f'create_suffix_entry = {create_suffix_entry}',
+            f'enable_replication = {enable_replication}',
+        ) + tuple(extra)))
+        return config
+
+    lc = LogCapture()
+    sds = SetupDs(verbose=DEBUGGING, dryrun=True, log=lc.log)
+
+    _, _, backends = sds._validate_ds_config(_inf('no', 'no'))
+    assert backends[0]['create_suffix_entry'] is False
+    assert backends[0]['enable_replication'] is False
+
+    _, _, backends = sds._validate_ds_config(_inf('yes', 'yes'))
+    assert backends[0]['create_suffix_entry'] is True
+    assert backends[0]['enable_replication'] is True
+    # Absent setting must stay None instead of the Backend2Base default.
+    assert backends[0][BACKEND_REPL_BINDDN] is None
+
+    _, _, backends = sds._validate_ds_config(
+        _inf('no', 'yes', ('replica_bindpw = Secret123',)))
+    assert backends[0][BACKEND_REPL_BINDDN] is None
+    assert backends[0][BACKEND_REPL_BINDPW] == 'Secret123'
+
+
+@pytest.fixture
+def inf_instance(topology, request):
+    """Create an instance from an INF file and return it opened"""
+    with TemporaryDirectory() as tmpdir:
+        inf_path = os.path.join(tmpdir, 'setup.inf')
+        with open(inf_path, 'w') as inf:
+            inf.write('\n'.join((
+                '[general]',
+                '[slapd]',
+                f'instance_name = {INSTANCE_SERVERID}',
+                f'port = {INSTANCE_PORT}',
+                f'secure_port = {INSTANCE_SECURE_PORT}',
+                f'root_password = {PW_DM}',
+                '[backend-userroot]',
+                f'suffix = {DEFAULT_SUFFIX}',
+                'create_suffix_entry = no',
+                'enable_replication = no',
+            )))
+
+        lc = LogCapture()
+        sds = SetupDs(verbose=DEBUGGING, dryrun=False, log=lc.log)
+        assert sds.create_from_inf(inf_path)
+
+    instance = topology.standalone
+    instance.open()
+
+    def fin():
+        instance.close()
+        if not DEBUGGING and instance.exists():
+            instance.delete()
+
+    request.addfinalizer(fin)
+    return instance
+
+
+def test_setup_ds_inf_disabled_options_create_nothing(inf_instance):
+    """Disabled backend options do not create a suffix entry or a replica
+
+    :id: ab2b96ca-0058-4011-8bdf-dc6b29e9e450
+    :setup: Standalone
+    :steps:
+        1. Write an INF file with create_suffix_entry and enable_replication set to 'no'
+        2. Create the instance from the INF
+        3. Check for the backend, the suffix entry and the replica
+    :expectedresults:
+        1. Success
+        2. Success
+        3. The backend exists, the suffix entry and the replica do not
+    """
+    Backends(inf_instance).get('userRoot')
+    assert not DSLdapObject(inf_instance, DEFAULT_SUFFIX).exists()
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        Replicas(inf_instance).get(selector=DEFAULT_SUFFIX)
