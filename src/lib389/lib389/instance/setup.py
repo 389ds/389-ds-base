@@ -181,16 +181,19 @@ class SetupDs(object):
             if section.startswith('backend-'):
                 backend_options = Backend2Base(self.log, section)
                 backend_options.parse_inf_config(config)
-                suffix = config.get(section, 'suffix', fallback='')
+                backend_options.verify()
+                opts = backend_options.collect()
+
+                suffix = opts[BACKEND_SUFFIX]
                 if suffix != '':
                     # Suffix
                     be = {}
                     be[BACKEND_NAME] = section.replace('backend-', '')
                     be[BACKEND_SUFFIX] = suffix
-                    be['create_suffix_entry'] = config.get(section, 'create_suffix_entry', fallback=False)
+                    be['create_suffix_entry'] = opts['create_suffix_entry']
 
                     # Sample entries
-                    sample_entries = config.get(section, 'sample_entries', fallback='no')
+                    sample_entries = opts[BACKEND_SAMPLE_ENTRIES]
                     if sample_entries.lower() != 'no':
                         if sample_entries.lower() == 'yes':
                             be[BACKEND_SAMPLE_ENTRIES] = INSTALL_LATEST_CONFIG
@@ -201,28 +204,22 @@ class SetupDs(object):
                             be[BACKEND_SAMPLE_ENTRIES] = sample_entries
 
                     # Require index
-                    req_idx = config.getboolean(section, 'require_index', fallback=False)
-                    if req_idx:
+                    if opts['require_index']:
                         be[BACKEND_REQ_INDEX] = "on"
 
                     # Replication settings
-                    be[BACKEND_REPL_ENABLED] = False
-                    if config.get(section, BACKEND_REPL_ENABLED, fallback=False):
-                        be[BACKEND_REPL_ENABLED] = True
-                        role = config.get(section, BACKEND_REPL_ROLE, fallback="supplier")
-                        be[BACKEND_REPL_ROLE] = role
-                        rid = config.get(section, BACKEND_REPL_ID, fallback="1")
-                        be[BACKEND_REPL_ID] = rid
-                        binddn = config.get(section, BACKEND_REPL_BINDDN, fallback=None)
-                        be[BACKEND_REPL_BINDDN] = binddn
-                        bindpw = config.get(section, BACKEND_REPL_BINDPW, fallback=None)
-                        be[BACKEND_REPL_BINDPW] = bindpw
-                        bindgrp = config.get(section, BACKEND_REPL_BINDGROUP, fallback=None)
-                        be[BACKEND_REPL_BINDGROUP] = bindgrp
-                        cl_max_entries = config.get(section, BACKEND_REPL_CL_MAX_ENTRIES, fallback="-1")
-                        be[BACKEND_REPL_CL_MAX_ENTRIES] = cl_max_entries
-                        cl_max_age = config.get(section, BACKEND_REPL_CL_MAX_AGE, fallback="7d")
-                        be[BACKEND_REPL_CL_MAX_AGE] = cl_max_age
+                    be[BACKEND_REPL_ENABLED] = opts[BACKEND_REPL_ENABLED]
+                    if be[BACKEND_REPL_ENABLED]:
+                        be[BACKEND_REPL_ROLE] = opts[BACKEND_REPL_ROLE]
+                        be[BACKEND_REPL_ID] = str(opts[BACKEND_REPL_ID])
+                        for repl_opt in (BACKEND_REPL_BINDDN, BACKEND_REPL_BINDPW,
+                                         BACKEND_REPL_BINDGROUP):
+                            if config.has_option(section, repl_opt):
+                                be[repl_opt] = opts[repl_opt]
+                            else:
+                                be[repl_opt] = None
+                        be[BACKEND_REPL_CL_MAX_ENTRIES] = opts[BACKEND_REPL_CL_MAX_ENTRIES]
+                        be[BACKEND_REPL_CL_MAX_AGE] = opts[BACKEND_REPL_CL_MAX_AGE]
 
                     # Add this backend to the list
                     backends.append(be)
