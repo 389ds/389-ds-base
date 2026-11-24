@@ -19,6 +19,7 @@ static void sync_set_operation_extension(Slapi_PBlock *pb, SyncOpInfo *spec);
 static int sync_find_ref_by_uuid(Sync_UpdateNode *updates, int stop, char *uniqueid);
 static void sync_free_update_nodes(Sync_UpdateNode **updates, int count);
 Slapi_Entry *sync_deleted_entry_from_changelog(Slapi_Entry *cl_entry);
+static void sync_replace_deleted_entry(Sync_UpdateNode *node, Slapi_Entry *cl_entry);
 static int sync_feature_allowed(Slapi_PBlock *pb);
 
 static int
@@ -557,6 +558,15 @@ sync_deleted_entry_from_changelog(Slapi_Entry *cl_entry)
     return (db_entry);
 }
 
+static void
+sync_replace_deleted_entry(Sync_UpdateNode *node, Slapi_Entry *cl_entry)
+{
+    if (node->upd_e) {
+        slapi_entry_free(node->upd_e);
+    }
+    node->upd_e = sync_deleted_entry_from_changelog(cl_entry);
+}
+
 int
 sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
 {
@@ -692,11 +702,11 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
                 cb->cb_updates[index].upd_chgtype = LDAP_REQ_DELETE;
                 cb->cb_updates[index].upd_uuid = uniqueid;
                 cb->cb_updates[index].upd_euuid = entryuuid;
-                cb->cb_updates[index].upd_e = sync_deleted_entry_from_changelog(cl_entry);
+                sync_replace_deleted_entry(&cb->cb_updates[index], cl_entry);
             } else {
                 slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_MODRDN -> LDAP_REQ_DELETE (already queued)\n", uniqueid);
                 cb->cb_updates[prev].upd_chgtype = LDAP_REQ_DELETE;
-                cb->cb_updates[prev].upd_e = sync_deleted_entry_from_changelog(cl_entry);
+                sync_replace_deleted_entry(&cb->cb_updates[prev], cl_entry);
                 slapi_ch_free_string(&uniqueid);
                 slapi_ch_free_string(&entryuuid);
             }
@@ -722,13 +732,14 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
             cb->cb_updates[index].upd_chgtype = LDAP_REQ_DELETE;
             cb->cb_updates[index].upd_uuid = uniqueid;
             cb->cb_updates[index].upd_euuid = entryuuid;
-            cb->cb_updates[index].upd_e = sync_deleted_entry_from_changelog(cl_entry);
+            sync_replace_deleted_entry(&cb->cb_updates[index], cl_entry);
         } else {
             /* if it was added since last cookie state, we
              * can ignore it */
             if (cb->cb_updates[prev].upd_chgtype == LDAP_REQ_ADD) {
                 slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_DELETE -> NO-OP\n", uniqueid);
                 slapi_ch_free_string(&(cb->cb_updates[prev].upd_uuid));
+                slapi_ch_free_string(&(cb->cb_updates[prev].upd_euuid));
                 cb->cb_updates[prev].upd_uuid = NULL;
                 cb->cb_updates[prev].upd_euuid = NULL;
                 cb->cb_updates[index].upd_uuid = NULL;
@@ -739,7 +750,7 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
                 cb->cb_updates[index].upd_uuid = NULL;
                 cb->cb_updates[index].upd_euuid = NULL;
                 cb->cb_updates[prev].upd_chgtype = LDAP_REQ_DELETE;
-                cb->cb_updates[prev].upd_e = sync_deleted_entry_from_changelog(cl_entry);
+                sync_replace_deleted_entry(&cb->cb_updates[prev], cl_entry);
             }
             slapi_ch_free_string(&uniqueid);
             slapi_ch_free_string(&entryuuid);

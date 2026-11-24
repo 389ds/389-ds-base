@@ -25,7 +25,7 @@ from lib389.utils import ds_is_older, is_fips, ensure_bytes
 from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions, MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389._constants import *
 
-from . import ISyncRepl, syncstate_assert
+from . import ISyncRepl, syncstate_assert, OU_PEOPLE
 
 default_paths = Paths()
 pytestmark = pytest.mark.tier1
@@ -148,6 +148,64 @@ def test_syncrepl_basic(topology):
     sync = ISyncRepl(st)
     # Run the checks
     syncstate_assert(st, sync)
+
+
+@pytest.mark.skipif(ldap.__version__ < '3.3.1',
+    reason="python ldap versions less that 3.3.1 have bugs in sync repl that will cause this to fail!")
+def test_syncrepl_modrdn_out_of_scope_then_delete_same_window(topology):
+    """Replay a MODRDN out of scope followed by DELETE in one refresh window
+
+    A MODRDN that leaves the sync search scope allocates a placeholder
+    Slapi_Entry on the update node. A later DELETE of the same UUID in the
+    same changelog window must replace that entry without leaking the first
+    allocation (sync_read_entry_from_changelog).
+
+    :id: 6d1a5b1d-efbf-4dd1-b5fb-e7853c4a0cea
+    :setup: Standalone instance
+    :steps:
+        1. Enable Retro Changelog and Content Sync plugins
+        2. Complete an initial refresh under ou=people
+        3. Add an entry in scope and refresh so it is known to the consumer
+        4. MODRDN the entry out of scope, then delete it, without an
+           intervening sync
+        5. Refresh with the cookie from step 3
+    :expectedresults:
+        1. Success
+        2. Success
+        3. The add is reported as a single present entry
+        4. Success
+        5. The combined window is reported as a single delete
+    """
+    st = topology.standalone
+    rcl = RetroChangelogPlugin(st)
+    rcl.enable()
+    rcl.replace('nsslapd-attribute', 'nsuniqueid:targetUniqueId')
+    csp = ContentSyncPlugin(st)
+    csp.enable()
+    st.restart()
+
+    sync = ISyncRepl(st)
+    sync.syncrepl_search(base=OU_PEOPLE)
+    sync.syncrepl_complete()
+
+    account = nsUserAccounts(st, DEFAULT_SUFFIX).create_test_user(uid=303545)
+    sync.syncrepl_search(base=OU_PEOPLE)
+    sync.syncrepl_complete()
+    sync.check_cookie()
+    assert 1 == len(sync.entries.keys())
+    assert 1 == len(sync.present)
+    assert 0 == len(sync.delete)
+
+    account.rename('uid=test_user_303545', newsuperior=DEFAULT_SUFFIX)
+    account.delete()
+
+    sync.syncrepl_search(base=OU_PEOPLE)
+    sync.syncrepl_complete()
+    sync.check_cookie()
+    assert 0 == len(sync.entries.keys())
+    assert 0 == len(sync.present)
+    assert 1 == len(sync.delete)
+
 
 class TestSyncer(ReconnectLDAPObject, SyncreplConsumer):
     def __init__(self, *args, **kwargs):
