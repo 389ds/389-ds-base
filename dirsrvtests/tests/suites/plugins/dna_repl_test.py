@@ -14,8 +14,9 @@ import ldap
 from lib389.tasks import *
 from lib389.utils import *
 from test389.topologies import topology_m4 as topo_m4
+from test389.topologies import topology_m3 as topo_m3
 from test389.topologies import topology_m2 as topo_m2
-from lib389.idm.user import UserAccount
+from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.replica import ReplicationManager
 from lib389.plugins import DNAPlugin, DNAPluginConfigs, DNAPluginSharedConfigs
@@ -874,6 +875,215 @@ def test_dna_shared_config_bind_attrs_after_restart(topo_m2, dna_exhausted_range
             f"Shared config entry for port {supplier.port} not found after restart on {supplier}"
         )
         _assert_shared_cfg_remote_bind(shared_cfg)
+
+
+@pytest.fixture(scope="function")
+def dna_range_transfer_setup(topo_m3, request):
+    """Setup DNA on three suppliers; supplier1 and supplier2 have small
+    ranges while supplier3 has the largest number of free values, so a
+    range transfer from supplier1 should be negotiated with supplier3
+    """
+
+    suppliers = [
+        topo_m3.ms["supplier1"],
+        topo_m3.ms["supplier2"],
+        topo_m3.ms["supplier3"]
+    ]
+
+    range_configs = [
+        {'next': '100', 'max': '110', 'remaining': '11'},
+        {'next': '200', 'max': '210', 'remaining': '11'},
+        {'next': '300', 'max': '3300', 'remaining': '3000'},
+    ]
+
+    created_objects = {'dna_configs': [], 'shared_configs': []}
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    m1 = suppliers[0]
+    ous = OrganizationalUnits(m1, DEFAULT_SUFFIX)
+    if not ous.exists('dna_transfer_ranges'):
+        ous.create(properties={'ou': 'dna_transfer_ranges'})
+    ou_ranges = ous.get('dna_transfer_ranges')
+
+    if not ous.exists('people'):
+        ous.create(properties={'ou': 'people'})
+
+    time.sleep(1)
+    for supplier in suppliers[1:]:
+        repl.wait_for_replication(m1, supplier)
+
+    shared_configs = DNAPluginSharedConfigs(m1, ou_ranges.dn)
+    for idx, supplier in enumerate(suppliers):
+        cfg = range_configs[idx]
+
+        shared_cfg = shared_configs.create(properties={
+            'dnaHostname': supplier.host,
+            'dnaPortNum': str(supplier.port),
+            'dnaRemainingValues': cfg['remaining'],
+            'dnaRemoteBindMethod': 'SIMPLE',
+            'dnaRemoteConnProtocol': 'LDAP'
+        })
+        created_objects['shared_configs'].append(shared_cfg)
+
+    time.sleep(2)
+    for supplier in suppliers[1:]:
+        repl.wait_for_replication(m1, supplier)
+
+    for idx, supplier in enumerate(suppliers):
+        cfg = range_configs[idx]
+
+        dna_plugin = DNAPlugin(supplier)
+        local_ous = OrganizationalUnits(supplier, DEFAULT_SUFFIX)
+        local_ou_ranges = local_ous.get('dna_transfer_ranges')
+
+        configs = DNAPluginConfigs(supplier, dna_plugin.dn)
+
+        if configs.exists('description transfer config'):
+            configs.get('description transfer config').delete()
+
+        dna_config = configs.create(properties={
+            'cn': 'description transfer config',
+            'dnaType': 'description',
+            'dnaNextValue': cfg['next'],
+            'dnaMaxValue': cfg['max'],
+            'dnaMagicRegen': '-1',
+            'dnaFilter': '(objectclass=posixAccount)',
+            'dnaScope': f'ou=people,{DEFAULT_SUFFIX}',
+            'dnaSharedCfgDN': local_ou_ranges.dn,
+            'dnaRemoteBindDN': DN_DM,
+            'dnaRemoteBindCred': PASSWORD
+        })
+        created_objects['dna_configs'].append((supplier, dna_config))
+
+        dna_plugin.enable()
+
+    for supplier in suppliers:
+        supplier.restart()
+
+    time.sleep(3)
+    for supplier in suppliers[1:]:
+        repl.wait_for_replication(m1, supplier)
+
+    def fin():
+        for supplier, config in created_objects['dna_configs']:
+            if config.exists():
+                config.delete()
+
+        for supplier in suppliers:
+            DNAPlugin(supplier).disable()
+
+        for shared_cfg in created_objects['shared_configs']:
+            if shared_cfg.exists():
+                shared_cfg.delete()
+
+        for supplier in suppliers:
+            supplier.restart()
+
+    request.addfinalizer(fin)
+
+    return {
+        'suppliers': suppliers,
+        'range_configs': range_configs,
+    }
+
+
+def test_dna_range_transfer_selects_peer_with_most_values(topo_m3, dna_range_transfer_setup, request):
+    """Test that DNA range transfer is negotiated with the peer that has
+    the most free values when a supplier exhausts its range
+
+    :id: 3d097a10-b4d3-475e-be42-41586a76c997
+    :setup: Three suppliers with the DNA plugin configured; supplier1 and
+            supplier2 have small ranges (11 values each) while supplier3
+            has the largest number of free values (3000)
+    :steps:
+        1. Wait for the DNA shared config update event to fire
+        2. Create 10 users on supplier1 that exhaust most of its range
+        3. Verify the assigned description values are in supplier1's range
+        4. Wait for the range transfer to be negotiated
+        5. Create 10 more users on supplier1
+        6. Verify the new description values come from supplier3's range
+        7. Verify all assigned values are unique
+    :expectedresults:
+        1. Success
+        2. Success
+        3. The values are in the range 100-110
+        4. Success
+        5. Success
+        6. The new values are in supplier3's range 300-3300 - supplier3 has
+           the most free values so the transfer must be negotiated with it
+           and not with supplier2. The last value of supplier1's own range
+           may still be used before the transferred values
+        7. No duplicate values
+    """
+
+    suppliers = dna_range_transfer_setup['suppliers']
+    m1 = suppliers[0]
+    created_users = []
+
+    def fin():
+        for user in created_users:
+            if user.exists():
+                user.delete()
+
+    request.addfinalizer(fin)
+
+    users = UserAccounts(m1, DEFAULT_SUFFIX, rdn='ou=people')
+
+    log.info('Waiting for the DNA shared config update event to fire')
+    time.sleep(60)
+
+    log.info('Creating 10 users on supplier1 to exhaust its range')
+    initial_values = []
+    for i in range(10):
+        user = users.create(properties={
+            'uid': f'dna_transfer_{i}',
+            'cn': f'DNA Transfer User {i}',
+            'sn': f'User{i}',
+            'uidNumber': '1',
+            'gidNumber': '1',
+            'homeDirectory': f'/home/dna_transfer_{i}',
+            'description': '-1'
+        })
+        created_users.append(user)
+        initial_values.append(int(user.get_attr_val_utf8('description')))
+
+    log.info(f'Initial description values: {sorted(initial_values)}')
+    for value in initial_values:
+        assert 100 <= value <= 110, f'description value {value} not in supplier1 range 100-110'
+
+    log.info('Waiting for the range transfer to be negotiated')
+    time.sleep(10)
+
+    log.info('Creating 10 more users on supplier1 after the range was exhausted')
+    transferred_values = []
+    for i in range(10, 20):
+        user = users.create(properties={
+            'uid': f'dna_transfer_{i}',
+            'cn': f'DNA Transfer User {i}',
+            'sn': f'User{i}',
+            'uidNumber': '1',
+            'gidNumber': '1',
+            'homeDirectory': f'/home/dna_transfer_{i}',
+            'description': '-1'
+        })
+        created_users.append(user)
+        transferred_values.append(int(user.get_attr_val_utf8('description')))
+
+    log.info(f'Transferred description values: {sorted(transferred_values)}')
+    for value in transferred_values:
+        assert not 200 <= value <= 210, (
+            f'description value {value} must not come from supplier2 range 200-210'
+        )
+        if value > 110:
+            assert 300 <= value <= 3300, (
+                f'description value {value} not transferred from supplier3 range 300-3300'
+            )
+    assert any(value > 110 for value in transferred_values), (
+        f'No description value was transferred from supplier3 range: {transferred_values}'
+    )
+
+    all_values = initial_values + transferred_values
+    assert len(set(all_values)) == len(all_values), f'Duplicate description values: {all_values}'
 
 
 if __name__ == '__main__':
