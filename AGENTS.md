@@ -75,6 +75,8 @@ CI-exact commands and known silent-failure traps.
 
 ## Guardrails
 
+- Draft GitHub issues, pull requests, reviews and comments locally. The
+  contributor checks and posts them. See the [AI contribution policy](AI_POLICY.md#submissions-and-reviews).
 - Only a Linux build/test environment proves a server-side change works. Verify
   through the environment's 389-ds-base build/test skill when one exists (the
   verify-changes skill routes this); with no such skill, run only the static

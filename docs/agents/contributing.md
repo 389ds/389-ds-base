@@ -33,7 +33,8 @@ for test-only or documentation-only commits. Always use the full issue URL,
 not just `#NNNN`, so the reference remains useful in `git log` outside GitHub.
 See [GitHub's closing keyword rules](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue).
 
-Do not add AI attribution trailers.
+Do not add AI attribution trailers. See the
+[AI contribution policy](../../AI_POLICY.md#disclosing-ai-use) for disclosure instructions.
 
 `Signed-off-by:` (DCO) is not the convention in this repo — do not add it.
 
@@ -102,17 +103,17 @@ vermin Python-version floor ([building.md](building.md)).
 
 ## Pull requests
 
-- Target `main`.
+- Prepare the PR title and body for the contributor to submit against `main`.
 - Treat agent references as part of the implementation: if code, CI, or an
   interface changes behavior described under `docs/agents/` or
   `.agents/skills/`, update every affected guide or skill in the same change.
   Keep technical claims checkable with `path (symbol)` citations.
 - Every bugfix carries a regression test and every feature carries tests —
   see [testing.md](testing.md).
-- The repo squash-merges. Keep one logical commit per PR: amend and
-  force-push instead of stacking fixup commits.
-- Report security issues through GitHub security advisories, never public
-  issues.
-- Verify the change before pushing via the verify-changes skill
-  (`.agents/skills/verify-changes/SKILL.md`) — it routes through the
-  environment's build/test skill and never builds on an unprepared host.
+- The repo squash-merges. Keep one logical commit per PR by amending the
+  local commit as needed.
+- Contributors report suspected vulnerabilities privately through GitHub
+  security advisories.
+- Before handing off the change, follow the
+  [verification steps](../../.agents/skills/verify-changes/SKILL.md) for the
+  files you touched.

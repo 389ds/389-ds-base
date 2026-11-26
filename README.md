@@ -45,8 +45,10 @@ To debug the make check item's, you'll need libtool to help:
 
     libtool --mode=execute gdb /home/william/build/ds/test_slapd
 
-More information
-----------------
+Contributing
+------------
 
-Please see our [contributing guide](https://www.port389.org/docs/389ds/contributing.html).
+* [Full contributor guide on port389](https://www.port389.org/docs/389ds/contributing.html)
+* [Guidelines for issues and pull requests](CONTRIBUTING.md)
+* [AI contribution policy](AI_POLICY.md)
 
