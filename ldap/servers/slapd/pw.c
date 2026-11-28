@@ -1246,9 +1246,9 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                    first char of the password, no need to check */
                 if (pwd != p) {
                     int len = ldap_utf8len(p);
-                    char *prev_p = ldap_utf8prev(p);
+                    char *prev_p = ldap_utf8prev_safe(p, pwd);
 
-                    if (len == ldap_utf8len(prev_p)) {
+                    if (prev_p && len == ldap_utf8len(prev_p)) {
                         if (memcmp(p, prev_p, len) == 0) {
                             num_repeated++;
                             if (max_repeated < num_repeated) {
