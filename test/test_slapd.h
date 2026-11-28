@@ -75,6 +75,9 @@ void test_libslapd_csngen_time_backwards(void **state);
 void test_libslapd_csngen_multiple_clock_failures(void **state);
 void test_libslapd_csngen_seqnum_handling(void **state);
 
+/* libslapd-utf8 */
+void test_libslapd_utf8_prev_safe(void **state);
+
 #ifdef ENABLE_HIBP
 /* libslapd-hibp */
 void test_hibp_sha1_hex(void **state);

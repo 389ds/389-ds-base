@@ -7720,6 +7720,8 @@ int ldap_utf8len(const char *);
 char *ldap_utf8next(char *);
 /* find previous character */
 char *ldap_utf8prev(char *);
+/* find previous character, never reading below head; NULL at head */
+char *ldap_utf8prev_safe(char *s, char *head);
 /* find n-th character */
 char *ldap_utf8nextn(char *s, int n);
 /* find n-th previous character from "from" */

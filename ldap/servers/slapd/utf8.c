@@ -114,6 +114,40 @@ ldap_utf8prev(char *s)
 }
 
 /*
+ * Like ldap_utf8prev(), but never reads below 'head', the start of the
+ * string 's' points into.
+ *
+ * ldap_utf8prev() always reads the byte before its argument and then keeps
+ * walking back over UTF-8 continuation bytes, so called near the start of a
+ * value it can read before the buffer, for example when the value begins
+ * with a stray continuation byte.
+ *
+ * Return the character preceding 's', or NULL when 's' is at 'head' and
+ * there is no preceding character.
+ */
+char *
+ldap_utf8prev_safe(char *s, char *head)
+{
+    unsigned char *prev = (unsigned char *)s;
+    unsigned char *floor = (unsigned char *)head;
+    unsigned char *limit;
+
+    if (s == NULL || head == NULL || prev <= floor) {
+        return NULL;
+    }
+    /*
+     * Keep the six-byte bound of ldap_utf8prev(), but clamp it to head
+     * without forming a pointer below the value: prev - 6 is undefined
+     * behaviour when fewer than six bytes precede 's'.
+     */
+    limit = ((prev - floor) > 6) ? prev - 6 : floor;
+    while ((--prev > floor) && ((*prev & 0xC0) == 0x80) && (prev != limit)) {
+        ;
+    }
+    return (char *)prev;
+}
+
+/*
  * Return a pointer to the n-th character following *s.
  * Handle any valid UTF-8 character, including '\0' and ASCII.
  * Try to handle a misaligned pointer or a malformed character.

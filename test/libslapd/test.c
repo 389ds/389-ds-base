@@ -52,6 +52,8 @@ run_libslapd_tests(void)
         cmocka_unit_test(test_libslapd_csngen_time_backwards),
         cmocka_unit_test(test_libslapd_csngen_multiple_clock_failures),
         cmocka_unit_test(test_libslapd_csngen_seqnum_handling),
+        /* UTF-8 helpers */
+        cmocka_unit_test(test_libslapd_utf8_prev_safe),
 #ifdef ENABLE_HIBP
         /* HIBP password breach checking tests */
         cmocka_unit_test(test_hibp_sha1_hex),
