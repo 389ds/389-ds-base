@@ -1902,6 +1902,7 @@ typedef struct passwordpolicyarray
     Slapi_DN *pw_admin;
     Slapi_DN **pw_admin_user;
     slapi_onoff_t pw_admin_skip_info;  /* Skip updating password information in target entry */
+    char *pw_local_dn; /* DN of the subtree/user policy */
 } passwdPolicy;
 
 void pwpolicy_init_defaults (passwdPolicy *pw_policy);
