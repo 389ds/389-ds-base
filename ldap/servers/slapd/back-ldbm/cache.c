@@ -1408,6 +1408,73 @@ cache_remove(struct cache *cache, void *ptr)
     return ret;
 }
 
+/*
+ * cache_is_in_cache() ignores NOTINCACHE; tentative adds (CREATING) may be dn-hash
+ * only until cache_replace() links the staging backentry into the id table.
+ */
+int
+cache_backentry_staged(struct cache *cache, struct backentry *e)
+{
+    struct backentry *found = NULL;
+
+    if (cache_is_in_cache(cache, e) || (e->ep_state & ENTRY_STATE_CREATING)) {
+        return 1;
+    }
+    cache_lock(cache);
+    if (find_hash(cache->c_idtable, &e->ep_id, sizeof(e->ep_id), (void **)&found) &&
+        found == e) {
+        cache_unlock(cache);
+        return 1;
+    }
+    cache_unlock(cache);
+    return 0;
+}
+
+/*
+ * Remove a modrdn/add staging backentry from the cache hashes.  Clears CREATING
+ * when this entry owns the id slot so entrycache_remove_int() drops the id hash.
+ */
+void
+cache_remove_staging_backentry(struct cache *cache, struct backentry *e)
+{
+    struct backentry *found = NULL;
+
+    e->ep_state &= ~ENTRY_STATE_NOTINCACHE;
+    cache_lock(cache);
+    if (find_hash(cache->c_idtable, &e->ep_id, sizeof(e->ep_id), (void **)&found) &&
+        found == e) {
+        e->ep_state &= ~ENTRY_STATE_CREATING;
+    }
+    cache_unlock(cache);
+    CACHE_REMOVE(cache, e);
+}
+
+/*
+ * cache_replace() dropped olde from the hashes and marked it DELETED without
+ * changing ep_refcnt.  CACHE_ADD resets ep_refcnt to 1, so restore any higher
+ * count held by concurrent readers.
+ */
+int
+cache_readd_deleted_backentry(struct cache *cache, struct backentry *e)
+{
+    int32_t saved_refcnt = e->ep_refcnt;
+    int rc;
+
+    e->ep_state &= ~(ENTRY_STATE_DELETED | ENTRY_STATE_UNAVAILABLE);
+    rc = CACHE_ADD(cache, e, NULL);
+    if (rc < 0) {
+        return rc;
+    }
+    if (saved_refcnt > e->ep_refcnt) {
+        cache_lock(cache);
+        if (saved_refcnt > e->ep_refcnt) {
+            e->ep_refcnt = saved_refcnt;
+        }
+        cache_unlock(cache);
+    }
+    return 0;
+}
+
 /* replace an entry in the cache.
  * returns:       0 on success
  *                1 if the entry wasn't in the cache
@@ -1576,7 +1643,16 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
     }
 #endif
     /* adjust cache meta info */
-    newe->ep_refcnt++;
+    /*
+     * Hand the caller a transient reference only when the new entry is not
+     * already held in the cache (cache_add_tentative / CACHE_ADD).  On a
+     * same-DN modrdn, cache_add_tentative fails and id2entry may leave refcnt
+     * at 0; an unconditional bump here left refcnt at 1 after CACHE_RETURN and
+     * the backentry was leaked when the hash tables were torn down.
+     */
+    if (newe->ep_refcnt == 0) {
+        newe->ep_refcnt++;
+    }
     newe->ep_size = entry_size;
     if (newe->ep_size > olde->ep_size) {
         cache->c_stats.size += newe->ep_size - olde->ep_size;
@@ -1584,6 +1660,7 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
         cache->c_stats.size -= olde->ep_size - newe->ep_size;
     }
     newe->ep_state &= ~ENTRY_STATE_UNAVAILABLE;
+    newe->ep_state &= ~(ENTRY_STATE_NOTINCACHE | ENTRY_STATE_CREATING);
     cache_unlock(cache);
     LOG("<= entrycache_replace OK,  cache size now %lu cache count now %ld\n",
         cache->c_stats.size, cache->c_stats.nentries);

@@ -86,6 +86,10 @@ backentry_dup(struct backentry *e)
     ec = (struct backentry *)slapi_ch_calloc(1, sizeof(struct backentry));
     ec->ep_id = e->ep_id;
     ec->ep_entry = slapi_entry_dup(e->ep_entry);
+    if (ec->ep_entry == NULL) {
+        slapi_ch_free((void **)&ec);
+        return NULL;
+    }
     ec->ep_state = ENTRY_STATE_NOTINCACHE;
     ec->ep_type = CACHE_TYPE_ENTRY;
 #ifdef LDAP_CACHE_DEBUG

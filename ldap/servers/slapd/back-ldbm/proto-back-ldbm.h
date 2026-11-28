@@ -61,6 +61,9 @@ void cache_unlock_entry(struct cache *cache, struct backentry *e);
 int cache_replace(struct cache *cache, void *oldptr, void *newptr);
 int cache_has_otherref(struct cache *cache, void *bep);
 int cache_is_in_cache(struct cache *cache, void *ptr);
+int cache_backentry_staged(struct cache *cache, struct backentry *e);
+void cache_remove_staging_backentry(struct cache *cache, struct backentry *e);
+int cache_readd_deleted_backentry(struct cache *cache, struct backentry *e);
 void revert_cache(ldbm_instance *inst, struct timespec *start_time);
 int cache_is_reverted_entry(struct cache *cache, struct backentry *e);
 
