@@ -1,20 +1,15 @@
 ---
 name: commit-and-pr
 description: >-
-  Commit and open a PR the 389-ds-base way — "Issue NNNN - summary" subject,
-  Bug Description/Fix Description body, issue and review trailers, branch
-  names, and squash-merge etiquette. Use for ANY commit, amend, or pull
-  request in this repo. Also guards the repo's working-tree traps — *.patch
-  files are gitignored and vanish from git status, CLAUDE.md/GEMINI.md are
-  symlinks that must never be replaced with regular files, and generated files
-  must never be committed. Triggers: "commit this", "git commit", "amend",
-  "open a PR", "create a pull request", "push this", "commit message".
+  Prepare a local commit and draft a pull request for the contributor.
+  Covers branch names, issue references, commit messages and squash merges.
+  Use when committing, amending or preparing a PR.
 ---
 
-# Commit and PR, the 389-ds-base way
+# Preparing a commit and pull request
 
-This repo squash-merges PRs, links every commit to a GitHub issue, and carries
-working-tree traps that silently eat files. Follow the steps in order.
+Most commits need a GitHub issue number. You can look up an existing issue
+and draft text locally. The contributor opens the issue or pull request.
 
 ## Steps
 
@@ -45,11 +40,13 @@ working-tree traps that silently eat files. Follow the steps in order.
    - Verify: `git ls-files -s AGENTS.md CLAUDE.md GEMINI.md` shows mode
      `120000` for the latter two.
 
-4. **Subject line**: `Issue <number> - <summary>` — capital I, spaced hyphen.
+4. **Default subject line**: `Issue <number> - <summary>` — capital I, spaced hyphen.
    - **Never append a `(#N)` suffix — GitHub adds the PR number itself at
      squash-merge.**
-   - **STOP if no GitHub issue exists**: create one first; the subject needs
-     its number.
+   - If no matching issue exists, check the
+     [issue exceptions](../../../docs/agents/contributing.md#commit-message-format).
+     If an issue is required, ask the contributor to open one and share
+     its number before committing. You can draft the issue text for them.
 
 5. **Body**: `Bug Description:` and `Fix Description:` paragraphs of wrapped
    prose (a single `Description:` is fine for simple or test-only changes):
@@ -70,10 +67,11 @@ working-tree traps that silently eat files. Follow the steps in order.
 6. **Trailers**:
    - Separate the trailer block from the body with a blank line and put
      each trailer on its own line, using standard Git trailer syntax.
+   - Omit `Fixes:` and `Relates:` if there is no GitHub issue to link.
    - `Fixes: <full GitHub issue URL>` when the commit fully resolves the
      issue, so GitHub closes it when the commit reaches the default branch.
-     Use `Relates: <full GitHub issue URL>` for related or partial work that
-     leaves the issue open; it does not close the issue. Choose by outcome,
+     Use `Relates: <full GitHub issue URL>` for related or partial work;
+     it does not close the issue. Choose by outcome,
      including for test-only or documentation-only commits.
    - Always use full issue URLs, not bare `#NNNN` references, so the links
      remain useful in `git log` outside GitHub.
@@ -88,10 +86,11 @@ working-tree traps that silently eat files. Follow the steps in order.
    the canonical copyright header for their filetype — per-filetype table in
    docs/agents/contributing.md.
 
-8. **Open the PR** with title = commit subject and body = commit body:
-   `gh pr create` against `main`.
-   - Verify: the PR title carries no `(#N)` suffix, and the body kept the
-     Bug/Fix Description sections and the issue trailer.
+8. **Prepare the PR draft for the contributor.** Use the commit subject as
+   the title and the commit body as the starting point for the description.
+   Include any [AI disclosure](../../../AI_POLICY.md#disclosing-ai-use) in
+   the draft. Give the contributor the branch name and draft for a PR
+   against `main` by default.
 
 ## Maintenance
 If a step no longer matches the code or CI, update this skill in the same PR as the change that moved it.

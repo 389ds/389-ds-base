@@ -15,6 +15,18 @@ Subject: `Issue NNNN - short summary` — the GitHub issue number, a spaced
 hyphen, then the summary. Never type a `(#PR)` suffix: GitHub appends it at
 squash-merge, and the PR number does not exist when you commit.
 
+A separate issue is not required in these cases:
+
+- **Security advisories.** Use the GHSA ID or assigned CVE in the subject.
+  Keep embargoed work in the private advisory workflow until coordinated disclosure.
+- **Release version bumps and dependency updates from project-configured bots.**
+  Keep the usual version-bump or bot-generated subject.
+- For a backport, reference the original issue, advisory, or PR.
+- **Reverts.** Cite the original issue, advisory, PR or commit in the subject or body.
+  Track any separate bug in its own issue.
+- **Obvious typos and broken links.** If no issue tracks the correction, a
+  descriptive subject is enough.
+
 Body: a `Bug Description:` paragraph (what is broken and why) followed by a
 `Fix Description:` paragraph (what the change does). A simple change may use a
 single `Description:` paragraph instead.
@@ -25,15 +37,17 @@ each on its own line after a blank line separating them from the body:
 | Trailer | Rule |
 |---|---|
 | `Fixes: <full issue URL>` | use when the commit fully resolves the issue; GitHub closes it when the commit reaches the default branch |
-| `Relates: <full issue URL>` | use for related or partial work that leaves the issue open; this is not a GitHub closing keyword |
+| `Relates: <full issue URL>` | use for related or partial work; this is not a GitHub closing keyword |
 | `Reviewed-by: Name <email>` | reviewers or maintainers add this at merge time for a completed human review, using the reviewer's actual name and email; never invent review credit or add placeholders |
 
-Choose `Fixes:` or `Relates:` by whether the issue is resolved, including
+Omit `Fixes:` and `Relates:` if there is no GitHub issue to link.
+Choose `Fixes:` or `Relates:` by whether the commit resolves the issue, including
 for test-only or documentation-only commits. Always use the full issue URL,
 not just `#NNNN`, so the reference remains useful in `git log` outside GitHub.
 See [GitHub's closing keyword rules](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue).
 
-Do not add AI attribution trailers.
+Do not add AI attribution trailers. See the
+[AI contribution policy](../../AI_POLICY.md#disclosing-ai-use) for disclosure instructions.
 
 `Signed-off-by:` (DCO) is not the convention in this repo — do not add it.
 
@@ -102,17 +116,17 @@ vermin Python-version floor ([building.md](building.md)).
 
 ## Pull requests
 
-- Target `main`.
+- Prepare the PR title and body for the contributor to submit against `main` by default.
 - Treat agent references as part of the implementation: if code, CI, or an
   interface changes behavior described under `docs/agents/` or
   `.agents/skills/`, update every affected guide or skill in the same change.
   Keep technical claims checkable with `path (symbol)` citations.
 - Every bugfix carries a regression test and every feature carries tests —
   see [testing.md](testing.md).
-- The repo squash-merges. Keep one logical commit per PR: amend and
-  force-push instead of stacking fixup commits.
-- Report security issues through GitHub security advisories, never public
-  issues.
-- Verify the change before pushing via the verify-changes skill
-  (`.agents/skills/verify-changes/SKILL.md`) — it routes through the
-  environment's build/test skill and never builds on an unprepared host.
+- The repo squash-merges. Keep one logical commit per PR by amending the
+  local commit as needed.
+- Contributors report suspected vulnerabilities privately through GitHub
+  security advisories.
+- Before handing off the change, follow the
+  [verification steps](../../.agents/skills/verify-changes/SKILL.md) for the
+  files you touched.
