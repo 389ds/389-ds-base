@@ -665,6 +665,15 @@ parse_req_done:
         goto free_and_return;
     }
 
+    /* The rootdn has no directory entry — reject with a clear error rather
+       than the misleading NO_SUCH_OBJECT that the entry search would produce.
+       Use ldapmodify over ldapi or update cn=config directly instead. */
+    if (slapi_sdn_isroot(target_sdn)) {
+        errMesg = "Password Modify extended operation cannot be performed";
+        rc = LDAP_UNWILLING_TO_PERFORM;
+        goto free_and_return;
+    }
+
     if (oldPasswd == NULL || *oldPasswd == '\0') {
         /* If user is authenticated, they already gave their password during
          * the bind operation (or used sasl or client cert auth or OS creds) */
