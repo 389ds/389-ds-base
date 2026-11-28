@@ -328,8 +328,32 @@ entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, 
 
         /* Check if the RDN value exists */
         if ((attr == NULL) || (slapi_attr_value_find(attr, &bv))) {
-            const CSN *csn_rdn_add;
-            const CSN *adcsn = (attr == NULL) ? NULL : attr_get_deletion_csn(attr);
+            const CSN *csn_rdn_add = NULL;
+            const CSN *adcsn = NULL;
+            const CSN *vdcsn = NULL;
+            Slapi_Attr *wsi_attr = attr;
+            CSN csn_rdn_add_buf;
+
+            if (wsi_attr == NULL) {
+                /* The attribute has no present value but it may still be on
+                 * the deleted attribute list with a deletion CSN more recent
+                 * than the operation CSN.
+                 */
+                if (entry_attr_find_wsi(entry, attrtype, &wsi_attr) != ATTRIBUTE_DELETED) {
+                    wsi_attr = NULL;
+                }
+            }
+            if (wsi_attr != NULL) {
+                Slapi_Value *deleted_value = NULL;
+
+                adcsn = attr_get_deletion_csn(wsi_attr);
+                /* The RDN value itself may be on the deleted value list with
+                 * a deletion CSN more recent than the attribute deletion CSN.
+                 */
+                if (attr_value_find_wsi(wsi_attr, &bv, &deleted_value) == VALUE_DELETED) {
+                    vdcsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_DELETED);
+                }
+            }
 
             /* It is missing => adds it */
             if (attr != NULL && slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_SINGLE)) {
@@ -349,9 +373,18 @@ entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, 
                     continue;
                 }
             }
-            /* if a RDN value needs to be forced, make sure it csn is ahead */
+            /* if a RDN value needs to be forced, make sure its csn is ahead
+             * of both the attribute and the value deletion csn otherwise the
+             * restored value would be deleted again.
+             * The csn is copied because vdcsn belongs to the deleted value
+             * csnset that is released when the value is restored.
+             */
             slapi_mods_add_modbvps(smods, LDAP_MOD_ADD, attrtype, bvp);
-            csn_rdn_add = csn_max(adcsn, csn);
+            csn_rdn_add = csn_max(csn_max(adcsn, vdcsn), csn);
+            if (csn_rdn_add != NULL) {
+                csn_rdn_add_buf = *csn_rdn_add;
+                csn_rdn_add = &csn_rdn_add_buf;
+            }
 
             if (entry_apply_mods_wsi(entry, smods, csn_rdn_add, repl_op)) {
                 slapi_log_err(SLAPI_LOG_ERR, "entry_get_rdn_mods",
