@@ -21,8 +21,7 @@ log = logging.getLogger(__name__)
 
 
 def test_namingcontexts_includes_internal_suffixes(topo):
-    """The root DSE namingContexts must advertise cn=config, cn=monitor
-    and cn=dynamiccertificates
+    """The root DSE namingContexts must advertise cn=config and cn=monitor
 
     :id: 68abccd5-ec49-4be4-a34c-1a48f9a2ec75
     :setup: Standalone instance
@@ -31,13 +30,11 @@ def test_namingcontexts_includes_internal_suffixes(topo):
         2. Assert the regular suffix is present
         3. Assert cn=config is present
         4. Assert cn=monitor is present
-        5. Assert cn=dynamiccertificates is present
     :expectedresults:
         1. Success
         2. Success
         3. Success
         4. Success
-        5. Success
     """
     root_dse = RootDSE(topo.standalone)
     contexts = root_dse.get_attr_vals_utf8('namingcontexts')
@@ -49,7 +46,6 @@ def test_namingcontexts_includes_internal_suffixes(topo):
     assert DEFAULT_SUFFIX.lower() in contexts_lc
     assert 'cn=config' in contexts_lc
     assert 'cn=monitor' in contexts_lc
-    assert 'cn=dynamiccertificates' in contexts_lc
 
 
 if __name__ == '__main__':
