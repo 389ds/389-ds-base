@@ -284,8 +284,9 @@ bdb_import_task_destroy(Slapi_Task *task)
         return;
     }
 
-    while (task->task_state == SLAPI_TASK_RUNNING) {
-        /* wait for the job to finish before freeing it */
+    while (task->task_state == SLAPI_TASK_RUNNING ||
+           slapi_task_get_refcount(task) > 0) {
+        /* Wait for task completion and the import thread's final cleanup. */
         DS_Sleep(PR_SecondsToInterval(1));
     }
     if (job->task_status) {
@@ -2118,10 +2119,6 @@ bdb_import_all_done(ImportJob *job, int ret)
             slapi_ch_free_string(&inst_dirp);
     }
 
-    if ((job->task != NULL) && (0 == slapi_task_get_refcount(job->task))) {
-        slapi_task_finish(job->task, ret);
-    }
-
     if (job->flags & FLAG_ONLINE) {
         /* make sure the indexes are online as well */
         /* richm 20070919 - if index entries are added online, they
@@ -2138,9 +2135,9 @@ bdb_import_all_done(ImportJob *job, int ret)
             index = index->next;
         }
         /* start up the instance */
-        ret = bdb_instance_start(job->inst->inst_be, DBLAYER_NORMAL_MODE);
-        if (ret != 0)
-            return ret;
+        int rc = bdb_instance_start(job->inst->inst_be, DBLAYER_NORMAL_MODE);
+        if (rc != 0)
+            return rc;
 
         /* Reset USN slapi_counter with the last key of the entryUSN index */
         ldbm_set_last_usn(inst->inst_be);
@@ -2159,7 +2156,10 @@ bdb_public_bdb_import_main(void *arg)
     ImportJob *job = (ImportJob *)arg;
     ldbm_instance *inst = job->inst;
     backend *be = inst->inst_be;
+    Slapi_Task *task = job->task;
     int ret = 0;
+    /* Keep legacy return-value warning bits out of the task exit code. */
+    int task_ret = 0;
     time_t beginning = 0;
     time_t end = 0;
     int finished = 0;
@@ -2486,8 +2486,61 @@ error:
             bdb_import_backup_discard(be);
         }
     }
+    if (job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1)) {
+        if (0 == ret) {
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "%s complete.  %s is up-to-date.",
+                              opstr, job->inst->inst_name);
+            ret = 0;
+            task_ret = ret = bdb_import_all_done(job, ret);
+        } else if (NEED_DN_NORM_BT == ret) {
+            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
+                              "%s complete. %s needs upgradednformat all.",
+                              opstr, job->inst->inst_name);
+            task_ret = ret = bdb_import_all_done(job, ret);
+            if (ret == NEED_DN_NORM_BT) {
+                ret |= WARN_UPGRADE_DN_FORMAT_ALL;
+            }
+        } else if (NEED_DN_NORM == ret) {
+            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
+                              "%s complete. %s needs upgradednformat.",
+                              opstr, job->inst->inst_name);
+            task_ret = ret = bdb_import_all_done(job, ret);
+            if (ret == NEED_DN_NORM) {
+                ret |= WARN_UPGRADE_DN_FORMAT;
+            }
+        } else if (NEED_DN_NORM_SP == ret) {
+            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
+                              "%s complete. %s needs upgradednformat spaces.",
+                              opstr, job->inst->inst_name);
+            task_ret = ret = bdb_import_all_done(job, ret);
+            if (ret == NEED_DN_NORM_SP) {
+                ret |= WARN_UPGRADE_DN_FORMAT_SPACE;
+            }
+        } else {
+            ret = -1;
+            task_ret = ret;
+        }
+    } else if (0 != ret) {
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main", "%s failed.", opstr);
+        task_ret = ret;
+    } else {
+        dblayer_private *priv = NULL;
+        struct ldbminfo *li = inst->inst_li;
+
+        task_ret = ret = bdb_import_all_done(job, ret);
+
+        /* Import is done, we need to autotune caches */
+        priv = (dblayer_private *)li->li_dblayer_private;
+        priv->dblayer_auto_tune_fn(li);
+    }
+
+    /* set task warning if there are no errors */
+    if((!ret) && (job->skipped)) {
+        ret |= WARN_SKIPPED_IMPORT_ENTRY;
+    }
+
     end = slapi_current_rel_time_t();
-    if (verbose && (0 == ret)) {
+    if (verbose && (0 == task_ret)) {
         int seconds_to_import = end - beginning;
         size_t entries_processed = job->lead_ID - (job->starting_ID - 1);
         double entries_per_second =
@@ -2533,81 +2586,24 @@ error:
         }
     }
 
-    if (job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1)) {
-        if (0 == ret) {
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "%s complete.  %s is up-to-date.",
-                              opstr, job->inst->inst_name);
-            ret = 0;
-            if (job->task) {
-                slapi_task_dec_refcount(job->task);
-            }
-            bdb_import_all_done(job, ret);
-        } else if (NEED_DN_NORM_BT == ret) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
-                              "%s complete. %s needs upgradednformat all.",
-                              opstr, job->inst->inst_name);
-            if (job->task) {
-                slapi_task_dec_refcount(job->task);
-            }
-            bdb_import_all_done(job, ret);
-            ret |= WARN_UPGRADE_DN_FORMAT_ALL;
-        } else if (NEED_DN_NORM == ret) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
-                              "%s complete. %s needs upgradednformat.",
-                              opstr, job->inst->inst_name);
-            if (job->task) {
-                slapi_task_dec_refcount(job->task);
-            }
-            bdb_import_all_done(job, ret);
-            ret |= WARN_UPGRADE_DN_FORMAT;
-        } else if (NEED_DN_NORM_SP == ret) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_public_bdb_import_main",
-                              "%s complete. %s needs upgradednformat spaces.",
-                              opstr, job->inst->inst_name);
-            if (job->task) {
-                slapi_task_dec_refcount(job->task);
-            }
-            bdb_import_all_done(job, ret);
-            ret |= WARN_UPGRADE_DN_FORMAT_SPACE;
-        } else {
-            ret = -1;
-            if (job->task != NULL) {
-                slapi_task_finish(job->task, ret);
-            }
-        }
-    } else if (0 != ret) {
-        import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main", "%s failed.", opstr);
-        if (job->task != NULL) {
-            slapi_task_finish(job->task, ret);
-        }
-    } else {
-        dblayer_private *priv = NULL;
-        struct ldbminfo *li = inst->inst_li;
-
-        if (job->task) {
-            slapi_task_dec_refcount(job->task);
-        }
-        bdb_import_all_done(job, ret);
-
-        /* Import is done, we need to autotune caches */
-        priv = (dblayer_private *)li->li_dblayer_private;
-        priv->dblayer_auto_tune_fn(li);
+    /* This must be the last use of inst: another task may now delete it. */
+    instance_set_not_busy(inst);
+    /* Publish completion only after backend restoration and busy release. */
+    if (task) {
+        slapi_task_finish(task, task_ret);
     }
-
-    /* set task warning if there are no errors */
-    if((!ret) && (job->skipped)) {
-        ret |= WARN_SKIPPED_IMPORT_ENTRY;
-    }
-
-    /* This instance isn't busy anymore */
-    instance_set_not_busy(job->inst);
 
     bdb_import_free_job(job);
-    if (!job->task) {
+    if (!task) {
         FREE(job);
     }
     if (producer)
         FREE(producer);
+
+    if (task) {
+        /* The destructor may free job and task after this final reference. */
+        slapi_task_dec_refcount(task);
+    }
 
     return (ret);
 }
@@ -2756,7 +2752,7 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
     ret = import_main_offline((void *)job);
 
     /* no error just warning, reset ret */
-    if(ret &= WARN_SKIPPED_IMPORT_ENTRY) {
+    if (ret == WARN_SKIPPED_IMPORT_ENTRY) {
         slapi_pblock_set_task_warning(pb, WARN_SKIPPED_IMPORT_ENTRY);
         ret = 0;
     }
