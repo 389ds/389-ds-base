@@ -9,6 +9,7 @@ If you use AI to prepare a contribution, read the [AI contribution policy](AI_PO
 
 Report suspected vulnerabilities privately through
 [GitHub security advisories](https://github.com/389ds/389-ds-base/security/advisories/new).
+Use the GHSA ID or assigned CVE for the fix and keep it private until coordinated disclosure.
 For other bugs and feature requests, search open and closed issues in the
 [issue tracker](https://github.com/389ds/389-ds-base/issues?q=is%3Aissue).
 If you don't find an existing report, use the
@@ -31,7 +32,7 @@ Only submit work you have the right to contribute under the applicable
 license. If you reuse material, identify its source and preserve its
 copyright and license notices. See [LICENSE](LICENSE).
 
-Target `main`, link the issue and keep each pull request focused on one
+Normally target `main`. Link the issue if there is one and keep each pull request focused on one
 change. Explain why you chose that approach. Include a regression test for
 a bug fix and tests for new behavior.
 
@@ -39,7 +40,7 @@ Tell reviewers what you ran, what passed or failed and which relevant checks
 you couldn't run. For example, if you changed how a `dsconf` option sets a
 server attribute, read the value back to confirm the server applied it.
 See the [testing guide](docs/agents/testing.md) and
-[commit conventions](docs/agents/contributing.md).
+[commit conventions and issue exceptions](docs/agents/contributing.md#commit-message-format).
 
 ## Reviewing contributions
 

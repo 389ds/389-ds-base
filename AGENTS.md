@@ -44,7 +44,7 @@ This file is an index. Before editing an area, read its guide in `docs/agents/`
 - **`.gitignore` ignores `*.patch`** — patch files vanish from `git status`.
 - **Branch names are a short issue description**, such as
   `fix-connection-timeout`; do not add `codex/` or similar prefixes.
-- **Commit subject is `Issue NNNN - summary`; never type a `(#PR)` suffix**
+- **Default commit subject is `Issue NNNN - summary`; never type a `(#PR)` suffix**
   (squash-merge appends it). Do not add AI attribution trailers. Review and
   issue trailer rules: [docs/agents/contributing.md](docs/agents/contributing.md).
 

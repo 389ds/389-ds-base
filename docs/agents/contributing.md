@@ -15,6 +15,18 @@ Subject: `Issue NNNN - short summary` — the GitHub issue number, a spaced
 hyphen, then the summary. Never type a `(#PR)` suffix: GitHub appends it at
 squash-merge, and the PR number does not exist when you commit.
 
+A separate issue is not required in these cases:
+
+- **Security advisories.** Use the GHSA ID or assigned CVE in the subject.
+  Keep embargoed work in the private advisory workflow until coordinated disclosure.
+- **Release version bumps and dependency updates from project-configured bots.**
+  Keep the usual version-bump or bot-generated subject.
+- For a backport, reference the original issue, advisory, or PR.
+- **Reverts.** Cite the original issue, advisory, PR or commit in the subject or body.
+  Track any separate bug in its own issue.
+- **Obvious typos and broken links.** If no issue tracks the correction, a
+  descriptive subject is enough.
+
 Body: a `Bug Description:` paragraph (what is broken and why) followed by a
 `Fix Description:` paragraph (what the change does). A simple change may use a
 single `Description:` paragraph instead.
@@ -25,10 +37,11 @@ each on its own line after a blank line separating them from the body:
 | Trailer | Rule |
 |---|---|
 | `Fixes: <full issue URL>` | use when the commit fully resolves the issue; GitHub closes it when the commit reaches the default branch |
-| `Relates: <full issue URL>` | use for related or partial work that leaves the issue open; this is not a GitHub closing keyword |
+| `Relates: <full issue URL>` | use for related or partial work; this is not a GitHub closing keyword |
 | `Reviewed-by: Name <email>` | reviewers or maintainers add this at merge time for a completed human review, using the reviewer's actual name and email; never invent review credit or add placeholders |
 
-Choose `Fixes:` or `Relates:` by whether the issue is resolved, including
+Omit `Fixes:` and `Relates:` if there is no GitHub issue to link.
+Choose `Fixes:` or `Relates:` by whether the commit resolves the issue, including
 for test-only or documentation-only commits. Always use the full issue URL,
 not just `#NNNN`, so the reference remains useful in `git log` outside GitHub.
 See [GitHub's closing keyword rules](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue).
@@ -103,7 +116,7 @@ vermin Python-version floor ([building.md](building.md)).
 
 ## Pull requests
 
-- Prepare the PR title and body for the contributor to submit against `main`.
+- Prepare the PR title and body for the contributor to submit against `main` by default.
 - Treat agent references as part of the implementation: if code, CI, or an
   interface changes behavior described under `docs/agents/` or
   `.agents/skills/`, update every affected guide or skill in the same change.
