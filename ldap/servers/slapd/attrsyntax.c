@@ -843,11 +843,11 @@ default_dirstring_normalize_int(char *s, int trim_spaces)
     if (prevspace && trim_spaces) {
         char *nd;
 
-        nd = ldap_utf8prev(d);
-        while (nd && nd >= head && ldap_utf8isspace(nd)) {
+        nd = ldap_utf8prev_safe(d, head);
+        while (nd && ldap_utf8isspace(nd)) {
             d = nd;
-            nd = ldap_utf8prev(d);
             *d = '\0';
+            nd = ldap_utf8prev_safe(d, head);
         }
     }
 }
